@@ -1,9 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
-
-#include <curl/curl.h>
-#include <yajl/yajl_tree.h>
+#include <string.h>
 #include <mpv/client.h>
+
+#include "shared.h"
+#include "network.h"
 
 //TODO add check that API version >= 1.23 (because of set_property)
 
@@ -20,6 +21,7 @@ static inline void mpv_check_error(int status)
 
 int main(int argc, char *argv[])
 {
+	/*
 	mpv_handle *mpv_ctx = mpv_create();
 	if (!mpv_ctx) {
 		fprintf(stderr, "FATAL: failed to create mpv context.\n");
@@ -49,5 +51,22 @@ int main(int argc, char *argv[])
 	}
 
 	mpv_terminate_destroy(mpv_ctx);
+	*/
+
+	jf_reply *reply;
+	jf_options options = {
+		argv[1],
+		strlen(argv[1]),
+		argv[2],
+		0
+	};
+
+	jf_network_init(&options);
+	reply = jf_request("/users/public", 0);
+	printf("%s\n", reply->size < 0 ? jf_reply_error_string(reply) : reply->payload);
+
+	jf_reply_free(reply);
+	jf_network_cleanup();
+
 	return 0;
 }
