@@ -15,7 +15,7 @@ static const jf_options *g_options;
 
 
 ////////// JF_REPLY //////////
-jf_reply *jf_reply_new()
+jf_reply *jf_reply_new(void)
 {
 	jf_reply *r;
 	if (!(r = (jf_reply *)malloc(sizeof(jf_reply)))) {
@@ -63,7 +63,7 @@ size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *userdat
 	size_t real_size = size * nmemb;
 	jf_reply *r = (jf_reply *)userdata;
 	char *new_buf;
-	if (!(new_buf = realloc(r->payload, r->size + real_size + 1))) {
+	if (!(new_buf = realloc(r->payload, (size_t)r->size + real_size + 1))) { //NB r->size >=0
 		return 0;
 	}
 	r->payload = new_buf;
@@ -162,7 +162,7 @@ jf_reply *jf_request(char *resource, size_t to_file)
 }
 
 
-void jf_network_cleanup()
+void jf_network_cleanup(void)
 {
 	curl_slist_free_all(g_headers);
 	curl_easy_cleanup(g_handle);

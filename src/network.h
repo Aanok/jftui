@@ -20,12 +20,12 @@ typedef struct jf_reply {
 
 
 // function prototypes
-jf_reply *jf_reply_new();
+jf_reply *jf_reply_new(void);
 void jf_reply_free(jf_reply *r);
 char *jf_reply_error_string(jf_reply *r);
 size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *userdata);
 size_t jf_network_init(jf_options *options);
 jf_reply *jf_request(char *resource, size_t to_file);
-void jf_network_cleanup();
+void jf_network_cleanup(void);
 
 #endif

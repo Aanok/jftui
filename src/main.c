@@ -5,6 +5,7 @@
 
 #include "shared.h"
 #include "network.h"
+#include "json_parser.h"
 
 //TODO add check that API version >= 1.23 (because of set_property)
 
