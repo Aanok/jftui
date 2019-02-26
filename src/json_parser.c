@@ -24,7 +24,7 @@ size_t jf_sax_init(const char *header_pathname, const char *records_pathname, co
 {
 	if (!(g_header_pathname = strdup(header_pathname))) {
 		strcpy(g_buffer, "strdup header_pathname failed: ");
-		strerror_r(errno, g_buffer + STATIC_STRLEN(g_buffer), PARSER_BUF_SIZE - strlen(g_buffer));
+		strerror_r(errno, g_buffer + strlen(g_buffer), PARSER_BUF_SIZE - strlen(g_buffer));
 		return 0;
 	}
 	if (!(g_records_pathname = strdup(records_pathname))) {
