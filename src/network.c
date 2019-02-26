@@ -111,14 +111,11 @@ size_t jf_network_init(const jf_options *options)
 size_t jf_network_make_headers(void)
 {
 	char *tmp;
-	size_t tmp_len;
 
 	if (g_options->token != NULL) {
-		tmp_len = STATIC_STRLEN("x-emby-token: ") + strlen(g_options->token);
-		if ((tmp = (char*)malloc(tmp_len + 1)) == NULL) {
-			return 0;
+		if ((tmp = jf_concat(2, "x-emby-token: ", g_options->token)) == NULL) {
+				return 0;
 		}
-		snprintf(tmp, tmp_len, "x-emby-token: %s", g_options->token);
 		if ((g_headers = curl_slist_append(g_headers, tmp)) == NULL) {
 			return 0;
 		}
@@ -225,16 +222,16 @@ jf_reply *jf_request(const char *resource, size_t to_file, const char *POST_payl
 jf_reply *jf_login_request(const char *POST_payload)
 {
 	char *tmp;
-	size_t tmp_len = 0;
 
 	// add x-emby-authorization header
-	tmp_len = STATIC_STRLEN("x-emby-authorization: mediabrowser client=\"\", device=\"\", deviceid=\"\", version=\"\"")
-		+ strlen(g_options->client) + strlen(g_options->device) + strlen(g_options->deviceid) + strlen(g_options->version);
-	if ((tmp = (char *)malloc(tmp_len + 1)) == NULL) {
+	if ((tmp = jf_concat(9,
+			"x-emby-authorization: mediabrowser client=\"", g_options->client,
+			"\", device=\"", g_options->device, 
+			"\", deviceid=\"", g_options->deviceid,
+			"\", version=\"", g_options->version,
+			"\"")) == NULL ) {
 		return (jf_reply *)NULL;
 	}
-	snprintf(tmp, tmp_len, "x-emby-authorization: mediabrowser client=\"%s\", device=\"%s\", deviceid=\"%s\", version=\"%s\"",
-			g_options->client, g_options->device, g_options->deviceid, g_options->version);
 	if ((g_headers_POST = curl_slist_append(g_headers_POST, tmp)) == NULL) {
 		jf_reply *reply;
 		if ((reply = jf_reply_new()) == NULL) {

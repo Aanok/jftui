@@ -109,6 +109,10 @@ size_t jf_sax_parse(void)
 size_t jf_parse_login_reply(const char *payload, jf_options *options)
 {
 	yajl_val parsed;
+	const char *userid_selector[3] = { "User", "Id", NULL };
+	const char *token_selector[3] = { "AccessToken", NULL };
+	char *userid;
+	char *token;
 
 	g_buffer[0] = '\0';
 	if ((parsed = yajl_tree_parse(payload, g_buffer, PARSER_BUF_SIZE)) == NULL) {
@@ -118,10 +122,8 @@ size_t jf_parse_login_reply(const char *payload, jf_options *options)
 		return 0;
 	}
 	// NB macros propagate NULL
-	const char *userid_selector[3] = { "User", "Id", NULL };
-	const char *token_selector[3] = { "AccessToken", NULL };
-	char *userid = YAJL_GET_STRING(yajl_tree_get(parsed, userid_selector, yajl_t_string));
-	char *token = YAJL_GET_STRING(yajl_tree_get(parsed, token_selector, yajl_t_string));
+	userid = YAJL_GET_STRING(yajl_tree_get(parsed, userid_selector, yajl_t_string));
+	token = YAJL_GET_STRING(yajl_tree_get(parsed, token_selector, yajl_t_string));
 	if (userid != NULL && token != NULL) {
 		options->userid = strdup(userid);
 		options->token = strdup(token);

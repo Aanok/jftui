@@ -66,6 +66,7 @@ int main(int argc, char *argv[])
 		.deviceid = "desktop-linux",
 		.version = "prealpha"
 	};
+	
 
 	jf_network_init(&options);
 	char *json = jf_generate_login_request(argv[2], argv[3]);

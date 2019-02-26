@@ -23,4 +23,7 @@ typedef struct jf_reply {
 	int size;
 } jf_reply;
 
+
+char *jf_concat(size_t n, ...);
+
 #endif
