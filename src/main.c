@@ -56,17 +56,37 @@ int main(int argc, char *argv[])
 
 	jf_reply *reply;
 	jf_options options = {
-		argv[1],
-		strlen(argv[1]),
-		argv[2],
-		0
+		.server_url = argv[1],
+		.server_url_len = strlen(argv[1]),
+		.token = NULL,
+		.userid = NULL,
+		.ssl_verifyhost = 1,
+		.client = "jftui",
+		.device = "pc",
+		.deviceid = "desktop-linux",
+		.version = "prealpha"
 	};
 
 	jf_network_init(&options);
-	reply = jf_request("/users/public", 0);
-	printf("%s\n", reply->size < 0 ? jf_reply_error_string(reply) : reply->payload);
-
+	char *json = jf_generate_login_request(argv[2], argv[3]);
+	printf("login request: %s\n", json);
+	reply = jf_login_request(json);
+	free(json);
+	printf("reply: %s\n", reply->payload);
+	if (reply->size < 0) {
+		printf("%s\n", reply->payload);
+	} else {
+		if (! jf_parse_login_reply(reply->payload, &options)) printf("error in parse\n");
+		printf("userid = \"%s\", token = \"%s\"\n", options.userid, options.token);
+		jf_network_reload_token();
+		free(options.userid);
+		free(options.token);
+	}
 	jf_reply_free(reply);
+
+
+	//reply = jf_request(
+
 	jf_network_cleanup();
 
 	return 0;

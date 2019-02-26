@@ -3,8 +3,14 @@
 #include <errno.h>
 #include <string.h>
 #include <yajl/yajl_parse.h>
+#include <yajl/yajl_tree.h>
+#include <yajl/yajl_gen.h>
 
+#include "shared.h"
 #include "json_parser.h"
+
+
+#define GEN_BAD_JUMP_OUT(gen) { if ((gen) != yajl_gen_status_ok) goto out; }
 
 
 static char *g_header_pathname;
@@ -14,11 +20,11 @@ static yajl_handle g_parser = NULL;
 static char g_buffer[PARSER_BUF_SIZE];
 
 
-int jf_parser_init(const char *header_pathname, const char *records_pathname, const char *json_pathname)
+size_t jf_sax_init(const char *header_pathname, const char *records_pathname, const char *json_pathname)
 {
 	if (!(g_header_pathname = strdup(header_pathname))) {
 		strcpy(g_buffer, "strdup header_pathname failed: ");
-		strerror_r(errno, g_buffer + strlen(g_buffer), PARSER_BUF_SIZE - strlen(g_buffer));
+		strerror_r(errno, g_buffer + STATIC_STRLEN(g_buffer), PARSER_BUF_SIZE - strlen(g_buffer));
 		return 0;
 	}
 	if (!(g_records_pathname = strdup(records_pathname))) {
@@ -39,7 +45,7 @@ int jf_parser_init(const char *header_pathname, const char *records_pathname, co
 }
 
 
-void jf_parser_cleanup(void)
+void jf_sax_cleanup(void)
 {
 	free(g_header_pathname);
 	free(g_records_pathname);
@@ -55,10 +61,10 @@ char *jf_parser_error_string(void)
 
 
 // TODO make parser incremental instead of expecting the complete payload in json_file
-int jf_sax_parse(void)
+size_t jf_sax_parse(void)
 {
 	size_t read_bytes;
-	int retval = 1;
+	size_t retval = 1;
 	yajl_status status;
 	FILE *header_file, *records_file, *json_file;
 	if (!(header_file = fopen(g_header_pathname, "w+"))) {
@@ -97,4 +103,54 @@ int jf_sax_parse(void)
 	fclose(records_file);
 	fclose(json_file);
 	return retval;
+}
+
+
+size_t jf_parse_login_reply(const char *payload, jf_options *options)
+{
+	yajl_val parsed;
+
+	g_buffer[0] = '\0';
+	if ((parsed = yajl_tree_parse(payload, g_buffer, PARSER_BUF_SIZE)) == NULL) {
+		if (g_buffer[0] == '\0') {
+			strcpy(g_buffer, "yajl_tree_parse unkown error");
+		}
+		return 0;
+	}
+	// NB macros propagate NULL
+	const char *userid_selector[3] = { "User", "Id", NULL };
+	const char *token_selector[3] = { "AccessToken", NULL };
+	char *userid = YAJL_GET_STRING(yajl_tree_get(parsed, userid_selector, yajl_t_string));
+	char *token = YAJL_GET_STRING(yajl_tree_get(parsed, token_selector, yajl_t_string));
+	if (userid != NULL && token != NULL) {
+		options->userid = strdup(userid);
+		options->token = strdup(token);
+		yajl_tree_free(parsed);
+		return 1;
+	} else {
+		yajl_tree_free(parsed);
+		return 0;
+	}
+}
+
+
+char * jf_generate_login_request(const char *username, const char *password)
+{
+	yajl_gen gen;
+	char *json = NULL;
+	size_t json_len;
+
+	if ((gen = yajl_gen_alloc(NULL)) == NULL) return (char *)NULL;
+	GEN_BAD_JUMP_OUT(yajl_gen_map_open(gen));
+	GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)"Username", STATIC_STRLEN("Username")));
+	GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)username, strlen(username)));
+	GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)"pw", STATIC_STRLEN("pw")));
+	GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)password, strlen(password)));
+	GEN_BAD_JUMP_OUT(yajl_gen_map_close(gen));
+	GEN_BAD_JUMP_OUT(yajl_gen_get_buf(gen, (const unsigned char **)&json, &json_len));
+	json = strndup(json, json_len);
+
+out:
+	yajl_gen_free(gen);
+	return (char *)json;
 }
