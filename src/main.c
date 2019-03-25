@@ -1,3 +1,8 @@
+///////////////////////////////////
+#define _POSIX_C_SOURCE 200809L  //
+///////////////////////////////////
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -68,6 +73,7 @@ int main(int argc, char *argv[])
 	};
 	
 
+	/*
 	jf_network_init(&options);
 	char *json = jf_generate_login_request(argv[2], argv[3]);
 	printf("login request: %s\n", json);
@@ -84,9 +90,12 @@ int main(int argc, char *argv[])
 		free(options.token);
 	}
 	jf_reply_free(reply);
+	*/
 
-
-	//reply = jf_request(
+	jf_network_init(&options);
+	reply = jf_request("/users/public", 0, NULL);
+	printf("GOT REPLY:\n%s", reply->payload);
+	jf_reply_free(reply);
 
 	jf_network_cleanup();
 

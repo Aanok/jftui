@@ -12,7 +12,12 @@ static CURL *g_handle = NULL;
 static struct curl_slist *g_headers = NULL;
 static struct curl_slist *g_headers_POST = NULL;
 static const jf_options *g_options;
-
+static jf_thread_buffer g_tb = {
+	.used = 0,
+	.mut = PTHREAD_MUTEX_INITIALIZER,
+	.cv_no_data = PTHREAD_COND_INITIALIZER,
+	.cv_has_data = PTHREAD_COND_INITIALIZER
+};
 
 
 ////////// JF_REPLY //////////
@@ -76,8 +81,32 @@ size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *userdat
 	r->size += real_size;
 	r->payload[r->size] = '\0';
 	return real_size;
-}	
+}
 
+
+////////// PARSER THREAD COMMUNICATION //////////
+size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, void *userdata)
+{
+	size_t real_size = size * nmemb;
+	size_t written_data = 0;
+	size_t chunk_size;
+
+	pthread_mutex_lock(&g_tb.mut);
+	while (written_data < real_size) {
+		while (g_tb.used != 0) {
+			pthread_cond_wait(&g_tb.cv_has_data, &g_tb.mut);
+		}
+		chunk_size = real_size - written_data <= TB_DATA_SIZE ? real_size - written_data : TB_DATA_SIZE;
+		memcpy(g_tb.data, payload + written_data, chunk_size);
+	    written_data += chunk_size;
+		g_tb.used = chunk_size;
+		pthread_cond_signal(&g_tb.cv_no_data);
+	}
+	pthread_mutex_unlock(&g_tb.mut);
+
+	return written_data;
+}
+/////////////////////////////////////////////////
 
 
 ////////// NETWORKING FUNCTIONS //////////
@@ -143,7 +172,7 @@ size_t jf_network_reload_token(void)
 }
 
 
-jf_reply *jf_request(const char *resource, size_t to_file, const char *POST_payload)
+jf_reply *jf_request(const char *resource, size_t to_thread_buffer, const char *POST_payload)
 {
 	CURLcode result;
 	long status_code;
@@ -183,36 +212,34 @@ jf_reply *jf_request(const char *resource, size_t to_file, const char *POST_payl
 	}
 	
 	// request
-	if (to_file) {
-		//TODO implement
-		reply->size = JF_REPLY_ERROR_STUB;
+	if (to_thread_buffer) {
+		curl_easy_setopt(g_handle, CURLOPT_WRITEFUNCTION, jf_thread_buffer_callback);
 	} else {
 		curl_easy_setopt(g_handle, CURLOPT_WRITEFUNCTION, jf_reply_callback);		
-		curl_easy_setopt(g_handle, CURLOPT_WRITEDATA, (void *)reply);
-		if ((result = curl_easy_perform(g_handle)) != CURLE_OK) {
-			free(reply->payload);
-			reply->payload = (char *)curl_easy_strerror(result);
-			reply->size = JF_REPLY_ERROR_NETWORK;
-		} else {
-			curl_easy_getinfo(g_handle, CURLINFO_RESPONSE_CODE, &status_code);
-			switch (status_code) { 
-				case 200:
-					break;
-				case 401:
-					reply->size = JF_REPLY_ERROR_HTTP_401;
-					break;
-				default:
-					free(reply->payload);
-					reply->payload = NULL;
-					if ((reply->payload = (char *)malloc(34)) == NULL) {
-						reply->size = JF_REPLY_ERROR_MALLOC;
-						return reply;
-					}
-					snprintf(reply->payload, 34, "http request returned status %ld", status_code);
-					reply->size = JF_REPLY_ERROR_HTTP_NOT_OK;
-					break;
-			}
-		}	
+	}
+	curl_easy_setopt(g_handle, CURLOPT_WRITEDATA, (void *)reply);
+	if ((result = curl_easy_perform(g_handle)) != CURLE_OK) {
+		free(reply->payload);
+		reply->payload = (char *)curl_easy_strerror(result);
+		reply->size = JF_REPLY_ERROR_NETWORK;
+	} else {
+		curl_easy_getinfo(g_handle, CURLINFO_RESPONSE_CODE, &status_code);
+		switch (status_code) { 
+			case 200:
+				break;
+			case 401:
+				reply->size = JF_REPLY_ERROR_HTTP_401;
+				break;
+			default:
+				free(reply->payload);
+				if ((reply->payload = (char *)malloc(34)) == NULL) {
+					reply->size = JF_REPLY_ERROR_MALLOC;
+					return reply;
+				}
+				snprintf(reply->payload, 34, "http request returned status %ld", status_code);
+				reply->size = JF_REPLY_ERROR_HTTP_NOT_OK;
+				break;
+		}
 	}
 
 	return reply;

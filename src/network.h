@@ -17,6 +17,7 @@
 jf_reply *jf_reply_new(void);
 void jf_reply_free(jf_reply *r);
 char *jf_reply_error_string(const jf_reply *r);
+size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, void *userdata);
 size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *userdata);
 size_t jf_network_init(const jf_options *options);
 size_t jf_network_make_headers(void);
