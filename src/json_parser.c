@@ -14,12 +14,8 @@
 static unsigned char g_error_buffer[1024];
 // NB accesses to the following happen from the sax thread ONLY so it's safe for them to be a lock-free upvalue
 static size_t g_sax_state = JF_SAX_IDLE;
-static jf_sax_generic_item g_sax_item = {
-	.type = NULL, .name = NULL, .id = NULL, .artist = NULL, .album = NULL, .series = NULL
-}
+static jf_sax_generic_item g_sax_item; 
 static size_t g_sax_item_count;
-// TODO this one requires a lock and messaging from the main
-static size_t g_sax_promiscous_context;
 
 
 ////////// SAX PARSER CALLBACKS //////////
@@ -28,6 +24,7 @@ static size_t sax_items_start_map(void *ctx)
 	switch (g_sax_state) {
 		case JF_SAX_IDLE:
 			g_sax_item_count = 0;
+			jf_sax_generic_item_clear(&g_sax_item);
 			g_sax_state = JF_SAX_IN_QUERYRESULT_MAP;
 			break;
 		case JF_SAX_IN_ITEMS_ARRAY:
@@ -53,7 +50,6 @@ static size_t sax_items_end_map(void *ctx)
 			break;
 		case JF_SAX_IN_ITEM_MAP:
 			g_sax_item_count++;
-			// TODO: print!
 			tb = (jf_thread_buffer *)ctx;
 			if (g_sax_item.type == JF_ITEM_TYPE_AUDIO) {
 				if (tb->promiscuous_context) {
@@ -68,10 +64,6 @@ static size_t sax_items_end_map(void *ctx)
 							SAX_PRINT_FALLBACK(index, "??"),
 							g_sax_item.name_len, g_sax_item.name);
 				}
-			} else if (g_sax_item.type == JF_ITEM_TYPE_ARTIST) {
-				printf("D %d. %.*s\n",
-						g_sax_item_count,
-						g_sax_item.name_len, g_sax_item.name);
 			} else if (g_sax_item.type == JF_ITEM_TYPE_ALBUM) {
 				if (tb->promiscuous_context) {
 					printf("D %d. %.*s - %.*s (%.*s)\n",
@@ -85,8 +77,48 @@ static size_t sax_items_end_map(void *ctx)
 							g_sax_item.name_len, g_sax_item.name,
 							SAX_PRINT_FALLBACK(year, "[Unknown Year]"));
 				}
+			} else if (g_sax_item.type == JF_ITEM_TYPE_EPISODE) {
+				if (tb->promiscuous_context) {
+					printf("V %d. %.*s - S%.*sE%.*s - %.*s\n",
+							g_sax_item_count,
+							SAX_PRINT_FALLBACK(series, "[Unknown Series]"),
+							SAX_PRINT_FALLBACK(parent_index, "??"),
+							SAX_PRINT_FALLBACK(index, "??"),
+							g_sax_item.name_len, g_sax_item.name);
+				} else {
+					printf("V %d. S%.*sE%.*s - %.*s\n",
+							g_sax_item_count,
+							SAX_PRINT_FALLBACK(parent_index, "??")
+							SAX_PRINT_FALLBACK(index, "??"),
+							g_sax_item.name_len, g_sax_item.name);
+				}
+			} else if (g_sax_item.type == JF_ITEM_TYPE_SEASON) {
+				if (tb->promiscuous_context) {
+					printf("D %d. %.*s - %.*s\n", // TODO check if the name contains "Season" or is just the number
+							g_sax_item_count,
+							SAX_PRINT_FALLBACK(series, "[Unknown Series]"),
+							g_sax_item.name_len, g_sax_item.name);
+				} else {
+					printf("D %d. %.*s\n",
+							g_sax_item_count,
+							g_sax_item.name_len, g_sax_item.name);
+				}
+			} else if (g_sax_item.type == JF_ITEM_TYPE_MOVIE) {
+				printf("V %d. %.*s (%.*s)\n",
+						g_sax_item_count,
+						g_sax_item.name_len, g_sax_item.name,
+						SAX_PRINT_FALLBACK(year, "[Unknown Year]"));
+			} else if (g_sax_item.type == JF_ITEM_TYPE_ARTIST
+						|| g_sax_item.type == JF_ITEM_TYPE_SERIES
+						|| g_sax_item.type == JF_ITEM_TYPE_PLAYLIST
+						|| g_sax_item.type == JF_ITEM_TYPE_FOLDER
+						|| g_sax_item.type == JF_ITEM_TYPE_COLLECTION) {
+				printf("D %d. %.*s\n",
+						g_sax_item_count,
+						g_sax_item.name_len, g_sax_item.name);
 			}
 			// TODO: save id somewhere
+			jf_sax_generic_item_clear(&g_sax_item);
 			g_sax_state = JF_SAX_IN_ITEMS_ARRAY;
 	}
 	return 1;
@@ -237,12 +269,23 @@ static size_t sax_items_number(void *ctx, const char *string, size_t string_len)
 //////////////////////////////////////////
 
 
+void jf_sax_generic_item_clear(jf_sax_generic_item *item)
+// NB setting the value of a pointer to real 0's is not the same as NULL or the value 0
+// (which the compiler interprets as a "null pointer value")
+// but it is safe to do here because in use we never check if the pointers are valid,
+// only if the string lengths are > 0. Also JF_ITEM_TYPE_NONE is 0.
+{
+	memset(item, 0, sizeof(jf_sax_generic_item));
+}
+
+
 // TODO: proper error mechanism (needs signaling)
 // TODO: arguments...
 void *jf_sax_parser_thread(void *arg)
 {
 	size_t read_bytes;
-	jf_thread_buffer *tb = (jf_thread_buffer *)arg;
+	jf_thread_buffer *tb;
+	jf_synced_queue *q = (jf_synced_queue *)arg;
 	yajl_status status;
 	yajl_handle parser;
 	yajl_callbacks callbacks = {
@@ -290,7 +333,7 @@ void *jf_sax_parser_thread(void *arg)
 		return NULL;
 	}
 	*/
-	if ((parser = yajl_alloc(&callbacks, NULL, (void *)tb)) == NULL) {
+	if ((parser = yajl_alloc(&callbacks, NULL, NULL)) == NULL) {
 		strcpy(tb->data "sax parser yajl_alloc failed");
 		return NULL;
 	}

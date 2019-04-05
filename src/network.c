@@ -260,6 +260,7 @@ jf_reply *jf_login_request(const char *POST_payload)
 		return (jf_reply *)NULL;
 	}
 	if ((g_headers_POST = curl_slist_append(g_headers_POST, tmp)) == NULL) {
+		free(tmp);
 		jf_reply *reply;
 		if ((reply = jf_reply_new()) == NULL) {
 			return (jf_reply *)NULL;
