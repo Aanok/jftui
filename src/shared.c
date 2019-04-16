@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <pthread.h>
 #include "shared.h"
 
 
@@ -37,6 +38,16 @@ char *jf_concat(size_t n, ...)
 	
 	free(argv_len);
 	return buf;
+}
+
+
+void jf_thread_buffer_init(jf_thread_buffer *tb)
+{
+	tb->used = 0;
+	tb->promiscuous_context = 0;
+	pthread_mutex_init(&tb->mut, NULL);
+	pthread_cond_init(&tb->cv_no_data, NULL);
+	pthread_cond_init(&tb->cv_has_data, NULL);
 }
 
 

@@ -97,6 +97,12 @@ int main(int argc, char *argv[])
 	printf("GOT REPLY:\n%s", reply->payload);
 	jf_reply_free(reply);
 
+	pthread_t sax_parser_thread;
+	jf_thread_buffer tb;
+	jf_thread_buffer_init(&tb);
+	pthread_create(&sax_parser_thread, NULL, jf_sax_parser_thread, (void *)&tb);
+	
+
 	jf_network_cleanup();
 
 	return 0;

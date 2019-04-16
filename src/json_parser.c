@@ -11,7 +11,7 @@
 #include "json_parser.h"
 
 
-static unsigned char g_error_buffer[1024];
+static unsigned char g_error_buffer[JF_PARSER_ERROR_BUFFER_SIZE];
 // NB accesses to the following happen from the sax thread ONLY so it's safe for them to be a lock-free upvalue
 static size_t g_sax_state = JF_SAX_IDLE;
 static jf_sax_generic_item g_sax_item; 
@@ -19,7 +19,7 @@ static size_t g_sax_item_count;
 
 
 ////////// SAX PARSER CALLBACKS //////////
-static size_t sax_items_start_map(void *ctx)
+static int sax_items_start_map(void *ctx)
 {
 	switch (g_sax_state) {
 		case JF_SAX_IDLE:
@@ -38,7 +38,7 @@ static size_t sax_items_start_map(void *ctx)
 }
 
 
-static size_t sax_items_end_map(void *ctx)
+static int sax_items_end_map(void *ctx)
 {
 	jf_thread_buffer *tb;
 	switch (g_sax_state) {
@@ -53,58 +53,58 @@ static size_t sax_items_end_map(void *ctx)
 			tb = (jf_thread_buffer *)ctx;
 			if (g_sax_item.type == JF_ITEM_TYPE_AUDIO) {
 				if (tb->promiscuous_context) {
-					printf("T %d. %.*s - %.*s - %.*s\n",
+					printf("T %zu. %.*s - %.*s - %.*s\n",
 							g_sax_item_count,
 							SAX_PRINT_FALLBACK(artist, "[Unknown Artist]"),
 							SAX_PRINT_FALLBACK(album, "[Unknown Album]"),
 							g_sax_item.name_len, g_sax_item.name);
 				} else {
-					printf("T %d. %.*s - %.*s\n",
+					printf("T %zu. %.*s - %.*s\n",
 							g_sax_item_count, 
 							SAX_PRINT_FALLBACK(index, "??"),
 							g_sax_item.name_len, g_sax_item.name);
 				}
 			} else if (g_sax_item.type == JF_ITEM_TYPE_ALBUM) {
 				if (tb->promiscuous_context) {
-					printf("D %d. %.*s - %.*s (%.*s)\n",
+					printf("D %zu. %.*s - %.*s (%.*s)\n",
 							g_sax_item_count,
 							SAX_PRINT_FALLBACK(artist, "[Unknown Artist]"),
 							g_sax_item.name_len, g_sax_item.name,
 							SAX_PRINT_FALLBACK(year, "[Unknown Year]"));
 				} else {
-					printf("D %d. %.*s (%.*s)\n",
+					printf("D %zu. %.*s (%.*s)\n",
 							g_sax_item_count,
 							g_sax_item.name_len, g_sax_item.name,
 							SAX_PRINT_FALLBACK(year, "[Unknown Year]"));
 				}
 			} else if (g_sax_item.type == JF_ITEM_TYPE_EPISODE) {
 				if (tb->promiscuous_context) {
-					printf("V %d. %.*s - S%.*sE%.*s - %.*s\n",
+					printf("V %zu. %.*s - S%.*sE%.*s - %.*s\n",
 							g_sax_item_count,
 							SAX_PRINT_FALLBACK(series, "[Unknown Series]"),
 							SAX_PRINT_FALLBACK(parent_index, "??"),
 							SAX_PRINT_FALLBACK(index, "??"),
 							g_sax_item.name_len, g_sax_item.name);
 				} else {
-					printf("V %d. S%.*sE%.*s - %.*s\n",
+					printf("V %zu. S%.*sE%.*s - %.*s\n",
 							g_sax_item_count,
-							SAX_PRINT_FALLBACK(parent_index, "??")
+							SAX_PRINT_FALLBACK(parent_index, "??"),
 							SAX_PRINT_FALLBACK(index, "??"),
 							g_sax_item.name_len, g_sax_item.name);
 				}
 			} else if (g_sax_item.type == JF_ITEM_TYPE_SEASON) {
 				if (tb->promiscuous_context) {
-					printf("D %d. %.*s - %.*s\n", // TODO check if the name contains "Season" or is just the number
+					printf("D %zu. %.*s - %.*s\n", // TODO check if the name contains "Season" or is just the number
 							g_sax_item_count,
 							SAX_PRINT_FALLBACK(series, "[Unknown Series]"),
 							g_sax_item.name_len, g_sax_item.name);
 				} else {
-					printf("D %d. %.*s\n",
+					printf("D %zu. %.*s\n",
 							g_sax_item_count,
 							g_sax_item.name_len, g_sax_item.name);
 				}
 			} else if (g_sax_item.type == JF_ITEM_TYPE_MOVIE) {
-				printf("V %d. %.*s (%.*s)\n",
+				printf("V %zu. %.*s (%.*s)\n",
 						g_sax_item_count,
 						g_sax_item.name_len, g_sax_item.name,
 						SAX_PRINT_FALLBACK(year, "[Unknown Year]"));
@@ -113,7 +113,7 @@ static size_t sax_items_end_map(void *ctx)
 						|| g_sax_item.type == JF_ITEM_TYPE_PLAYLIST
 						|| g_sax_item.type == JF_ITEM_TYPE_FOLDER
 						|| g_sax_item.type == JF_ITEM_TYPE_COLLECTION) {
-				printf("D %d. %.*s\n",
+				printf("D %zu. %.*s\n",
 						g_sax_item_count,
 						g_sax_item.name_len, g_sax_item.name);
 			}
@@ -125,7 +125,7 @@ static size_t sax_items_end_map(void *ctx)
 }
 
 
-static size_t sax_items_map_key(void *ctx, const unsigned char *key, size_t key_len)
+static int sax_items_map_key(void *ctx, const unsigned char *key, size_t key_len)
 {
 	switch (g_sax_state) {
 		case JF_SAX_IN_QUERYRESULT_MAP:
@@ -164,7 +164,7 @@ static size_t sax_items_map_key(void *ctx, const unsigned char *key, size_t key_
 	return 1;
 }
 
-static size_t sax_items_start_array(void *ctx)
+static int sax_items_start_array(void *ctx)
 {
 	switch (g_sax_state) {
 		case JF_SAX_IN_ITEMS_VALUE:
@@ -178,7 +178,7 @@ static size_t sax_items_start_array(void *ctx)
 }
 
 
-static size_t sax_items_end_array(void *ctx)
+static int sax_items_end_array(void *ctx)
 {
 	switch (g_sax_state) {
 		case JF_SAX_IN_ITEMS_ARRAY:
@@ -192,7 +192,7 @@ static size_t sax_items_end_array(void *ctx)
 }
 
 
-static size_t sax_items_string(void *ctx, const unsigned char *string, size_t string_len)
+static int sax_items_string(void *ctx, const unsigned char *string, size_t string_len)
 {
 	switch (g_sax_state) {
 		case JF_SAX_IN_ITEM_NAME_VALUE:
@@ -200,25 +200,25 @@ static size_t sax_items_string(void *ctx, const unsigned char *string, size_t st
 			g_sax_state = JF_SAX_IN_ITEM_MAP;
 			break;
 		case JF_SAX_IN_ITEM_TYPE_VALUE:
-			if (JF_SAX_STRING_IS("CollectionFolder")) {
+			if (SAX_STRING_IS("CollectionFolder")) {
 				g_sax_item.type = JF_ITEM_TYPE_COLLECTION;
-			} else if (JF_SAX_STRING_IS("Folder")) {
+			} else if (SAX_STRING_IS("Folder")) {
 				g_sax_item.type = JF_ITEM_TYPE_FOLDER;
-			} else if (JF_SAX_STRING_IS("Playlist")) {
+			} else if (SAX_STRING_IS("Playlist")) {
 				g_sax_item.type = JF_ITEM_TYPE_PLAYLIST;
-			} else if (JF_SAX_STRING_IS("Audio")) {
+			} else if (SAX_STRING_IS("Audio")) {
 				g_sax_item.type = JF_ITEM_TYPE_AUDIO;
-			} else if (JF_SAX_STRING_IS("Artist")) {
+			} else if (SAX_STRING_IS("Artist")) {
 				g_sax_item.type = JF_ITEM_TYPE_ARTIST;
-			} else if (JF_SAX_STRING_IS("Album")) {
+			} else if (SAX_STRING_IS("Album")) {
 				g_sax_item.type = JF_ITEM_TYPE_ALBUM;
-			} else if (JF_SAX_STRING_IS("Episode")) {
+			} else if (SAX_STRING_IS("Episode")) {
 				g_sax_item.type = JF_ITEM_TYPE_EPISODE;
-			} else if (JF_SAX_STRING_IS("Season")) { 
+			} else if (SAX_STRING_IS("Season")) { 
 				g_sax_item.type = JF_ITEM_TYPE_SEASON; 
-			} else if (JF_SAX_STRING_IS("Series")) {
+			} else if (SAX_STRING_IS("Series")) {
 				g_sax_item.type = JF_ITEM_TYPE_SERIES;
-			} else if (JF_SAX_STRING_IS("Movie")) {
+			} else if (SAX_STRING_IS("Movie")) {
 				g_sax_item.type = JF_ITEM_TYPE_MOVIE;	
 			}
 			g_sax_state = JF_SAX_IN_ITEM_MAP;
@@ -244,7 +244,7 @@ static size_t sax_items_string(void *ctx, const unsigned char *string, size_t st
 }
 
 
-static size_t sax_items_number(void *ctx, const char *string, size_t string_len)
+static int sax_items_number(void *ctx, const char *string, size_t string_len)
 {
 	switch (g_sax_state) {
 		case JF_SAX_IN_USERDATA_TICKS_VALUE:
@@ -284,8 +284,7 @@ void jf_sax_generic_item_clear(jf_sax_generic_item *item)
 void *jf_sax_parser_thread(void *arg)
 {
 	size_t read_bytes;
-	jf_thread_buffer *tb;
-	jf_synced_queue *q = (jf_synced_queue *)arg;
+	jf_thread_buffer *tb = (jf_thread_buffer *)arg;
 	yajl_status status;
 	yajl_handle parser;
 	yajl_callbacks callbacks = {
@@ -334,7 +333,7 @@ void *jf_sax_parser_thread(void *arg)
 	}
 	*/
 	if ((parser = yajl_alloc(&callbacks, NULL, NULL)) == NULL) {
-		strcpy(tb->data "sax parser yajl_alloc failed");
+		strcpy(tb->data, "sax parser yajl_alloc failed");
 		return NULL;
 	}
 
@@ -342,12 +341,12 @@ void *jf_sax_parser_thread(void *arg)
 	pthread_mutex_lock(&tb->mut);
 	while (1) {
 		while (tb->used == 0) {
-			pthread_cond_wait(&tb->cv_no_data, tb->mut);
+			pthread_cond_wait(&tb->cv_no_data, &tb->mut);
 		}
 		if ((status = yajl_parse(parser, (unsigned char*)tb->data, tb->used)) != yajl_status_ok) {
 			char *error_str = (char *)yajl_get_error(parser, 1, (unsigned char*)tb->data, read_bytes);
 			strcpy(tb->data, "yajl_parse error: ");
-			strncat(tb->data, error_str, PARSER_BUF_SIZE - strlen(tb->data));
+			strncat(tb->data, error_str, PARSER_ERROR_BUFFER_SIZE - strlen(tb->data));
 			pthread_mutex_unlock(&tb->mut);
 			yajl_free_error(parser, (unsigned char*)error_str);
 // 			fclose(header_file);
@@ -361,7 +360,7 @@ void *jf_sax_parser_thread(void *arg)
 
 
 
-unsigned char *jf_parser_error_string()
+char *jf_parser_error_string(void)
 {
 	return g_error_buffer;
 }
@@ -376,7 +375,7 @@ size_t jf_parse_login_reply(const char *payload, jf_options *options)
 	char *token;
 
 	g_error_buffer[0] = '\0';
-	if ((parsed = yajl_tree_parse(payload, buf, strlen(payload))) == NULL) {
+	if ((parsed = yajl_tree_parse(payload, g_error_buffer, PARSER_ERROR_BUFFER_SIZE)) == NULL) {
 		if (g_error_buffer[0] == '\0') {
 			strcpy(g_error_buffer, "yajl_tree_parse unkown error");
 		}

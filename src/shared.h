@@ -54,6 +54,8 @@ typedef struct jf_synced_queue {
 // the first argument is the number of following arguments
 char *jf_concat(const size_t n, ...);
 
+void jf_thread_buffer_init(jf_thread_buffer *tb);
+
 jf_synced_queue *jf_synced_queue_new(const size_t slot_count);
 void jf_synced_queue_free(jf_synced_queue *q); // NB will NOT deallocate the contents of the queue! make sure it's empty beforehand to avoid leaks
 void jf_synced_queue_enqueue(jf_synced_queue *q, const void *payload);

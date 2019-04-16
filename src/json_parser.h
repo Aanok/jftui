@@ -4,11 +4,11 @@
 
 // CODE MACROS
 #define GEN_BAD_JUMP_OUT(gen) { if ((gen) != yajl_gen_status_ok) goto out; }
-#define SAX_ITEM_FILL(field) { g_sax_item.field = string; g_sax_item.field ## _len = string_len; }
-#define SAX_KEY_IS(name) (strncmp(key, name, sizeof(name) > key_len ? key_len : sizeof(name)) == 0)
-#define SAX_STRING_IS(name) (strncmp(string, name, sizeof(name) > string_len ? string_len : sizeof(name)) == 0)
-#define SAX_PRINT_FALLBACK(field, fallback) g_sax_item.field ## _len > 0 ? g_sax_item.field ## _len : sizeof(fallback) - 1, \
-											g_sax_item.field != NULL ? g_sax_item. field : fallback
+#define SAX_ITEM_FILL(field) { g_sax_item.field = (const unsigned char *)string; g_sax_item.field ## _len = (int)string_len; }
+#define SAX_KEY_IS(name) (strncmp((const char *)key, name, sizeof(name) > key_len ? key_len : sizeof(name)) == 0)
+#define SAX_STRING_IS(name) (strncmp((const char *)string, name, sizeof(name) > string_len ? string_len : sizeof(name)) == 0)
+#define SAX_PRINT_FALLBACK(field, fallback) g_sax_item.field ## _len > 0 ? g_sax_item.field ## _len : (int)sizeof(fallback) - 1, \
+											g_sax_item.field != NULL ? g_sax_item.field : (unsigned char *)fallback
 
 
 
@@ -46,28 +46,33 @@
 #define JF_ITEM_TYPE_MOVIE		10
 
 
+#define PARSER_ERROR_BUFFER_SIZE 1024
+
 typedef struct jf_sax_generic_item {
 	size_t type;
-	unsigned char *name;			size_t name_len;
-	unsigned char *id;				size_t id_len;
-	unsigned char *artist;			size_t artist_len;
-	unsigned char *album;			size_t album_len;
-	unsigned char *series;			size_t series_len;
-	unsigned char *year;			size_t year_len;
-	unsigned char *index;			size_t index_len;
-	unsigned char *parent_index;	size_t parent_index_len;
+	// the following _len specifiers must be int's instead of size_t's for the sake of printf precision
+	const unsigned char *name;			int name_len;
+	const unsigned char *id;			int id_len;
+	const unsigned char *artist;		int artist_len;
+	const unsigned char *album;			int album_len;
+	const unsigned char *series;		int series_len;
+	const unsigned char *year;			int year_len;
+	const unsigned char *index;			int index_len;
+	const unsigned char *parent_index;	int parent_index_len;
 	long long ticks;
 } jf_sax_generic_item;
 
 
 // SAX PARSER FUNCTION STUBS
-static size_t sax_items_start_map(void *ctx);
-static size_t sax_items_end_map(void *ctx);
-static size_t sax_items_map_key(void *ctx, const unsigned char *key, size_t key_len);
-static size_t sax_items_start_array(void *ctx);
-static size_t sax_items_end_array(void *ctx);
-static size_t sax_items_string(void *ctx, const unsigned char *string, size_t string_len);
-static size_t sax_items_number(void *ctx, const unsigned char *string, size_t string_len);
+static int sax_items_start_map(void *ctx) __attribute__((unused));
+static int sax_items_end_map(void *ctx) __attribute__((unused));
+static int sax_items_map_key(void *ctx, const unsigned char *key, size_t key_len) __attribute__((unused));
+static int sax_items_start_array(void *ctx) __attribute__((unused));
+static int sax_items_end_array(void *ctx) __attribute__((unused));
+static int sax_items_string(void *ctx, const unsigned char *string, size_t string_len) __attribute__((unused));
+static int sax_items_number(void *ctx, const char *string, size_t string_len) __attribute__((unused));
+
+
 void *jf_sax_parser_thread(void *arg);
 
 // MISC FUNCTION STUBS
