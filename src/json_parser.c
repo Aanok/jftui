@@ -11,27 +11,24 @@
 #include "json_parser.h"
 
 
-static unsigned char g_error_buffer[JF_PARSER_ERROR_BUFFER_SIZE];
-// NB accesses to the following happen from the sax thread ONLY so it's safe for them to be a lock-free upvalue
-static size_t g_sax_state = JF_SAX_IDLE;
-static jf_sax_generic_item g_sax_item; 
-static size_t g_sax_item_count;
+static char s_error_buffer[JF_PARSER_ERROR_BUFFER_SIZE];
 
 
 ////////// SAX PARSER CALLBACKS //////////
 static int sax_items_start_map(void *ctx)
 {
-	switch (g_sax_state) {
+	jf_sax_context *context = (jf_sax_context *)(ctx);
+	switch (context->parser_state) {
 		case JF_SAX_IDLE:
-			g_sax_item_count = 0;
-			jf_sax_generic_item_clear(&g_sax_item);
-			g_sax_state = JF_SAX_IN_QUERYRESULT_MAP;
+			context->item_count = 0;
+			jf_sax_context_current_item_clear(context);
+			context->parser_state = JF_SAX_IN_QUERYRESULT_MAP;
 			break;
 		case JF_SAX_IN_ITEMS_ARRAY:
-			g_sax_state = JF_SAX_IN_ITEM_MAP;
+			context->parser_state = JF_SAX_IN_ITEM_MAP;
 			break;
 		case JF_SAX_IN_USERDATA_VALUE:
-			g_sax_state = JF_SAX_IN_USERDATA_MAP;
+			context->parser_state = JF_SAX_IN_USERDATA_MAP;
 			break;
 	}
 	return 1;
@@ -40,86 +37,85 @@ static int sax_items_start_map(void *ctx)
 
 static int sax_items_end_map(void *ctx)
 {
-	jf_thread_buffer *tb;
-	switch (g_sax_state) {
+	jf_sax_context *context = (jf_sax_context *)(ctx);
+	switch (context->parser_state) {
 		case JF_SAX_IN_QUERYRESULT_VALUE:
-			g_sax_state = JF_SAX_IDLE;
+			context->parser_state = JF_SAX_IDLE;
 			break;
 		case JF_SAX_IN_ITEMS_VALUE:
-			g_sax_state = JF_IN_QUERYRESULT_MAP;
+			context->parser_state = JF_SAX_IN_QUERYRESULT_MAP;
 			break;
 		case JF_SAX_IN_ITEM_MAP:
-			g_sax_item_count++;
-			tb = (jf_thread_buffer *)ctx;
-			if (g_sax_item.type == JF_ITEM_TYPE_AUDIO) {
-				if (tb->promiscuous_context) {
+			context->item_count++;
+			if (context->current_item_type == JF_ITEM_TYPE_AUDIO) {
+				if (context->tb->promiscuous_context) {
 					printf("T %zu. %.*s - %.*s - %.*s\n",
-							g_sax_item_count,
-							SAX_PRINT_FALLBACK(artist, "[Unknown Artist]"),
-							SAX_PRINT_FALLBACK(album, "[Unknown Album]"),
-							g_sax_item.name_len, g_sax_item.name);
+							context->item_count,
+							JF_SAX_PRINT_FALLBACK(artist, "[Unknown Artist]"),
+							JF_SAX_PRINT_FALLBACK(album, "[Unknown Album]"),
+							context->name_len, context->name);
 				} else {
 					printf("T %zu. %.*s - %.*s\n",
-							g_sax_item_count, 
-							SAX_PRINT_FALLBACK(index, "??"),
-							g_sax_item.name_len, g_sax_item.name);
+							context->item_count, 
+							JF_SAX_PRINT_FALLBACK(index, "??"),
+							context->name_len, context->name);
 				}
-			} else if (g_sax_item.type == JF_ITEM_TYPE_ALBUM) {
-				if (tb->promiscuous_context) {
+			} else if (context->current_item_type == JF_ITEM_TYPE_ALBUM) {
+				if (context->tb->promiscuous_context) {
 					printf("D %zu. %.*s - %.*s (%.*s)\n",
-							g_sax_item_count,
-							SAX_PRINT_FALLBACK(artist, "[Unknown Artist]"),
-							g_sax_item.name_len, g_sax_item.name,
-							SAX_PRINT_FALLBACK(year, "[Unknown Year]"));
+							context->item_count,
+							JF_SAX_PRINT_FALLBACK(artist, "[Unknown Artist]"),
+							context->name_len, context->name,
+							JF_SAX_PRINT_FALLBACK(year, "[Unknown Year]"));
 				} else {
 					printf("D %zu. %.*s (%.*s)\n",
-							g_sax_item_count,
-							g_sax_item.name_len, g_sax_item.name,
-							SAX_PRINT_FALLBACK(year, "[Unknown Year]"));
+							context->item_count,
+							context->name_len, context->name,
+							JF_SAX_PRINT_FALLBACK(year, "[Unknown Year]"));
 				}
-			} else if (g_sax_item.type == JF_ITEM_TYPE_EPISODE) {
-				if (tb->promiscuous_context) {
+			} else if (context->current_item_type == JF_ITEM_TYPE_EPISODE) {
+				if (context->tb->promiscuous_context) {
 					printf("V %zu. %.*s - S%.*sE%.*s - %.*s\n",
-							g_sax_item_count,
-							SAX_PRINT_FALLBACK(series, "[Unknown Series]"),
-							SAX_PRINT_FALLBACK(parent_index, "??"),
-							SAX_PRINT_FALLBACK(index, "??"),
-							g_sax_item.name_len, g_sax_item.name);
+							context->item_count,
+							JF_SAX_PRINT_FALLBACK(series, "[Unknown Series]"),
+							JF_SAX_PRINT_FALLBACK(parent_index, "??"),
+							JF_SAX_PRINT_FALLBACK(index, "??"),
+							context->name_len, context->name);
 				} else {
 					printf("V %zu. S%.*sE%.*s - %.*s\n",
-							g_sax_item_count,
-							SAX_PRINT_FALLBACK(parent_index, "??"),
-							SAX_PRINT_FALLBACK(index, "??"),
-							g_sax_item.name_len, g_sax_item.name);
+							context->item_count,
+							JF_SAX_PRINT_FALLBACK(parent_index, "??"),
+							JF_SAX_PRINT_FALLBACK(index, "??"),
+							context->name_len, context->name);
 				}
-			} else if (g_sax_item.type == JF_ITEM_TYPE_SEASON) {
-				if (tb->promiscuous_context) {
+			} else if (context->current_item_type == JF_ITEM_TYPE_SEASON) {
+				if (context->tb->promiscuous_context) {
 					printf("D %zu. %.*s - %.*s\n", // TODO check if the name contains "Season" or is just the number
-							g_sax_item_count,
-							SAX_PRINT_FALLBACK(series, "[Unknown Series]"),
-							g_sax_item.name_len, g_sax_item.name);
+							context->item_count,
+							JF_SAX_PRINT_FALLBACK(series, "[Unknown Series]"),
+							context->name_len, context->name);
 				} else {
 					printf("D %zu. %.*s\n",
-							g_sax_item_count,
-							g_sax_item.name_len, g_sax_item.name);
+							context->item_count,
+							context->name_len, context->name);
 				}
-			} else if (g_sax_item.type == JF_ITEM_TYPE_MOVIE) {
+			} else if (context->current_item_type == JF_ITEM_TYPE_MOVIE) {
 				printf("V %zu. %.*s (%.*s)\n",
-						g_sax_item_count,
-						g_sax_item.name_len, g_sax_item.name,
-						SAX_PRINT_FALLBACK(year, "[Unknown Year]"));
-			} else if (g_sax_item.type == JF_ITEM_TYPE_ARTIST
-						|| g_sax_item.type == JF_ITEM_TYPE_SERIES
-						|| g_sax_item.type == JF_ITEM_TYPE_PLAYLIST
-						|| g_sax_item.type == JF_ITEM_TYPE_FOLDER
-						|| g_sax_item.type == JF_ITEM_TYPE_COLLECTION) {
+						context->item_count,
+						context->name_len, context->name,
+						JF_SAX_PRINT_FALLBACK(year, "[Unknown Year]"));
+			} else if (context->current_item_type == JF_ITEM_TYPE_ARTIST
+						|| context->current_item_type == JF_ITEM_TYPE_SERIES
+						|| context->current_item_type == JF_ITEM_TYPE_PLAYLIST
+						|| context->current_item_type == JF_ITEM_TYPE_FOLDER
+						|| context->current_item_type == JF_ITEM_TYPE_COLLECTION) {
 				printf("D %zu. %.*s\n",
-						g_sax_item_count,
-						g_sax_item.name_len, g_sax_item.name);
+						context->item_count,
+						context->name_len, context->name);
 			}
 			// TODO: save id somewhere
-			jf_sax_generic_item_clear(&g_sax_item);
-			g_sax_state = JF_SAX_IN_ITEMS_ARRAY;
+			jf_sax_context_current_item_clear(context);
+			context->parser_state = JF_SAX_IN_ITEMS_ARRAY;
 	}
 	return 1;
 }
@@ -127,38 +123,39 @@ static int sax_items_end_map(void *ctx)
 
 static int sax_items_map_key(void *ctx, const unsigned char *key, size_t key_len)
 {
-	switch (g_sax_state) {
+	jf_sax_context *context = (jf_sax_context *)(ctx);
+	switch (context->parser_state) {
 		case JF_SAX_IN_QUERYRESULT_MAP:
-			if (SAX_KEY_IS("Items")) {
-				g_sax_state = JF_SAX_IN_ITEMS_VALUE;
+			if (JF_SAX_KEY_IS("Items")) {
+				context->parser_state = JF_SAX_IN_ITEMS_VALUE;
 			}
 			break;
 		case JF_SAX_IN_ITEM_MAP:
-			if (SAX_KEY_IS("Name")) {
-				g_sax_state = JF_SAX_IN_ITEM_NAME_VALUE;
-			} else if (SAX_KEY_IS("Type")) {
-				g_sax_state = JF_SAX_IN_ITEM_TYPE_VALUE;
-			} else if (SAX_KEY_IS("Id")) {
-				g_sax_state = JF_SAX_IN_ITEM_ID_VALUE;
-			} else if (SAX_KEY_IS("Artists")) {
-				g_sax_state = JF_SAX_IN_ITEM_ARTISTS_VALUE;
-			} else if (SAX_KEY_IS("Album")) {
-				g_sax_state = JF_SAX_IN_ITEM_ALBUM_VALUE;
-			} else if (SAX_KEY_IS("SeriesName")) {
-				g_sax_state = JF_SAX_IN_ITEM_SERIES_VALUE;
-			} else if (SAX_KEY_IS("ProductionYear")) {
-				g_sax_state = JF_SAX_IN_ITEM_YEAR_VALUE;
-			} else if (SAX_KEY_IS("IndexNumber")) {
-				g_sax_state = JF_SAX_IN_ITEM_INDEX_VALUE;
-			} else if (SAX_KEY_IS("IndexParentNumber")) {
-				g_sax_state = JF_SAX_IN_ITEM_PARENT_INDEX_VALUE;
-			} else if (SAX_KEY_IS("UserData")) {
-				g_sax_state = JF_SAX_IN_USERDATA_VALUE;
+			if (JF_SAX_KEY_IS("Name")) {
+				context->parser_state = JF_SAX_IN_ITEM_NAME_VALUE;
+			} else if (JF_SAX_KEY_IS("Type")) {
+				context->parser_state = JF_SAX_IN_ITEM_TYPE_VALUE;
+			} else if (JF_SAX_KEY_IS("Id")) {
+				context->parser_state = JF_SAX_IN_ITEM_ID_VALUE;
+			} else if (JF_SAX_KEY_IS("Artists")) {
+				context->parser_state = JF_SAX_IN_ITEM_ARTISTS_VALUE;
+			} else if (JF_SAX_KEY_IS("Album")) {
+				context->parser_state = JF_SAX_IN_ITEM_ALBUM_VALUE;
+			} else if (JF_SAX_KEY_IS("SeriesName")) {
+				context->parser_state = JF_SAX_IN_ITEM_SERIES_VALUE;
+			} else if (JF_SAX_KEY_IS("ProductionYear")) {
+				context->parser_state = JF_SAX_IN_ITEM_YEAR_VALUE;
+			} else if (JF_SAX_KEY_IS("IndexNumber")) {
+				context->parser_state = JF_SAX_IN_ITEM_INDEX_VALUE;
+			} else if (JF_SAX_KEY_IS("IndexParentNumber")) {
+				context->parser_state = JF_SAX_IN_ITEM_PARENT_INDEX_VALUE;
+			} else if (JF_SAX_KEY_IS("UserData")) {
+				context->parser_state = JF_SAX_IN_USERDATA_VALUE;
 			}
 			break;
 		case JF_SAX_IN_USERDATA_MAP:
-			if (SAX_KEY_IS("PlaybackPositionTicks")) {
-				g_sax_state = JF_SAX_IN_USERDATA_TICKS_VALUE;
+			if (JF_SAX_KEY_IS("PlaybackPositionTicks")) {
+				context->parser_state = JF_SAX_IN_USERDATA_TICKS_VALUE;
 			}
 	}
 	return 1;
@@ -166,12 +163,13 @@ static int sax_items_map_key(void *ctx, const unsigned char *key, size_t key_len
 
 static int sax_items_start_array(void *ctx)
 {
-	switch (g_sax_state) {
+	jf_sax_context *context = (jf_sax_context *)(ctx);
+	switch (context->parser_state) {
 		case JF_SAX_IN_ITEMS_VALUE:
-			g_sax_state = JF_SAX_IN_ITEMS_ARRAY;
+			context->parser_state = JF_SAX_IN_ITEMS_ARRAY;
 			break;
 		case JF_SAX_IN_ITEM_ARTISTS_VALUE:
-			g_sax_state = JF_SAX_IN_ITEM_ARTISTS_ARRAY;
+			context->parser_state = JF_SAX_IN_ITEM_ARTISTS_ARRAY;
 			break;
 	}
 	return 1;
@@ -180,12 +178,13 @@ static int sax_items_start_array(void *ctx)
 
 static int sax_items_end_array(void *ctx)
 {
-	switch (g_sax_state) {
+	jf_sax_context *context = (jf_sax_context *)(ctx);
+	switch (context->parser_state) {
 		case JF_SAX_IN_ITEMS_ARRAY:
-			g_sax_state = JF_SAX_IN_QUERYRESULT_MAP;
+			context->parser_state = JF_SAX_IN_QUERYRESULT_MAP;
 			break;
 		case JF_SAX_IN_ITEM_ARTISTS_ARRAY:
-			g_sax_state = JF_SAX_IN_ITEM_MAP;
+			context->parser_state = JF_SAX_IN_ITEM_MAP;
 			break;
 	}
 	return 1;
@@ -194,50 +193,51 @@ static int sax_items_end_array(void *ctx)
 
 static int sax_items_string(void *ctx, const unsigned char *string, size_t string_len)
 {
-	switch (g_sax_state) {
+	jf_sax_context *context = (jf_sax_context *)(ctx);
+	switch (context->parser_state) {
 		case JF_SAX_IN_ITEM_NAME_VALUE:
-			SAX_ITEM_FILL(name);
-			g_sax_state = JF_SAX_IN_ITEM_MAP;
+			JF_SAX_ITEM_FILL(name);
+			context->parser_state = JF_SAX_IN_ITEM_MAP;
 			break;
 		case JF_SAX_IN_ITEM_TYPE_VALUE:
-			if (SAX_STRING_IS("CollectionFolder")) {
-				g_sax_item.type = JF_ITEM_TYPE_COLLECTION;
-			} else if (SAX_STRING_IS("Folder")) {
-				g_sax_item.type = JF_ITEM_TYPE_FOLDER;
-			} else if (SAX_STRING_IS("Playlist")) {
-				g_sax_item.type = JF_ITEM_TYPE_PLAYLIST;
-			} else if (SAX_STRING_IS("Audio")) {
-				g_sax_item.type = JF_ITEM_TYPE_AUDIO;
-			} else if (SAX_STRING_IS("Artist")) {
-				g_sax_item.type = JF_ITEM_TYPE_ARTIST;
-			} else if (SAX_STRING_IS("Album")) {
-				g_sax_item.type = JF_ITEM_TYPE_ALBUM;
-			} else if (SAX_STRING_IS("Episode")) {
-				g_sax_item.type = JF_ITEM_TYPE_EPISODE;
-			} else if (SAX_STRING_IS("Season")) { 
-				g_sax_item.type = JF_ITEM_TYPE_SEASON; 
-			} else if (SAX_STRING_IS("Series")) {
-				g_sax_item.type = JF_ITEM_TYPE_SERIES;
-			} else if (SAX_STRING_IS("Movie")) {
-				g_sax_item.type = JF_ITEM_TYPE_MOVIE;	
+			if (JF_SAX_STRING_IS("CollectionFolder")) {
+				context->current_item_type = JF_ITEM_TYPE_COLLECTION;
+			} else if (JF_SAX_STRING_IS("Folder")) {
+				context->current_item_type = JF_ITEM_TYPE_FOLDER;
+			} else if (JF_SAX_STRING_IS("Playlist")) {
+				context->current_item_type = JF_ITEM_TYPE_PLAYLIST;
+			} else if (JF_SAX_STRING_IS("Audio")) {
+				context->current_item_type = JF_ITEM_TYPE_AUDIO;
+			} else if (JF_SAX_STRING_IS("Artist")) {
+				context->current_item_type = JF_ITEM_TYPE_ARTIST;
+			} else if (JF_SAX_STRING_IS("Album")) {
+				context->current_item_type = JF_ITEM_TYPE_ALBUM;
+			} else if (JF_SAX_STRING_IS("Episode")) {
+				context->current_item_type = JF_ITEM_TYPE_EPISODE;
+			} else if (JF_SAX_STRING_IS("Season")) { 
+				context->current_item_type = JF_ITEM_TYPE_SEASON; 
+			} else if (JF_SAX_STRING_IS("Series")) {
+				context->current_item_type = JF_ITEM_TYPE_SERIES;
+			} else if (JF_SAX_STRING_IS("Movie")) {
+				context->current_item_type = JF_ITEM_TYPE_MOVIE;	
 			}
-			g_sax_state = JF_SAX_IN_ITEM_MAP;
+			context->parser_state = JF_SAX_IN_ITEM_MAP;
 			break;
 		case JF_SAX_IN_ITEM_ID_VALUE:
-			SAX_ITEM_FILL(id);
-			g_sax_state = JF_SAX_IN_ITEM_MAP;
+			JF_SAX_ITEM_FILL(id);
+			context->parser_state = JF_SAX_IN_ITEM_MAP;
 			break;
-		case JF_SAX_IN_ITEM_ARTIST_ARRAY:
+		case JF_SAX_IN_ITEM_ARTISTS_ARRAY:
 			// TODO we're effectively keeping only the last one of the list: review how reasonable this is
-			SAX_ITEM_FILL(artist);
+			JF_SAX_ITEM_FILL(artist);
 			break;
 		case JF_SAX_IN_ITEM_ALBUM_VALUE:
-			SAX_ITEM_FILL(album);
-			g_sax_state = JF_SAX_IN_ITEM_MAP;
+			JF_SAX_ITEM_FILL(album);
+			context->parser_state = JF_SAX_IN_ITEM_MAP;
 			break;
 		case JF_SAX_IN_ITEM_SERIES_VALUE:
-			SAX_ITEM_FILL(series);
-			g_sax_state = JF_SAX_IN_ITEM_MAP;
+			JF_SAX_ITEM_FILL(series);
+			context->parser_state = JF_SAX_IN_ITEM_MAP;
 			break;
 	}
 	return 1;
@@ -246,22 +246,23 @@ static int sax_items_string(void *ctx, const unsigned char *string, size_t strin
 
 static int sax_items_number(void *ctx, const char *string, size_t string_len)
 {
-	switch (g_sax_state) {
+	jf_sax_context *context = (jf_sax_context *)(ctx);
+	switch (context->parser_state) {
 		case JF_SAX_IN_USERDATA_TICKS_VALUE:
-			g_sax_item.ticks = strtoll(string, NULL, 10);
-			g_sax_state = JF_SAX_IN_USERDATA_MAP;
+			context->ticks = strtoll(string, NULL, 10);
+			context->parser_state = JF_SAX_IN_USERDATA_MAP;
 			break;
 		case JF_SAX_IN_ITEM_YEAR_VALUE:
-			SAX_ITEM_FILL(year);
-			g_sax_state = JF_SAX_IN_ITEM_MAP;
+			JF_SAX_ITEM_FILL(year);
+			context->parser_state = JF_SAX_IN_ITEM_MAP;
 			break;
 		case JF_SAX_IN_ITEM_INDEX_VALUE:
-			SAX_ITEM_FILL(index);
-			g_sax_state = JF_SAX_IN_ITEM_MAP;
+			JF_SAX_ITEM_FILL(index);
+			context->parser_state = JF_SAX_IN_ITEM_MAP;
 			break;
 		case JF_SAX_IN_ITEM_PARENT_INDEX_VALUE:
-			SAX_ITEM_FILL(parent_index);
-			g_sax_state = JF_SAX_IN_ITEM_MAP;
+			JF_SAX_ITEM_FILL(parent_index);
+			context->parser_state = JF_SAX_IN_ITEM_MAP;
 			break;
 	}
 	return 1;
@@ -269,13 +270,23 @@ static int sax_items_number(void *ctx, const char *string, size_t string_len)
 //////////////////////////////////////////
 
 
-void jf_sax_generic_item_clear(jf_sax_generic_item *item)
+void jf_sax_context_current_item_clear(jf_sax_context *context)
 // NB setting the value of a pointer to real 0's is not the same as NULL or the value 0
 // (which the compiler interprets as a "null pointer value")
 // but it is safe to do here because in use we never check if the pointers are valid,
 // only if the string lengths are > 0. Also JF_ITEM_TYPE_NONE is 0.
 {
-	memset(item, 0, sizeof(jf_sax_generic_item));
+	context->current_item_type = JF_ITEM_TYPE_NONE;
+	context->name_len = 0;
+	context->id_len = 0;
+	context->artist_len = 0;
+	context->album_len = 0;
+	context->series_len = 0;
+	context->year_len = 0;
+	context->index_len = 0;
+	context->parent_index = 0;
+
+	//memset(item, 0, sizeof(jf_sax_generic_item));
 }
 
 
@@ -283,8 +294,7 @@ void jf_sax_generic_item_clear(jf_sax_generic_item *item)
 // TODO: arguments...
 void *jf_sax_parser_thread(void *arg)
 {
-	size_t read_bytes;
-	jf_thread_buffer *tb = (jf_thread_buffer *)arg;
+	jf_sax_context context;
 	yajl_status status;
 	yajl_handle parser;
 	yajl_callbacks callbacks = {
@@ -300,6 +310,10 @@ void *jf_sax_parser_thread(void *arg)
 		.yajl_start_array = sax_items_start_array,
 		.yajl_end_array = sax_items_end_array
 	};
+
+	// parser context init
+	context.parser_state = JF_SAX_IDLE;
+	context.tb = (jf_thread_buffer *)arg;
 
 	/*
 	FILE *header_file;
@@ -332,29 +346,29 @@ void *jf_sax_parser_thread(void *arg)
 		return NULL;
 	}
 	*/
-	if ((parser = yajl_alloc(&callbacks, NULL, NULL)) == NULL) {
-		strcpy(tb->data, "sax parser yajl_alloc failed");
+	if ((parser = yajl_alloc(&callbacks, NULL, (void *)(&context))) == NULL) {
+		strcpy(context.tb->data, "sax parser yajl_alloc failed");
 		return NULL;
 	}
 
 
-	pthread_mutex_lock(&tb->mut);
+	pthread_mutex_lock(&context.tb->mut);
 	while (1) {
-		while (tb->used == 0) {
-			pthread_cond_wait(&tb->cv_no_data, &tb->mut);
+		while (context.tb->used == 0) {
+			pthread_cond_wait(&context.tb->cv_no_data, &context.tb->mut);
 		}
-		if ((status = yajl_parse(parser, (unsigned char*)tb->data, tb->used)) != yajl_status_ok) {
-			char *error_str = (char *)yajl_get_error(parser, 1, (unsigned char*)tb->data, read_bytes);
-			strcpy(tb->data, "yajl_parse error: ");
-			strncat(tb->data, error_str, PARSER_ERROR_BUFFER_SIZE - strlen(tb->data));
-			pthread_mutex_unlock(&tb->mut);
-			yajl_free_error(parser, (unsigned char*)error_str);
+		if ((status = yajl_parse(parser, (unsigned char*)context.tb->data, context.tb->used)) != yajl_status_ok) {
+			unsigned char *error_str = yajl_get_error(parser, 1, (unsigned char*)context.tb->data, context.tb->used);
+			strcpy(context.tb->data, "yajl_parse error: ");
+			strncat(context.tb->data, (char *)error_str, JF_PARSER_ERROR_BUFFER_SIZE - strlen(context.tb->data));
+			pthread_mutex_unlock(&context.tb->mut);
+			yajl_free_error(parser, error_str);
 // 			fclose(header_file);
 // 			fclose(records_file);
 			return NULL;
 		}
-		tb->used = 0;
-		pthread_cond_signal(&tb->cv_has_data);
+		context.tb->used = 0;
+		pthread_cond_signal(&context.tb->cv_has_data);
 	}
 }
 
@@ -362,7 +376,7 @@ void *jf_sax_parser_thread(void *arg)
 
 char *jf_parser_error_string(void)
 {
-	return g_error_buffer;
+	return s_error_buffer;
 }
 
 
@@ -374,10 +388,10 @@ size_t jf_parse_login_reply(const char *payload, jf_options *options)
 	char *userid;
 	char *token;
 
-	g_error_buffer[0] = '\0';
-	if ((parsed = yajl_tree_parse(payload, g_error_buffer, PARSER_ERROR_BUFFER_SIZE)) == NULL) {
-		if (g_error_buffer[0] == '\0') {
-			strcpy(g_error_buffer, "yajl_tree_parse unkown error");
+	s_error_buffer[0] = '\0';
+	if ((parsed = yajl_tree_parse(payload, s_error_buffer, JF_PARSER_ERROR_BUFFER_SIZE)) == NULL) {
+		if (s_error_buffer[0] == '\0') {
+			strcpy(s_error_buffer, "yajl_tree_parse unkown error");
 		}
 		return 0;
 	}
@@ -403,13 +417,13 @@ char *jf_generate_login_request(const char *username, const char *password)
 	size_t json_len;
 
 	if ((gen = yajl_gen_alloc(NULL)) == NULL) return (char *)NULL;
-	GEN_BAD_JUMP_OUT(yajl_gen_map_open(gen));
-	GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)"Username", STATIC_STRLEN("Username")));
-	GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)username, strlen(username)));
-	GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)"pw", STATIC_STRLEN("pw")));
-	GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)password, strlen(password)));
-	GEN_BAD_JUMP_OUT(yajl_gen_map_close(gen));
-	GEN_BAD_JUMP_OUT(yajl_gen_get_buf(gen, (const unsigned char **)&json, &json_len));
+	JF_GEN_BAD_JUMP_OUT(yajl_gen_map_open(gen));
+	JF_GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)"Username", JF_STATIC_STRLEN("Username")));
+	JF_GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)username, strlen(username)));
+	JF_GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)"pw", JF_STATIC_STRLEN("pw")));
+	JF_GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)password, strlen(password)));
+	JF_GEN_BAD_JUMP_OUT(yajl_gen_map_close(gen));
+	JF_GEN_BAD_JUMP_OUT(yajl_gen_get_buf(gen, (const unsigned char **)&json, &json_len));
 	json = strndup(json, json_len);
 
 out:
