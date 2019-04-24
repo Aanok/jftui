@@ -22,13 +22,6 @@ typedef struct jf_options {
 } jf_options;
 
 
-// size < 0 means an error occurred
-typedef struct jf_reply {
-	char *payload;
-	int size;
-} jf_reply;
-
-
 typedef struct jf_thread_buffer {
 	char data[JF_THREAD_BUFFER_DATA_SIZE];
 	size_t used;
@@ -37,6 +30,13 @@ typedef struct jf_thread_buffer {
 	pthread_cond_t cv_no_data;
 	pthread_cond_t cv_has_data;
 } jf_thread_buffer;
+
+
+// size < 0 means an error occurred
+typedef struct jf_reply {
+	char *payload;
+	int size;
+} jf_reply;
 
 
 typedef struct jf_synced_queue {

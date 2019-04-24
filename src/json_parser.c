@@ -30,6 +30,13 @@ static int sax_items_start_map(void *ctx)
 		case JF_SAX_IN_USERDATA_VALUE:
 			context->parser_state = JF_SAX_IN_USERDATA_MAP;
 			break;
+		case JF_SAX_IN_ITEM_MAP:
+			context->parser_state = JF_SAX_IGNORE;
+			context->state_to_resume = JF_SAX_IN_ITEM_MAP;
+			// NB no break, do ++ below
+		case JF_SAX_IGNORE:
+			context->maps_ignoring++;
+			break;
 	}
 	return 1;
 }
@@ -44,6 +51,9 @@ static int sax_items_end_map(void *ctx)
 			break;
 		case JF_SAX_IN_ITEMS_VALUE:
 			context->parser_state = JF_SAX_IN_QUERYRESULT_MAP;
+			break;
+		case JF_SAX_IN_USERDATA_MAP:
+			context->parser_state = JF_SAX_IN_ITEM_MAP;
 			break;
 		case JF_SAX_IN_ITEM_MAP:
 			context->item_count++;
@@ -116,6 +126,13 @@ static int sax_items_end_map(void *ctx)
 			// TODO: save id somewhere
 			jf_sax_context_current_item_clear(context);
 			context->parser_state = JF_SAX_IN_ITEMS_ARRAY;
+			break;
+		case JF_SAX_IGNORE:
+			context->maps_ignoring--;
+			if (context->maps_ignoring == 0 && context->arrays_ignoring == 0) {
+				context->parser_state = context->state_to_resume;
+				context->state_to_resume = JF_SAX_NO_STATE;
+			}
 	}
 	return 1;
 }
@@ -171,6 +188,13 @@ static int sax_items_start_array(void *ctx)
 		case JF_SAX_IN_ITEM_ARTISTS_VALUE:
 			context->parser_state = JF_SAX_IN_ITEM_ARTISTS_ARRAY;
 			break;
+		case JF_SAX_IN_ITEM_MAP:
+			context->parser_state = JF_SAX_IGNORE;
+			context->state_to_resume = JF_SAX_IN_ITEM_MAP;
+			// NB no break, do ++ below
+		case JF_SAX_IGNORE:
+			context->arrays_ignoring++;
+			break;
 	}
 	return 1;
 }
@@ -185,6 +209,13 @@ static int sax_items_end_array(void *ctx)
 			break;
 		case JF_SAX_IN_ITEM_ARTISTS_ARRAY:
 			context->parser_state = JF_SAX_IN_ITEM_MAP;
+			break;
+		case JF_SAX_IGNORE:
+			context->arrays_ignoring--;
+			if (context->arrays_ignoring == 0 && context->maps_ignoring == 0) {
+				context->parser_state = context->state_to_resume;
+				context->state_to_resume = JF_SAX_NO_STATE;
+			}
 			break;
 	}
 	return 1;
@@ -210,7 +241,7 @@ static int sax_items_string(void *ctx, const unsigned char *string, size_t strin
 				context->current_item_type = JF_ITEM_TYPE_AUDIO;
 			} else if (JF_SAX_STRING_IS("Artist")) {
 				context->current_item_type = JF_ITEM_TYPE_ARTIST;
-			} else if (JF_SAX_STRING_IS("Album")) {
+			} else if (JF_SAX_STRING_IS("MusicAlbum")) {
 				context->current_item_type = JF_ITEM_TYPE_ALBUM;
 			} else if (JF_SAX_STRING_IS("Episode")) {
 				context->current_item_type = JF_ITEM_TYPE_EPISODE;
@@ -292,6 +323,8 @@ void jf_sax_context_current_item_clear(jf_sax_context *context)
 
 // TODO: proper error mechanism (needs signaling)
 // TODO: arguments...
+// NB all data created by the thread itself is allocated on the stack,
+// so it is safe to detach it
 void *jf_sax_parser_thread(void *arg)
 {
 	jf_sax_context context;
@@ -357,8 +390,10 @@ void *jf_sax_parser_thread(void *arg)
 		while (context.tb->used == 0) {
 			pthread_cond_wait(&context.tb->cv_no_data, &context.tb->mut);
 		}
+		printf("parser thread got data: %zu\n", context.tb->used);
 		if ((status = yajl_parse(parser, (unsigned char*)context.tb->data, context.tb->used)) != yajl_status_ok) {
 			unsigned char *error_str = yajl_get_error(parser, 1, (unsigned char*)context.tb->data, context.tb->used);
+			printf("PARSE ERROR: %s\n", error_str);
 			strcpy(context.tb->data, "yajl_parse error: ");
 			strncat(context.tb->data, (char *)error_str, JF_PARSER_ERROR_BUFFER_SIZE - strlen(context.tb->data));
 			pthread_mutex_unlock(&context.tb->mut);

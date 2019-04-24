@@ -8,6 +8,8 @@
 #include <string.h>
 #include <mpv/client.h>
 
+#include <unistd.h> // sleep for debug
+
 #include "shared.h"
 #include "network.h"
 #include "json_parser.h"
@@ -63,8 +65,8 @@ int main(int argc, char *argv[])
 	jf_options options = {
 		.server_url = argv[1],
 		.server_url_len = strlen(argv[1]),
-		.token = NULL,
-		.userid = NULL,
+		.token = argv[2],
+		.userid = argv[3],
 		.ssl_verifyhost = 1,
 		.client = "jftui",
 		.device = "pc",
@@ -93,14 +95,17 @@ int main(int argc, char *argv[])
 	*/
 
 	jf_network_init(&options);
+	printf("NETWORK INIT DONE\n");
+	/*
 	reply = jf_request("/users/public", 0, NULL);
 	printf("GOT REPLY:\n%s", reply->payload);
 	jf_reply_free(reply);
+	*/
 
-	pthread_t sax_parser_thread;
-	jf_thread_buffer tb;
-	jf_thread_buffer_init(&tb);
-	pthread_create(&sax_parser_thread, NULL, jf_sax_parser_thread, (void *)&tb);
+
+	// musica
+	reply = jf_request("/users/b8664437c69e4eb2802fc0a0eda8f852/items?ParentId=1b8414a45d245177d1c134bb724b1d92&SortBy=IsFolder,SortName&SortOrder=Ascending", JF_REQUEST_SAX_PROMISCUOUS, NULL);
+	sleep(3);
 	
 
 	jf_network_cleanup();

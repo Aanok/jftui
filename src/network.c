@@ -1,9 +1,11 @@
 #include <curl/curl.h>
 #include <string.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 #include "network.h"
 #include "shared.h"
+#include "json_parser.h"
 
 
 
@@ -12,12 +14,7 @@ static CURL *s_handle = NULL;
 static struct curl_slist *s_headers = NULL;
 static struct curl_slist *s_headers_POST = NULL;
 static const jf_options *s_options;
-static jf_thread_buffer s_tb = {
-	.used = 0,
-	.mut = PTHREAD_MUTEX_INITIALIZER,
-	.cv_no_data = PTHREAD_COND_INITIALIZER,
-	.cv_has_data = PTHREAD_COND_INITIALIZER
-};
+static jf_thread_buffer s_tb;
 
 
 ////////// JF_REPLY //////////
@@ -92,6 +89,8 @@ size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, __att
 	size_t chunk_size;
 
 	pthread_mutex_lock(&s_tb.mut);
+	
+	printf("WOOHOO IMMA JF_THREAD_BUFFER_CALLBACK WASSAP NIGGUHS\n");
 	while (written_data < real_size) {
 		while (s_tb.used != 0) {
 			pthread_cond_wait(&s_tb.cv_has_data, &s_tb.mut);
@@ -99,6 +98,7 @@ size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, __att
 		chunk_size = real_size - written_data <= JF_THREAD_BUFFER_DATA_SIZE ? real_size - written_data : JF_THREAD_BUFFER_DATA_SIZE;
 		memcpy(s_tb.data, payload + written_data, chunk_size);
 	    written_data += chunk_size;
+		s_tb.data[chunk_size] = '\0';
 		s_tb.used = chunk_size;
 		pthread_cond_signal(&s_tb.cv_no_data);
 	}
@@ -115,6 +115,7 @@ size_t jf_network_init(const jf_options *options)
 	curl_global_init(CURL_GLOBAL_ALL | CURL_GLOBAL_SSL);
 	s_handle = curl_easy_init();
 	s_options = options;
+	pthread_t sax_parser_thread;
 
 	// headers
 	if (! jf_network_make_headers()) {
@@ -132,6 +133,14 @@ size_t jf_network_init(const jf_options *options)
 	// follow redirects and keep POST method if using it
 	curl_easy_setopt(s_handle, CURLOPT_FOLLOWLOCATION, 1);
 	curl_easy_setopt(s_handle, CURLOPT_POSTREDIR, CURL_REDIR_POST_ALL);
+
+	// sax parser thread
+	if (pthread_create(&sax_parser_thread, NULL, jf_sax_parser_thread, (void *)&(s_tb)) == -1) {
+		return 0;
+	}
+	if (pthread_detach(sax_parser_thread) != 0) {
+		return 0;
+	}
 
 	return 1;
 }
@@ -172,7 +181,7 @@ size_t jf_network_reload_token(void)
 }
 
 
-jf_reply *jf_request(const char *resource, size_t to_thread_buffer, const char *POST_payload)
+jf_reply *jf_request(const char *resource, size_t request_type, const char *POST_payload)
 {
 	CURLcode result;
 	long status_code;
@@ -212,10 +221,16 @@ jf_reply *jf_request(const char *resource, size_t to_thread_buffer, const char *
 	}
 	
 	// request
-	if (to_thread_buffer) {
-		curl_easy_setopt(s_handle, CURLOPT_WRITEFUNCTION, jf_thread_buffer_callback);
-	} else {
-		curl_easy_setopt(s_handle, CURLOPT_WRITEFUNCTION, jf_reply_callback);		
+	switch (request_type) {
+		case JF_REQUEST_IN_MEMORY:
+			curl_easy_setopt(s_handle, CURLOPT_WRITEFUNCTION, jf_reply_callback);		
+			break;
+		case JF_REQUEST_SAX_PROMISCUOUS:
+			s_tb.promiscuous_context = 1;
+			// NB no break, proceed
+		case JF_REQUEST_SAX:
+			curl_easy_setopt(s_handle, CURLOPT_WRITEFUNCTION, jf_thread_buffer_callback);
+			break;
 	}
 	curl_easy_setopt(s_handle, CURLOPT_WRITEDATA, (void *)reply);
 	if ((result = curl_easy_perform(s_handle)) != CURLE_OK) {
