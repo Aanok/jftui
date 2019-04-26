@@ -102,11 +102,13 @@ int main(int argc, char *argv[])
 	jf_reply_free(reply);
 	*/
 
-
 	// musica
 	reply = jf_request("/users/b8664437c69e4eb2802fc0a0eda8f852/items?ParentId=1b8414a45d245177d1c134bb724b1d92&SortBy=IsFolder,SortName&SortOrder=Ascending", JF_REQUEST_SAX_PROMISCUOUS, NULL);
+	jf_reply_free(reply);
+	// radiodrammi
+	reply = jf_request("/users/b8664437c69e4eb2802fc0a0eda8f852/items?ParentId=283bb226c01f9dc23b97447df77f04f2&SortBy=IsFolder,SortName&SortOrder=Ascending", JF_REQUEST_SAX_PROMISCUOUS, NULL);
+	jf_reply_free(reply);
 	sleep(3);
-	
 
 	jf_network_cleanup();
 

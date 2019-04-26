@@ -90,7 +90,6 @@ size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, __att
 
 	pthread_mutex_lock(&s_tb.mut);
 	
-	printf("WOOHOO IMMA JF_THREAD_BUFFER_CALLBACK WASSAP NIGGUHS\n");
 	while (written_data < real_size) {
 		while (s_tb.used != 0) {
 			pthread_cond_wait(&s_tb.cv_has_data, &s_tb.mut);

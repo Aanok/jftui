@@ -31,9 +31,10 @@ static int sax_items_start_map(void *ctx)
 			context->parser_state = JF_SAX_IN_USERDATA_MAP;
 			break;
 		case JF_SAX_IN_ITEM_MAP:
-			context->parser_state = JF_SAX_IGNORE;
 			context->state_to_resume = JF_SAX_IN_ITEM_MAP;
-			// NB no break, do ++ below
+			context->parser_state = JF_SAX_IGNORE;
+			context->maps_ignoring = 1;
+			break;
 		case JF_SAX_IGNORE:
 			context->maps_ignoring++;
 			break;
@@ -46,7 +47,7 @@ static int sax_items_end_map(void *ctx)
 {
 	jf_sax_context *context = (jf_sax_context *)(ctx);
 	switch (context->parser_state) {
-		case JF_SAX_IN_QUERYRESULT_VALUE:
+		case JF_SAX_IN_QUERYRESULT_MAP:
 			context->parser_state = JF_SAX_IDLE;
 			break;
 		case JF_SAX_IN_ITEMS_VALUE:
@@ -57,7 +58,8 @@ static int sax_items_end_map(void *ctx)
 			break;
 		case JF_SAX_IN_ITEM_MAP:
 			context->item_count++;
-			if (context->current_item_type == JF_ITEM_TYPE_AUDIO) {
+			if (context->current_item_type == JF_ITEM_TYPE_AUDIO
+					|| context->current_item_type == JF_ITEM_TYPE_AUDIOBOOK) {
 				if (context->tb->promiscuous_context) {
 					printf("T %zu. %.*s - %.*s - %.*s\n",
 							context->item_count,
@@ -191,7 +193,8 @@ static int sax_items_start_array(void *ctx)
 		case JF_SAX_IN_ITEM_MAP:
 			context->parser_state = JF_SAX_IGNORE;
 			context->state_to_resume = JF_SAX_IN_ITEM_MAP;
-			// NB no break, do ++ below
+			context->arrays_ignoring = 1;
+			break;
 		case JF_SAX_IGNORE:
 			context->arrays_ignoring++;
 			break;
@@ -251,6 +254,8 @@ static int sax_items_string(void *ctx, const unsigned char *string, size_t strin
 				context->current_item_type = JF_ITEM_TYPE_SERIES;
 			} else if (JF_SAX_STRING_IS("Movie")) {
 				context->current_item_type = JF_ITEM_TYPE_MOVIE;	
+			} else if (JF_SAX_STRING_IS("AudioBook")) {
+				context->current_item_type = JF_ITEM_TYPE_AUDIOBOOK;
 			}
 			context->parser_state = JF_SAX_IN_ITEM_MAP;
 			break;
@@ -301,6 +306,25 @@ static int sax_items_number(void *ctx, const char *string, size_t string_len)
 //////////////////////////////////////////
 
 
+void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb)
+{
+	context->parser_state = JF_SAX_IDLE;
+	context->state_to_resume = JF_SAX_NO_STATE;
+	context->maps_ignoring = 0;
+	context->arrays_ignoring = 0;
+	context->tb = tb;
+	context->item_count = 0;
+	context->current_item_type = JF_ITEM_TYPE_NONE;
+	context->copy_buffer = NULL;
+	context->name = context->id = context->artist = context->album = NULL;
+	context->series = context->year = context->index = context->parent_index = NULL;
+	context->name_len = context->id_len = context->artist_len = 0;
+	context->album_len = context->series_len = context->year_len = 0;
+	context->index_len = context->parent_index_len = 0;
+	context->ticks = 0;
+}
+
+
 void jf_sax_context_current_item_clear(jf_sax_context *context)
 // NB setting the value of a pointer to real 0's is not the same as NULL or the value 0
 // (which the compiler interprets as a "null pointer value")
@@ -317,8 +341,32 @@ void jf_sax_context_current_item_clear(jf_sax_context *context)
 	context->index_len = 0;
 	context->parent_index = 0;
 
+	free(context->copy_buffer);
+	context->copy_buffer = NULL;
+
 	//memset(item, 0, sizeof(jf_sax_generic_item));
 }
+
+
+void jf_sax_context_current_item_copy(jf_sax_context *context)
+{
+	size_t item_size;
+	size_t used = 0;
+	item_size = (size_t)(context->name_len + context->id_len + context->artist_len
+		+ context->album_len + context->series_len + context->year_len +
+		context->index_len + context->parent_index_len);
+	if ((context->copy_buffer = malloc(item_size)) != NULL) {
+		JF_SAX_CONTEXT_COPY(name);
+		JF_SAX_CONTEXT_COPY(id);
+		JF_SAX_CONTEXT_COPY(artist);
+		JF_SAX_CONTEXT_COPY(album);
+		JF_SAX_CONTEXT_COPY(series);
+		JF_SAX_CONTEXT_COPY(year);
+		JF_SAX_CONTEXT_COPY(index);
+		JF_SAX_CONTEXT_COPY(parent_index);
+	}
+}
+
 
 
 // TODO: proper error mechanism (needs signaling)
@@ -344,9 +392,7 @@ void *jf_sax_parser_thread(void *arg)
 		.yajl_end_array = sax_items_end_array
 	};
 
-	// parser context init
-	context.parser_state = JF_SAX_IDLE;
-	context.tb = (jf_thread_buffer *)arg;
+	jf_sax_context_init(&context, (jf_thread_buffer *)arg);
 
 	/*
 	FILE *header_file;
@@ -384,16 +430,22 @@ void *jf_sax_parser_thread(void *arg)
 		return NULL;
 	}
 
+	// allow persistent parser to digest many JSON objects
+	if (yajl_config(parser, yajl_allow_multiple_values, 1) == 0) {
+		yajl_free(parser);
+		strcpy(context.tb->data, "sax parser could not allow_multiple_values");
+		return NULL;
+	}
+
 
 	pthread_mutex_lock(&context.tb->mut);
 	while (1) {
 		while (context.tb->used == 0) {
 			pthread_cond_wait(&context.tb->cv_no_data, &context.tb->mut);
 		}
-		printf("parser thread got data: %zu\n", context.tb->used);
 		if ((status = yajl_parse(parser, (unsigned char*)context.tb->data, context.tb->used)) != yajl_status_ok) {
 			unsigned char *error_str = yajl_get_error(parser, 1, (unsigned char*)context.tb->data, context.tb->used);
-			printf("PARSE ERROR: %s\n", error_str);
+			printf("%s\n", error_str);
 			strcpy(context.tb->data, "yajl_parse error: ");
 			strncat(context.tb->data, (char *)error_str, JF_PARSER_ERROR_BUFFER_SIZE - strlen(context.tb->data));
 			pthread_mutex_unlock(&context.tb->mut);
@@ -401,6 +453,10 @@ void *jf_sax_parser_thread(void *arg)
 // 			fclose(header_file);
 // 			fclose(records_file);
 			return NULL;
+		} else if (context.parser_state == JF_SAX_IDLE) {
+			yajl_complete_parse(parser);
+		} else if (context.copy_buffer == NULL) { // make sure it's not already a copy...
+			jf_sax_context_current_item_copy(&context);
 		}
 		context.tb->used = 0;
 		pthread_cond_signal(&context.tb->cv_has_data);
