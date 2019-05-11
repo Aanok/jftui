@@ -20,7 +20,7 @@ static int sax_items_start_map(void *ctx)
 	jf_sax_context *context = (jf_sax_context *)(ctx);
 	switch (context->parser_state) {
 		case JF_SAX_IDLE:
-			context->item_count = 0;
+			context->tb->item_count = 0;
 			jf_sax_context_current_item_clear(context);
 			context->parser_state = JF_SAX_IN_QUERYRESULT_MAP;
 			break;
@@ -57,45 +57,45 @@ static int sax_items_end_map(void *ctx)
 			context->parser_state = JF_SAX_IN_ITEM_MAP;
 			break;
 		case JF_SAX_IN_ITEM_MAP:
-			context->item_count++;
+			context->tb->item_count++;
 			if (context->current_item_type == JF_ITEM_TYPE_AUDIO
 					|| context->current_item_type == JF_ITEM_TYPE_AUDIOBOOK) {
 				if (context->tb->promiscuous_context) {
 					printf("T %zu. %.*s - %.*s - %.*s\n",
-							context->item_count,
+							context->tb->item_count,
 							JF_SAX_PRINT_FALLBACK(artist, "[Unknown Artist]"),
 							JF_SAX_PRINT_FALLBACK(album, "[Unknown Album]"),
 							context->name_len, context->name);
 				} else {
 					printf("T %zu. %.*s - %.*s\n",
-							context->item_count, 
+							context->tb->item_count, 
 							JF_SAX_PRINT_FALLBACK(index, "??"),
 							context->name_len, context->name);
 				}
 			} else if (context->current_item_type == JF_ITEM_TYPE_ALBUM) {
 				if (context->tb->promiscuous_context) {
 					printf("D %zu. %.*s - %.*s (%.*s)\n",
-							context->item_count,
+							context->tb->item_count,
 							JF_SAX_PRINT_FALLBACK(artist, "[Unknown Artist]"),
 							context->name_len, context->name,
 							JF_SAX_PRINT_FALLBACK(year, "[Unknown Year]"));
 				} else {
 					printf("D %zu. %.*s (%.*s)\n",
-							context->item_count,
+							context->tb->item_count,
 							context->name_len, context->name,
 							JF_SAX_PRINT_FALLBACK(year, "[Unknown Year]"));
 				}
 			} else if (context->current_item_type == JF_ITEM_TYPE_EPISODE) {
 				if (context->tb->promiscuous_context) {
 					printf("V %zu. %.*s - S%.*sE%.*s - %.*s\n",
-							context->item_count,
+							context->tb->item_count,
 							JF_SAX_PRINT_FALLBACK(series, "[Unknown Series]"),
 							JF_SAX_PRINT_FALLBACK(parent_index, "??"),
 							JF_SAX_PRINT_FALLBACK(index, "??"),
 							context->name_len, context->name);
 				} else {
 					printf("V %zu. S%.*sE%.*s - %.*s\n",
-							context->item_count,
+							context->tb->item_count,
 							JF_SAX_PRINT_FALLBACK(parent_index, "??"),
 							JF_SAX_PRINT_FALLBACK(index, "??"),
 							context->name_len, context->name);
@@ -103,17 +103,17 @@ static int sax_items_end_map(void *ctx)
 			} else if (context->current_item_type == JF_ITEM_TYPE_SEASON) {
 				if (context->tb->promiscuous_context) {
 					printf("D %zu. %.*s - %.*s\n", // TODO check if the name contains "Season" or is just the number
-							context->item_count,
+							context->tb->item_count,
 							JF_SAX_PRINT_FALLBACK(series, "[Unknown Series]"),
 							context->name_len, context->name);
 				} else {
 					printf("D %zu. %.*s\n",
-							context->item_count,
+							context->tb->item_count,
 							context->name_len, context->name);
 				}
 			} else if (context->current_item_type == JF_ITEM_TYPE_MOVIE) {
 				printf("V %zu. %.*s (%.*s)\n",
-						context->item_count,
+						context->tb->item_count,
 						context->name_len, context->name,
 						JF_SAX_PRINT_FALLBACK(year, "[Unknown Year]"));
 			} else if (context->current_item_type == JF_ITEM_TYPE_ARTIST
@@ -122,10 +122,23 @@ static int sax_items_end_map(void *ctx)
 						|| context->current_item_type == JF_ITEM_TYPE_FOLDER
 						|| context->current_item_type == JF_ITEM_TYPE_COLLECTION) {
 				printf("D %zu. %.*s\n",
-						context->item_count,
+						context->tb->item_count,
 						context->name_len, context->name);
 			}
-			// TODO: save id somewhere
+
+			// SAVE ITEM ID
+			if ((context->tb->item_count) * (1 + JF_ID_LENGTH) >= context->tb->parsed_ids_size) {
+				// reallocate. this array only ever grows
+				context->tb->parsed_ids_size = context->tb->parsed_ids_size * 2;
+				if ((context->tb->parsed_ids = realloc(context->tb->parsed_ids, context->tb->parsed_ids_size)) == NULL) {
+					return 0;
+				}
+			}
+			memcpy((context->tb->parsed_ids) + ((1 + JF_ID_LENGTH)*(context->tb->item_count -1)),
+					&(context->current_item_type), 1);
+			memcpy((context->tb->parsed_ids) + (1 + JF_ID_LENGTH)*(context->tb->item_count -1) + 1,
+					context->id, JF_ID_LENGTH);
+
 			jf_sax_context_current_item_clear(context);
 			context->parser_state = JF_SAX_IN_ITEMS_ARRAY;
 			break;
@@ -313,7 +326,6 @@ void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb)
 	context->maps_ignoring = 0;
 	context->arrays_ignoring = 0;
 	context->tb = tb;
-	context->item_count = 0;
 	context->current_item_type = JF_ITEM_TYPE_NONE;
 	context->copy_buffer = NULL;
 	context->name = context->id = context->artist = context->album = NULL;
@@ -343,13 +355,13 @@ void jf_sax_context_current_item_clear(jf_sax_context *context)
 
 	free(context->copy_buffer);
 	context->copy_buffer = NULL;
-
-	//memset(item, 0, sizeof(jf_sax_generic_item));
 }
 
 
 void jf_sax_context_current_item_copy(jf_sax_context *context)
 {
+	// allocate a contiguous buffer containing the copied values
+	// then update the context pointers to point within it
 	size_t item_size;
 	size_t used = 0;
 	item_size = (size_t)(context->name_len + context->id_len + context->artist_len

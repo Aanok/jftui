@@ -105,6 +105,24 @@ size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, __att
 
 	return written_data;
 }
+
+
+jf_menu_item jf_thread_buffer_get_parsed_item(size_t n)
+{
+	jf_menu_item item;
+	size_t offset;
+	
+	if (n > 0 && n <= s_tb.item_count) {
+		offset = (n - 1) * (1 + JF_ID_LENGTH);
+		item.type = *(s_tb.parsed_ids + offset);
+		item.id = s_tb.parsed_ids + offset + 1;
+	} else {
+		item.type = JF_ITEM_TYPE_NONE;
+	}
+
+	return item;
+}
+
 /////////////////////////////////////////////////
 
 
@@ -134,6 +152,7 @@ size_t jf_network_init(const jf_options *options)
 	curl_easy_setopt(s_handle, CURLOPT_POSTREDIR, CURL_REDIR_POST_ALL);
 
 	// sax parser thread
+	jf_thread_buffer_init(&s_tb);
 	if (pthread_create(&sax_parser_thread, NULL, jf_sax_parser_thread, (void *)&(s_tb)) == -1) {
 		return 0;
 	}
