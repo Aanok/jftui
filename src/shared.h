@@ -2,12 +2,13 @@
 #define _JF_SHARED
 
 #include <pthread.h>
+#include <curl/curl.h>
 
 // for hardcoded strings
 #define JF_STATIC_STRLEN(str) (sizeof(str) - 1)
 
 
-#define JF_THREAD_BUFFER_DATA_SIZE 65536
+#define JF_THREAD_BUFFER_DATA_SIZE (CURL_MAX_WRITE_SIZE +1)
 
 #define JF_ID_LENGTH 32
 
