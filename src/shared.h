@@ -10,10 +10,10 @@
 
 
 typedef struct jf_options {
-	char *server_url;
-	size_t server_url_len;
+	char *server;
+	size_t server_len;
 	char *token;
-	char *userid;
+	char *user;
 	size_t ssl_verifyhost;
 	char *client;
 	char *device;
@@ -50,7 +50,7 @@ typedef struct jf_synced_queue {
 } jf_synced_queue;
 
 
-// returns a malloc'd string result of the concatenation of its (expected char *) arguments past the first
+// returns a NULL-terminated, malloc'd string result of the concatenation of its (expected char *) arguments past the first
 // the first argument is the number of following arguments
 char *jf_concat(const size_t n, ...);
 

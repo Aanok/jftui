@@ -199,13 +199,13 @@ jf_reply *jf_request(const char *resource, size_t request_type, const char *POST
 	{
 		size_t resource_len = strlen(resource);
 		char *url;
-		if ((url = (char *)malloc(s_options->server_url_len + resource_len + 1)) == NULL) {
+		if ((url = (char *)malloc(s_options->server_len + resource_len + 1)) == NULL) {
 			reply->size = JF_REPLY_ERROR_MALLOC;
 			return reply;
 		}
-		strncpy(url, s_options->server_url, s_options->server_url_len);
-		strncpy(url + s_options->server_url_len, resource, resource_len);
-		url[s_options->server_url_len + resource_len] = '\0';
+		strncpy(url, s_options->server, s_options->server_len);
+		strncpy(url + s_options->server_len, resource, resource_len);
+		url[s_options->server_len + resource_len] = '\0';
 		curl_easy_setopt(s_handle, CURLOPT_URL, url);
 		free(url);
 	}

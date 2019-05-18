@@ -490,7 +490,7 @@ size_t jf_parse_login_reply(const char *payload, jf_options *options)
 	userid = YAJL_GET_STRING(yajl_tree_get(parsed, userid_selector, yajl_t_string));
 	token = YAJL_GET_STRING(yajl_tree_get(parsed, token_selector, yajl_t_string));
 	if (userid != NULL && token != NULL) {
-		options->userid = strdup(userid);
+		options->user = strdup(userid);
 		options->token = strdup(token);
 		yajl_tree_free(parsed);
 		return 1;
