@@ -53,22 +53,8 @@
 #define JF_SAX_IGNORE						666
 
 
-// GENERIC JELLYFIN ITEM REPRESENTATION
-#define JF_ITEM_TYPE_NONE		0
-#define JF_ITEM_TYPE_COLLECTION	1
-#define JF_ITEM_TYPE_FOLDER		2
-#define JF_ITEM_TYPE_PLAYLIST	3
-#define JF_ITEM_TYPE_AUDIO		4
-#define JF_ITEM_TYPE_ARTIST		5
-#define JF_ITEM_TYPE_ALBUM		6
-#define JF_ITEM_TYPE_EPISODE	7
-#define JF_ITEM_TYPE_SEASON		8
-#define JF_ITEM_TYPE_SERIES		9
-#define JF_ITEM_TYPE_MOVIE		10
-#define JF_ITEM_TYPE_AUDIOBOOK	11
-
-
 #define JF_PARSER_ERROR_BUFFER_SIZE 1024
+
 
 typedef struct jf_sax_context {
 	size_t parser_state;
@@ -76,8 +62,7 @@ typedef struct jf_sax_context {
 	size_t maps_ignoring;
 	size_t arrays_ignoring;
 	jf_thread_buffer *tb;
-	size_t item_count;
-	size_t current_item_type;
+	unsigned char current_item_type;
 	char *copy_buffer;
 	// the following _len specifiers must be int's instead of size_t's for the sake of printf precision
 	const unsigned char *name;			int name_len;

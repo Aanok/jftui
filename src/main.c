@@ -109,7 +109,10 @@ int main(int argc, char *argv[])
 // 	reply = jf_request("/users/b8664437c69e4eb2802fc0a0eda8f852/items?ParentId=283bb226c01f9dc23b97447df77f04f2&SortBy=IsFolder,SortName&SortOrder=Ascending", JF_REQUEST_SAX_PROMISCUOUS, NULL);
 // 	jf_reply_free(reply);
 // 
-	getchar();
+	int n;
+	scanf("%d", &n);
+	jf_menu_item item = jf_thread_buffer_get_parsed_item(n);
+	printf("type: %d\tid: %.*s\n", item.type, item.type == JF_ITEM_TYPE_NONE ? 0 : JF_ID_LENGTH, item.id);
 
 	jf_network_cleanup();
 
