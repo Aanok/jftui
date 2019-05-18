@@ -41,6 +41,7 @@ jf_options *jf_config_read(const char *config_path)
 
 	if ((config_file = fopen(config_path, "r")) == NULL) {
 		free(opts);
+		free(line);
 		return NULL;
 	}
 
