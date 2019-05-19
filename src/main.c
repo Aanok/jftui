@@ -64,12 +64,14 @@ int main(int argc, char *argv[])
 	jf_reply *reply;
 	const char *config_path = jf_config_get_path();
 	jf_options *options = jf_config_read(config_path);
+	jf_config_write(options, config_path);
 	free((char *)config_path);
 	if (options == NULL) return 1;
 
 	printf("server: \"%s\"\n", options->server);
 	printf("token: \"%s\"\n", options->token);
 	printf("user: \"%s\"\n", options->user);
+	printf("device: \"%s\"\n", options->device);
 
 	/*
 	jf_network_init(&options);

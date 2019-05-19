@@ -18,6 +18,8 @@
 	fclose(config_file);												\
 	return NULL;
 
+#define JF_CONFIG_WRITE_VALUE(key) fprintf(config_file, #key "=%s\n", opts->key);
+
 
 ////////// OPTIONS DEFAULTS //////////
 #define JF_CONFIG_SSL_VERIFYHOST_DEFAULT	1
@@ -30,5 +32,6 @@
 
 const char *jf_config_get_path(void);
 jf_options *jf_config_read(const char *config_path);
+void jf_config_write(const jf_options *opts, const char *config_path);
 
 #endif

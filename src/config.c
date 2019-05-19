@@ -42,6 +42,7 @@ jf_options *jf_config_read(const char *config_path)
 	opts->client = JF_CONFIG_CLIENT_DEFAULT;
 	opts->device = JF_CONFIG_DEVICE_DEFAULT;
 	opts->deviceid = JF_CONFIG_DEVICEID_DEFAULT;
+	opts->version = JF_CONFIG_VERSION_DEFAULT;
 
 
 	if ((line = malloc(line_size)) == NULL) {
@@ -65,6 +66,7 @@ jf_options *jf_config_read(const char *config_path)
 		}
 		value += 1; // digest '='
 		// figure out which option key it is
+		// NB options that start with a prefix of other options must go after those!
 		if JF_CONFIG_KEY_IS("server") {
 			JF_CONFIG_FILL_VALUE(server);
 			opts->server_len = value_len;
@@ -73,13 +75,13 @@ jf_options *jf_config_read(const char *config_path)
 		} else if JF_CONFIG_KEY_IS("user") {
 			JF_CONFIG_FILL_VALUE(user);
 		} else if JF_CONFIG_KEY_IS("ssl_verifyhost") {
-			if (strncmp(value, "false", sizeof("false")) == 0) opts->ssl_verifyhost = 0;
+			if (strncmp(value, "false", JF_STATIC_STRLEN("false")) == 0) opts->ssl_verifyhost = 0;
 		} else if JF_CONFIG_KEY_IS("client") {
 			JF_CONFIG_FILL_VALUE(client);
-		} else if JF_CONFIG_KEY_IS("device") {
-			JF_CONFIG_FILL_VALUE(device);
 		} else if JF_CONFIG_KEY_IS("deviceid") {
 			JF_CONFIG_FILL_VALUE(deviceid);
+		} else if JF_CONFIG_KEY_IS("device") {
+			JF_CONFIG_FILL_VALUE(device);
 		} else if JF_CONFIG_KEY_IS("version") {
 			JF_CONFIG_FILL_VALUE(version);
 		} else {
@@ -95,4 +97,22 @@ jf_options *jf_config_read(const char *config_path)
 }
 
 
+// TODO: error handling
+void jf_config_write(const jf_options *opts, const char *config_path)
+{
+	FILE *config_file;
 
+	if ((config_file = fopen(config_path, "w")) != NULL) {
+		// bit inefficient but w/e
+		JF_CONFIG_WRITE_VALUE(server);
+		JF_CONFIG_WRITE_VALUE(token);
+		JF_CONFIG_WRITE_VALUE(user);
+		fprintf(config_file, "ssl_verifyhost=%s\n", opts->ssl_verifyhost ? "true" : "false" );
+		JF_CONFIG_WRITE_VALUE(client);
+		JF_CONFIG_WRITE_VALUE(device);
+		JF_CONFIG_WRITE_VALUE(deviceid);
+		JF_CONFIG_WRITE_VALUE(version);
+
+		fclose(config_file);
+	}
+}
