@@ -3,6 +3,7 @@
 
 #include "shared.h"
 
+
 #define JF_CONFIG_KEY_IS(key) (strncmp(line, key, JF_STATIC_STRLEN(key)) == 0)
 
 #define JF_CONFIG_FILL_VALUE(key)					\
@@ -16,6 +17,15 @@
 	free(line);															\
 	fclose(config_file);												\
 	return NULL;
+
+
+////////// OPTIONS DEFAULTS //////////
+#define JF_CONFIG_SSL_VERIFYHOST_DEFAULT	1
+#define JF_CONFIG_CLIENT_DEFAULT			"jftui"
+#define JF_CONFIG_DEVICE_DEFAULT			"PC"
+#define JF_CONFIG_DEVICEID_DEFAULT			getenv("HOSTNAME") != NULL ? getenv("HOSTNAME") : "Linux"
+#define JF_CONFIG_VERSION_DEFAULT			JF_VERSION
+//////////////////////////////////////
 
 
 const char *jf_config_get_path(void);

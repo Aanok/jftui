@@ -8,6 +8,8 @@
 #define JF_STATIC_STRLEN(str) (sizeof(str) - 1)
 
 
+#define JF_VERSION "prealpha"
+
 #define JF_THREAD_BUFFER_DATA_SIZE (CURL_MAX_WRITE_SIZE +1)
 
 #define JF_ID_LENGTH 32

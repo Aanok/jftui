@@ -7,11 +7,14 @@
 
 
 // NB return value will need to be free'd
+// returns NULL if $HOME not set
 const char *jf_config_get_path(void)
 {
 	char *str;
 	if ((str = getenv("XDG_CONFIG_HOME")) == NULL) {
-		str = jf_concat(2, getenv("HOME"), "/.config/jftui");
+		if ((str = getenv("HOME")) != NULL) {
+			str = jf_concat(2, getenv("HOME"), "/.config/jftui");
+		}
 	} else {
 		str = jf_concat(2, str, "/jftui");
 	}
@@ -20,6 +23,7 @@ const char *jf_config_get_path(void)
 
 
 // TODO: better error handling
+// TODO: allow whitespace
 jf_options *jf_config_read(const char *config_path)
 {
 	FILE *config_file;
@@ -29,10 +33,16 @@ jf_options *jf_config_read(const char *config_path)
 	size_t value_len;
 	jf_options *opts;
 
+	// allocate options and assign defaults (static strings, safe to overwrite)
 	if ((opts = malloc(sizeof(jf_options))) == NULL) {
 		return NULL;
 	}
 	*opts = (jf_options){ 0 }; // correctly initialize to empty, will NULL pointers
+	opts->ssl_verifyhost = JF_CONFIG_SSL_VERIFYHOST_DEFAULT;
+	opts->client = JF_CONFIG_CLIENT_DEFAULT;
+	opts->device = JF_CONFIG_DEVICE_DEFAULT;
+	opts->deviceid = JF_CONFIG_DEVICEID_DEFAULT;
+
 
 	if ((line = malloc(line_size)) == NULL) {
 		free(opts);
@@ -77,9 +87,6 @@ jf_options *jf_config_read(const char *config_path)
 			JF_CONFIG_MALFORMED
 		}
 	}
-
-	// apply defaults for values unread
-	// TODO: missing some
 
 	free(line);
 	fclose(config_file);
