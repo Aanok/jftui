@@ -42,7 +42,7 @@ char *jf_concat(size_t n, ...)
 }
 
 
-size_t jf_thread_buffer_init(jf_thread_buffer *tb)
+bool jf_thread_buffer_init(jf_thread_buffer *tb)
 {
 	tb->used = 0;
 	tb->promiscuous_context = false;
@@ -51,11 +51,54 @@ size_t jf_thread_buffer_init(jf_thread_buffer *tb)
 	pthread_cond_init(&tb->cv_has_data, NULL);
 	tb->parsed_ids_size = 512 * (1 + JF_ID_LENGTH);
 	if ((tb->parsed_ids = malloc(tb->parsed_ids_size)) == NULL) {
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
+
+jf_options *jf_options_new(void)
+{
+	jf_options *opts;
+
+	if ((opts = malloc(sizeof(jf_options))) == NULL) {
+		return NULL;
+	}
+
+	// initialize to empty, will NULL pointers
+	*opts = (jf_options){ 0 }; 
+
+	// initialize fields where 0 is a valid value
+	opts->ssl_verifyhost = JF_CONFIG_SSL_VERIFYHOST_DEFAULT;
+
+	return opts;
+}
+
+
+void jf_options_fill_defaults(jf_options *opts)
+{
+	if (opts != NULL) {
+		opts->client = JF_CONFIG_CLIENT_DEFAULT;
+		opts->device = JF_CONFIG_DEVICE_DEFAULT;
+		opts->deviceid = JF_CONFIG_DEVICEID_DEFAULT;
+		opts->version = JF_CONFIG_VERSION_DEFAULT;
+	}
+}
+
+
+void jf_options_free(jf_options *opts)
+{
+	if (opts != NULL) {
+		free(opts->server);
+		free(opts->token);
+		free(opts->userid);
+		free(opts->client);
+		free(opts->device);
+		free(opts->deviceid);
+		free(opts->version);
+		free(opts);
+	}
+}
 
 
 // jf_synced_queue *jf_synced_queue_new(const size_t slots)

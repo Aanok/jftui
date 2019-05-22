@@ -64,14 +64,8 @@ int main(int argc, char *argv[])
 	jf_reply *reply;
 	const char *config_path = jf_config_get_path();
 	jf_options *options = jf_config_read(config_path);
-	jf_config_write(options, config_path);
 	free((char *)config_path);
 	if (options == NULL) return 1;
-
-	printf("server: \"%s\"\n", options->server);
-	printf("token: \"%s\"\n", options->token);
-	printf("user: \"%s\"\n", options->user);
-	printf("device: \"%s\"\n", options->device);
 
 	/*
 	jf_network_init(&options);
@@ -92,13 +86,21 @@ int main(int argc, char *argv[])
 	jf_reply_free(reply);
 	*/
 
+	jf_menu_item root = {
+		.type = JF_ITEM_TYPE_COLLECTION,
+		.id = NULL,
+		.children = NULL
+	};
+	jf_menu_item foo[2] = { { JF_ITEM_TYPE_COLLECTION, NULL, NULL }, NULL };
+	root.children = foo;
+
 	jf_network_init(options);
-	printf("NETWORK INIT DONE\n");
-	/*
-	reply = jf_request("/users/public", 0, NULL);
-	printf("GOT REPLY:\n%s", reply->payload);
+	char *next_up = jf_concat(3, "/shows/nextup?userid=", options->userid, "&limit=15");
+	printf("NEXTUP: %s\n", next_up);
+	reply = jf_request(next_up, JF_REQUEST_SAX_PROMISCUOUS, NULL);
+	free(next_up);
+//  	printf("GOT REPLY:\n%s", reply->payload);
 	jf_reply_free(reply);
-	*/
 
 // 	// musica
 // 	reply = jf_request("/users/b8664437c69e4eb2802fc0a0eda8f852/items?ParentId=1b8414a45d245177d1c134bb724b1d92&SortBy=IsFolder,SortName&SortOrder=Ascending", JF_REQUEST_SAX_PROMISCUOUS, NULL);

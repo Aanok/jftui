@@ -13,21 +13,13 @@
 
 #define JF_CONFIG_MALFORMED												\
 	fprintf(stderr, "FATAL: malformed config file line: %s\n", line);	\
-	free(opts);															\
+	jf_options_free(opts);															\
 	free(line);															\
 	fclose(config_file);												\
 	return NULL;
 
 #define JF_CONFIG_WRITE_VALUE(key) fprintf(config_file, #key "=%s\n", opts->key);
 
-
-////////// OPTIONS DEFAULTS //////////
-#define JF_CONFIG_SSL_VERIFYHOST_DEFAULT	1
-#define JF_CONFIG_CLIENT_DEFAULT			"jftui"
-#define JF_CONFIG_DEVICE_DEFAULT			"PC"
-#define JF_CONFIG_DEVICEID_DEFAULT			getenv("HOSTNAME") != NULL ? getenv("HOSTNAME") : "Linux"
-#define JF_CONFIG_VERSION_DEFAULT			JF_VERSION
-//////////////////////////////////////
 
 
 const char *jf_config_get_path(void);

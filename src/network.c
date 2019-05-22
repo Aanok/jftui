@@ -117,6 +117,7 @@ jf_menu_item jf_thread_buffer_get_parsed_item(size_t n)
 		offset = (n - 1) * (1 + JF_ID_LENGTH);
 		item.type = *(s_tb.parsed_ids + offset);
 		item.id = s_tb.parsed_ids + offset + 1;
+		item.children = NULL;
 	} else {
 		item.type = JF_ITEM_TYPE_NONE;
 	}
@@ -128,7 +129,7 @@ jf_menu_item jf_thread_buffer_get_parsed_item(size_t n)
 
 
 ////////// NETWORKING FUNCTIONS //////////
-size_t jf_network_init(const jf_options *options)
+bool jf_network_init(const jf_options *options)
 {
 	curl_global_init(CURL_GLOBAL_ALL | CURL_GLOBAL_SSL);
 	s_handle = curl_easy_init();
@@ -137,7 +138,7 @@ size_t jf_network_init(const jf_options *options)
 
 	// headers
 	if (! jf_network_make_headers()) {
-		return 0;
+		return false;
 	}
 
 	// security bypass stuff
@@ -155,43 +156,43 @@ size_t jf_network_init(const jf_options *options)
 	// sax parser thread
 	jf_thread_buffer_init(&s_tb);
 	if (pthread_create(&sax_parser_thread, NULL, jf_sax_parser_thread, (void *)&(s_tb)) == -1) {
-		return 0;
+		return false;
 	}
 	if (pthread_detach(sax_parser_thread) != 0) {
-		return 0;
+		return false;
 	}
 
-	return 1;
+	return true;
 }
 
 
-size_t jf_network_make_headers(void)
+bool jf_network_make_headers(void)
 {
 	char *tmp;
 
 	if (s_options->token != NULL) {
 		if ((tmp = jf_concat(2, "x-emby-token: ", s_options->token)) == NULL) {
-				return 0;
+			return false;
 		}
 		if ((s_headers = curl_slist_append(s_headers, tmp)) == NULL) {
-			return 0;
+			return false;
 		}
 		free(tmp);
 	}
 	if ((s_headers = curl_slist_append(s_headers, "accept: application/json; charset=utf-8")) == NULL) {
-		return 0;
+		return false;
 	}
 
 	// headers for POST: second list
 	if ((s_headers_POST = curl_slist_append(s_headers, "content-type: application/json; charset=utf-8")) == NULL) {
-		return 0;
+		return false;
 	}
 
-	return 1;
+	return true;
 }
 
 
-size_t jf_network_reload_token(void)
+bool jf_network_reload_token(void)
 {
 	curl_slist_free_all(s_headers_POST);
 	s_headers = NULL;

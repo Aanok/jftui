@@ -179,7 +179,7 @@ static int sax_items_map_key(void *ctx, const unsigned char *key, size_t key_len
 				context->parser_state = JF_SAX_IN_ITEM_YEAR_VALUE;
 			} else if (JF_SAX_KEY_IS("IndexNumber")) {
 				context->parser_state = JF_SAX_IN_ITEM_INDEX_VALUE;
-			} else if (JF_SAX_KEY_IS("IndexParentNumber")) {
+			} else if (JF_SAX_KEY_IS("ParentIndexNumber")) {
 				context->parser_state = JF_SAX_IN_ITEM_PARENT_INDEX_VALUE;
 			} else if (JF_SAX_KEY_IS("UserData")) {
 				context->parser_state = JF_SAX_IN_USERDATA_VALUE;
@@ -347,7 +347,7 @@ void jf_sax_context_current_item_clear(jf_sax_context *context)
 	context->series_len = 0;
 	context->year_len = 0;
 	context->index_len = 0;
-	context->parent_index = 0;
+	context->parent_index_len = 0;
 
 	free(context->copy_buffer);
 	context->copy_buffer = NULL;
@@ -446,7 +446,7 @@ char *jf_parser_error_string(void)
 }
 
 
-size_t jf_parse_login_reply(const char *payload, jf_options *options)
+bool jf_parse_login_reply(const char *payload, jf_options *options)
 {
 	yajl_val parsed;
 	const char *userid_selector[3] = { "User", "Id", NULL };
@@ -459,19 +459,19 @@ size_t jf_parse_login_reply(const char *payload, jf_options *options)
 		if (s_error_buffer[0] == '\0') {
 			strcpy(s_error_buffer, "yajl_tree_parse unkown error");
 		}
-		return 0;
+		return false;
 	}
 	// NB macros propagate NULL
 	userid = YAJL_GET_STRING(yajl_tree_get(parsed, userid_selector, yajl_t_string));
 	token = YAJL_GET_STRING(yajl_tree_get(parsed, token_selector, yajl_t_string));
 	if (userid != NULL && token != NULL) {
-		options->user = strdup(userid);
+		options->userid = strdup(userid);
 		options->token = strdup(token);
 		yajl_tree_free(parsed);
-		return 1;
+		return true;
 	} else {
 		yajl_tree_free(parsed);
-		return 0;
+		return false;
 	}
 }
 

@@ -8,7 +8,6 @@
 // for hardcoded strings
 #define JF_STATIC_STRLEN(str) (sizeof(str) - 1)
 
-
 #define JF_VERSION "prealpha"
 
 #define JF_THREAD_BUFFER_DATA_SIZE (CURL_MAX_WRITE_SIZE +1)
@@ -31,12 +30,21 @@
 #define JF_ITEM_TYPE_AUDIOBOOK	11
 
 
+////////// OPTIONS DEFAULTS //////////
+#define JF_CONFIG_SSL_VERIFYHOST_DEFAULT	true
+#define JF_CONFIG_CLIENT_DEFAULT			opts->client != NULL ? opts->client : "jftui"
+#define JF_CONFIG_DEVICE_DEFAULT			opts->device != NULL ? opts->device : "PC"
+#define JF_CONFIG_DEVICEID_DEFAULT			opts->deviceid != NULL ? opts->deviceid : getenv("HOSTNAME") != NULL ? getenv("HOSTNAME") : "Linux"
+#define JF_CONFIG_VERSION_DEFAULT			opts->version != NULL ? opts->version : JF_VERSION
+//////////////////////////////////////
+
+
 // TODO: consider refactoring into global state for application
 typedef struct jf_options {
 	char *server;
 	size_t server_len;
 	char *token;
-	char *user;
+	char *userid;
 	bool ssl_verifyhost;
 	char *client;
 	char *device;
@@ -48,6 +56,7 @@ typedef struct jf_options {
 typedef struct jf_menu_item {
 	unsigned char type;
 	unsigned char *id;
+	struct jf_menu_item *children; // array, shall be NULL-terminated
 } jf_menu_item;
 
 
@@ -87,7 +96,10 @@ typedef struct jf_reply {
 // the first argument is the number of following arguments
 char *jf_concat(const size_t n, ...);
 
-size_t jf_thread_buffer_init(jf_thread_buffer *tb);
+bool jf_thread_buffer_init(jf_thread_buffer *tb);
+jf_options *jf_options_new(void);
+void jf_options_fill_defaults(jf_options *opts);
+void jf_options_free(jf_options *opts);
 
 // UNUSED FOR NOW
 // jf_synced_queue *jf_synced_queue_new(const size_t slot_count);

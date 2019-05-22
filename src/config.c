@@ -33,18 +33,14 @@ jf_options *jf_config_read(const char *config_path)
 	size_t value_len;
 	jf_options *opts;
 
-	// allocate options and assign defaults (static strings, safe to overwrite)
-	if ((opts = malloc(sizeof(jf_options))) == NULL) {
+	if (config_path == NULL) {
 		return NULL;
 	}
-	*opts = (jf_options){ 0 }; // correctly initialize to empty, will NULL pointers
-	opts->ssl_verifyhost = JF_CONFIG_SSL_VERIFYHOST_DEFAULT;
-	opts->client = JF_CONFIG_CLIENT_DEFAULT;
-	opts->device = JF_CONFIG_DEVICE_DEFAULT;
-	opts->deviceid = JF_CONFIG_DEVICEID_DEFAULT;
-	opts->version = JF_CONFIG_VERSION_DEFAULT;
 
-
+	if ((opts = jf_options_new()) == NULL) {
+		return NULL;
+	}
+	
 	if ((line = malloc(line_size)) == NULL) {
 		free(opts);
 		return NULL;
@@ -72,8 +68,8 @@ jf_options *jf_config_read(const char *config_path)
 			opts->server_len = value_len;
 		} else if JF_CONFIG_KEY_IS("token") {
 			JF_CONFIG_FILL_VALUE(token);
-		} else if JF_CONFIG_KEY_IS("user") {
-			JF_CONFIG_FILL_VALUE(user);
+		} else if JF_CONFIG_KEY_IS("userid") {
+			JF_CONFIG_FILL_VALUE(userid);
 		} else if JF_CONFIG_KEY_IS("ssl_verifyhost") {
 			if (strncmp(value, "false", JF_STATIC_STRLEN("false")) == 0) opts->ssl_verifyhost = 0;
 		} else if JF_CONFIG_KEY_IS("client") {
@@ -89,6 +85,9 @@ jf_options *jf_config_read(const char *config_path)
 			JF_CONFIG_MALFORMED
 		}
 	}
+
+	// apply defaults for missing values
+	jf_options_fill_defaults(opts);
 
 	free(line);
 	fclose(config_file);
@@ -106,7 +105,7 @@ void jf_config_write(const jf_options *opts, const char *config_path)
 		// bit inefficient but w/e
 		JF_CONFIG_WRITE_VALUE(server);
 		JF_CONFIG_WRITE_VALUE(token);
-		JF_CONFIG_WRITE_VALUE(user);
+		JF_CONFIG_WRITE_VALUE(userid);
 		fprintf(config_file, "ssl_verifyhost=%s\n", opts->ssl_verifyhost ? "true" : "false" );
 		JF_CONFIG_WRITE_VALUE(client);
 		JF_CONFIG_WRITE_VALUE(device);
