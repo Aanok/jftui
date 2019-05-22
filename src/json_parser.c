@@ -338,10 +338,6 @@ void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb)
 
 
 void jf_sax_context_current_item_clear(jf_sax_context *context)
-// NB setting the value of a pointer to real 0's is not the same as NULL or the value 0
-// (which the compiler interprets as a "null pointer value")
-// but it is safe to do here because in use we never check if the pointers are valid,
-// only if the string lengths are > 0. Also JF_ITEM_TYPE_NONE is 0.
 {
 	context->current_item_type = JF_ITEM_TYPE_NONE;
 	context->name_len = 0;
@@ -406,37 +402,6 @@ void *jf_sax_parser_thread(void *arg)
 
 	jf_sax_context_init(&context, (jf_thread_buffer *)arg);
 
-	/*
-	FILE *header_file;
-	FILE *records_file;
-	char *header_pathname;
-	char *records_pathname;
-	*/
-
-	/*
-	if ((header_pathname = strdup(header_pathname)) == NULL) {
-		strcpy(tb->data, "strdup header_pathname failed: ");
-		strerror_r(errno, tb->data + strlen(tb->data), PARSER_BUF_SIZE - strlen(tb->data));
-		return NULL;
-	}
-	if ((records_pathname = strdup(records_pathname)) == NULL) {
-		strcpy(tb->data, "strdup records_pathname failed: ");
-		strerror_r(errno, tb->data + strlen(tb->data), PARSER_BUF_SIZE - strlen(tb->data));
-		free(header_pathname);
-		return NULL;
-	}
-	if (!(header_file = fopen(header_pathname, "w+"))) {
-		strcpy(tb->data, "fopen header_path failed: ");
-		strerror_r(errno, tb->data + strlen(tb->data), PARSER_BUF_SIZE - strlen(tb->data));
-		return NULL;
-	}
-	if (!(records_file = fopen(records_pathname, "w+"))) {
-		strcpy(tb->data, "fopen records_path failed: ");
-		strerror_r(errno, tb->data + strlen(tb->data), PARSER_BUF_SIZE - strlen(tb->data));
-		fclose(header_file);
-		return NULL;
-	}
-	*/
 	if ((parser = yajl_alloc(&callbacks, NULL, (void *)(&context))) == NULL) {
 		strcpy(context.tb->data, "sax parser yajl_alloc failed");
 		return NULL;
@@ -462,8 +427,6 @@ void *jf_sax_parser_thread(void *arg)
 			strncat(context.tb->data, (char *)error_str, JF_PARSER_ERROR_BUFFER_SIZE - strlen(context.tb->data));
 			pthread_mutex_unlock(&context.tb->mut);
 			yajl_free_error(parser, error_str);
-// 			fclose(header_file);
-// 			fclose(records_file);
 			return NULL;
 		} else if (context.parser_state == JF_SAX_IDLE) {
 			yajl_complete_parse(parser);
@@ -487,7 +450,7 @@ size_t jf_parse_login_reply(const char *payload, jf_options *options)
 {
 	yajl_val parsed;
 	const char *userid_selector[3] = { "User", "Id", NULL };
-	const char *token_selector[3] = { "AccessToken", NULL };
+	const char *token_selector[2] = { "AccessToken", NULL };
 	char *userid;
 	char *token;
 

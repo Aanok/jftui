@@ -107,6 +107,7 @@ size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, __att
 }
 
 
+// NB n is 1-indexed as per user interface
 jf_menu_item jf_thread_buffer_get_parsed_item(size_t n)
 {
 	jf_menu_item item;

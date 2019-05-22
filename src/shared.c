@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <pthread.h>
+#include <stdbool.h>
 #include "shared.h"
 
 
@@ -44,7 +45,7 @@ char *jf_concat(size_t n, ...)
 size_t jf_thread_buffer_init(jf_thread_buffer *tb)
 {
 	tb->used = 0;
-	tb->promiscuous_context = 0;
+	tb->promiscuous_context = false;
 	pthread_mutex_init(&tb->mut, NULL);
 	pthread_cond_init(&tb->cv_no_data, NULL);
 	pthread_cond_init(&tb->cv_has_data, NULL);

@@ -3,6 +3,7 @@
 
 #include <pthread.h>
 #include <curl/curl.h>
+#include <stdbool.h>
 
 // for hardcoded strings
 #define JF_STATIC_STRLEN(str) (sizeof(str) - 1)
@@ -36,7 +37,7 @@ typedef struct jf_options {
 	size_t server_len;
 	char *token;
 	char *user;
-	size_t ssl_verifyhost;
+	bool ssl_verifyhost;
 	char *client;
 	char *device;
 	char *deviceid;
@@ -53,7 +54,7 @@ typedef struct jf_menu_item {
 typedef struct jf_thread_buffer {
 	char data[JF_THREAD_BUFFER_DATA_SIZE];
 	size_t used;
-	size_t promiscuous_context;
+	bool promiscuous_context;
 	unsigned char *parsed_ids;
 	size_t parsed_ids_size;
 	size_t item_count;
