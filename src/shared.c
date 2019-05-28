@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include <unistd.h>
 #include "shared.h"
 
 
@@ -78,10 +79,16 @@ jf_options *jf_options_new(void)
 void jf_options_fill_defaults(jf_options *opts)
 {
 	if (opts != NULL) {
-		opts->client = JF_CONFIG_CLIENT_DEFAULT;
-		opts->device = JF_CONFIG_DEVICE_DEFAULT;
-		opts->deviceid = JF_CONFIG_DEVICEID_DEFAULT;
-		opts->version = JF_CONFIG_VERSION_DEFAULT;
+		opts->client = opts->client != NULL ? opts-> client : JF_CONFIG_CLIENT_DEFAULT;
+		opts->device = opts->device != NULL ? opts->device : JF_CONFIG_DEVICE_DEFAULT;
+		if (opts->deviceid[0] == '\0') {
+			if (gethostname(opts->deviceid, JF_CONFIG_DEVICEID_MAX_LEN - 1) == 0) {
+				opts->deviceid[JF_CONFIG_DEVICEID_MAX_LEN - 1] = '\0';
+			} else {
+				strncpy(opts->deviceid, JF_CONFIG_DEVICEID_DEFAULT, JF_STATIC_STRLEN(JF_CONFIG_DEVICEID_DEFAULT));
+			}
+		}
+		opts->version = opts->version != NULL ? opts->version : JF_CONFIG_VERSION_DEFAULT;
 	}
 }
 
@@ -94,7 +101,6 @@ void jf_options_free(jf_options *opts)
 		free(opts->userid);
 		free(opts->client);
 		free(opts->device);
-		free(opts->deviceid);
 		free(opts->version);
 		free(opts);
 	}

@@ -36,18 +36,18 @@ jf_options *jf_config_read(const char *config_path)
 	if (config_path == NULL) {
 		return NULL;
 	}
-
+	
 	if ((opts = jf_options_new()) == NULL) {
 		return NULL;
 	}
-	
+
 	if ((line = malloc(line_size)) == NULL) {
 		free(opts);
 		return NULL;
 	}
 
 	if ((config_file = fopen(config_path, "r")) == NULL) {
-		free(opts);
+		jf_options_free(opts);
 		free(line);
 		return NULL;
 	}
@@ -71,11 +71,15 @@ jf_options *jf_config_read(const char *config_path)
 		} else if JF_CONFIG_KEY_IS("userid") {
 			JF_CONFIG_FILL_VALUE(userid);
 		} else if JF_CONFIG_KEY_IS("ssl_verifyhost") {
-			if (strncmp(value, "false", JF_STATIC_STRLEN("false")) == 0) opts->ssl_verifyhost = 0;
+			if (strncmp(value, "false", JF_STATIC_STRLEN("false")) == 0) opts->ssl_verifyhost = false;
 		} else if JF_CONFIG_KEY_IS("client") {
 			JF_CONFIG_FILL_VALUE(client);
 		} else if JF_CONFIG_KEY_IS("deviceid") {
-			JF_CONFIG_FILL_VALUE(deviceid);
+			value_len = strlen(value);
+			if (value[value_len - 1] == '\n') value_len--;
+			if (value_len > JF_CONFIG_DEVICEID_MAX_LEN - 1) value_len = JF_CONFIG_DEVICEID_MAX_LEN - 1;
+			strncpy(opts->deviceid, value, value_len);
+			opts->deviceid[value_len] = '\0';
 		} else if JF_CONFIG_KEY_IS("device") {
 			JF_CONFIG_FILL_VALUE(device);
 		} else if JF_CONFIG_KEY_IS("version") {

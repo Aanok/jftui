@@ -14,6 +14,8 @@
 
 #define JF_ID_LENGTH 32
 
+#define JF_CONFIG_DEVICEID_MAX_LEN 32
+
 
 // GENERIC JELLYFIN ITEM REPRESENTATION (make sure < 256)
 #define JF_ITEM_TYPE_NONE		0
@@ -32,10 +34,10 @@
 
 ////////// OPTIONS DEFAULTS //////////
 #define JF_CONFIG_SSL_VERIFYHOST_DEFAULT	true
-#define JF_CONFIG_CLIENT_DEFAULT			opts->client != NULL ? opts->client : "jftui"
-#define JF_CONFIG_DEVICE_DEFAULT			opts->device != NULL ? opts->device : "PC"
-#define JF_CONFIG_DEVICEID_DEFAULT			opts->deviceid != NULL ? opts->deviceid : getenv("HOSTNAME") != NULL ? getenv("HOSTNAME") : "Linux"
-#define JF_CONFIG_VERSION_DEFAULT			opts->version != NULL ? opts->version : JF_VERSION
+#define JF_CONFIG_CLIENT_DEFAULT			"jftui"
+#define JF_CONFIG_DEVICE_DEFAULT			"PC"
+#define JF_CONFIG_DEVICEID_DEFAULT			"Linux"
+#define JF_CONFIG_VERSION_DEFAULT			JF_VERSION
 //////////////////////////////////////
 
 
@@ -48,7 +50,7 @@ typedef struct jf_options {
 	bool ssl_verifyhost;
 	char *client;
 	char *device;
-	char *deviceid;
+	char deviceid[JF_CONFIG_DEVICEID_MAX_LEN];
 	char *version;
 } jf_options;
 

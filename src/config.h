@@ -21,7 +21,6 @@
 #define JF_CONFIG_WRITE_VALUE(key) fprintf(config_file, #key "=%s\n", opts->key);
 
 
-
 const char *jf_config_get_path(void);
 jf_options *jf_config_read(const char *config_path);
 void jf_config_write(const jf_options *opts, const char *config_path);

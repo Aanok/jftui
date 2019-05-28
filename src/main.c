@@ -64,8 +64,17 @@ int main(int argc, char *argv[])
 	jf_reply *reply;
 	const char *config_path = jf_config_get_path();
 	jf_options *options = jf_config_read(config_path);
-	free((char *)config_path);
 	if (options == NULL) return 1;
+
+	printf("server: \"%s\"\n", options->server);
+	printf("token: \"%s\"\n", options->token);
+	printf("userid: \"%s\"\n", options->userid);
+	printf("client: \"%s\"\n", options->client);
+	printf("device: \"%s\"\n", options->device);
+	printf("deviceid: \"%s\"\n", options->deviceid);
+
+	jf_config_write(options, config_path);
+	free((char *)config_path);
 
 	/*
 	jf_network_init(&options);
@@ -85,14 +94,6 @@ int main(int argc, char *argv[])
 	}
 	jf_reply_free(reply);
 	*/
-
-	jf_menu_item root = {
-		.type = JF_ITEM_TYPE_COLLECTION,
-		.id = NULL,
-		.children = NULL
-	};
-	jf_menu_item foo[2] = { { JF_ITEM_TYPE_COLLECTION, NULL, NULL }, NULL };
-	root.children = foo;
 
 	jf_network_init(options);
 	char *next_up = jf_concat(3, "/shows/nextup?userid=", options->userid, "&limit=15");
@@ -114,6 +115,7 @@ int main(int argc, char *argv[])
 	jf_menu_item item = jf_thread_buffer_get_parsed_item(n);
 	printf("type: %d\tid: %.*s\n", item.type, item.type == JF_ITEM_TYPE_NONE ? 0 : JF_ID_LENGTH, item.id);
 
+	jf_options_free(options);
 	jf_network_cleanup();
 
 	return 0;
