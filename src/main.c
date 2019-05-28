@@ -71,7 +71,9 @@ int main(int argc, char *argv[])
 	printf("server: \"%s\"\n", options->server);
 	printf("token: \"%s\"\n", options->token);
 	printf("user: \"%s\"\n", options->user);
+	printf("client: \"%s\"\n", options->client);
 	printf("device: \"%s\"\n", options->device);
+	printf("deviceid: \"%s\"\n", options->deviceid);
 
 	/*
 	jf_network_init(&options);

@@ -25,7 +25,7 @@
 #define JF_CONFIG_SSL_VERIFYHOST_DEFAULT	1
 #define JF_CONFIG_CLIENT_DEFAULT			"jftui"
 #define JF_CONFIG_DEVICE_DEFAULT			"PC"
-#define JF_CONFIG_DEVICEID_DEFAULT			getenv("HOSTNAME") != NULL ? getenv("HOSTNAME") : "Linux"
+#define JF_CONFIG_DEVICEID_DEFAULT			"Linux"
 #define JF_CONFIG_VERSION_DEFAULT			JF_VERSION
 //////////////////////////////////////
 

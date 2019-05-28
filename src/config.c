@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "config.h"
 #include "shared.h"
@@ -41,8 +42,12 @@ jf_options *jf_config_read(const char *config_path)
 	opts->ssl_verifyhost = JF_CONFIG_SSL_VERIFYHOST_DEFAULT;
 	opts->client = JF_CONFIG_CLIENT_DEFAULT;
 	opts->device = JF_CONFIG_DEVICE_DEFAULT;
-	opts->deviceid = JF_CONFIG_DEVICEID_DEFAULT;
 	opts->version = JF_CONFIG_VERSION_DEFAULT;
+	if (gethostname(opts->deviceid, JF_CONFIG_DEVICEID_MAX_LEN - 1) == 0) {
+		opts->deviceid[JF_CONFIG_DEVICEID_MAX_LEN - 1] = '\0';
+	} else {
+		strncpy(opts->deviceid, JF_CONFIG_DEVICEID_DEFAULT, JF_STATIC_STRLEN(JF_CONFIG_DEVICEID_DEFAULT));
+	}
 
 
 	if ((line = malloc(line_size)) == NULL) {
@@ -79,7 +84,11 @@ jf_options *jf_config_read(const char *config_path)
 		} else if JF_CONFIG_KEY_IS("client") {
 			JF_CONFIG_FILL_VALUE(client);
 		} else if JF_CONFIG_KEY_IS("deviceid") {
-			JF_CONFIG_FILL_VALUE(deviceid);
+			value_len = strlen(value);
+			if (value[value_len - 1] == '\n') value_len--;
+			if (value_len > JF_CONFIG_DEVICEID_MAX_LEN - 1) value_len = JF_CONFIG_DEVICEID_MAX_LEN - 1;
+			strncpy(opts->deviceid, value, value_len);
+			opts->deviceid[value_len] = '\0';
 		} else if JF_CONFIG_KEY_IS("device") {
 			JF_CONFIG_FILL_VALUE(device);
 		} else if JF_CONFIG_KEY_IS("version") {

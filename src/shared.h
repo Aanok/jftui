@@ -14,6 +14,8 @@
 
 #define JF_ID_LENGTH 32
 
+#define JF_CONFIG_DEVICEID_MAX_LEN 32
+
 
 // GENERIC JELLYFIN ITEM REPRESENTATION (make sure < 256)
 #define JF_ITEM_TYPE_NONE		0
@@ -39,7 +41,7 @@ typedef struct jf_options {
 	size_t ssl_verifyhost;
 	char *client;
 	char *device;
-	char *deviceid;
+	char deviceid[JF_CONFIG_DEVICEID_MAX_LEN];
 	char *version;
 } jf_options;
 
