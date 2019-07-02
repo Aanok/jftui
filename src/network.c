@@ -201,7 +201,7 @@ bool jf_network_reload_token(void)
 }
 
 
-jf_reply *jf_request(const char *resource, size_t request_type, const char *POST_payload)
+jf_reply *jf_request(const char *resource, jf_request_type request_type, const char *POST_payload)
 {
 	CURLcode result;
 	long status_code;

@@ -17,7 +17,9 @@
 #define JF_CONFIG_DEVICEID_MAX_LEN 32
 
 
-// GENERIC JELLYFIN ITEM REPRESENTATION (make sure < 256)
+////////// GENERIC JELLYFIN ITEM REPRESENTATION //////////
+typedef unsigned char jf_item_type;
+
 #define JF_ITEM_TYPE_NONE		0
 #define JF_ITEM_TYPE_COLLECTION	1
 #define JF_ITEM_TYPE_FOLDER		2
@@ -30,6 +32,7 @@
 #define JF_ITEM_TYPE_SERIES		9
 #define JF_ITEM_TYPE_MOVIE		10
 #define JF_ITEM_TYPE_AUDIOBOOK	11
+//////////////////////////////////////////////////////////
 
 
 ////////// OPTIONS DEFAULTS //////////

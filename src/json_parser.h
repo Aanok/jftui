@@ -13,13 +13,6 @@ do {																		\
 	context->field = (const unsigned char *)string;							\
 	context->field ## _len = (int)string_len;								\
 } while (false)
-#define JF_SAX_KEY_IS(name) (strncmp((const char *)key, name, sizeof(name) > key_len ? key_len : sizeof(name)) == 0)
-
-#define JF_SAX_STRING_IS(name) (strncmp((const char *)string, name, sizeof(name) > string_len ? string_len : sizeof(name)) == 0)
-
-#define JF_SAX_PRINT_FALLBACK(field, fallback)										\
-	context->field ## _len > 0 ? context->field ## _len : (int)sizeof(fallback) - 1,\
-	context->field ## _len > 0 ? context->field : (unsigned char *)fallback			\
 
 #define JF_SAX_CONTEXT_COPY(field)													\
 do {																				\
@@ -31,9 +24,19 @@ do {																				\
 	}																				\
 } while (false)
 
+#define JF_SAX_KEY_IS(name) (strncmp((const char *)key, name, sizeof(name) > key_len ? key_len : sizeof(name)) == 0)
+
+#define JF_SAX_STRING_IS(name) (strncmp((const char *)string, name, sizeof(name) > string_len ? string_len : sizeof(name)) == 0)
+
+#define JF_SAX_PRINT_FALLBACK(field, fallback)										\
+	context->field ## _len > 0 ? context->field ## _len : (int)sizeof(fallback) - 1,\
+	context->field ## _len > 0 ? context->field : (unsigned char *)fallback			\
 
 
-// SAX PARSER STATE MACHINE
+
+////////// SAX PARSER STATE MACHINE //////////
+typedef size_t jf_sax_parser_state;
+
 #define JF_SAX_NO_STATE						0
 #define JF_SAX_IDLE							1
 #define JF_SAX_IN_QUERYRESULT_MAP			2
@@ -54,18 +57,19 @@ do {																				\
 #define JF_SAX_IN_USERDATA_VALUE			15
 #define JF_SAX_IN_USERDATA_TICKS_VALUE		16
 #define JF_SAX_IGNORE						666
+//////////////////////////////////////////////
 
 
 #define JF_PARSER_ERROR_BUFFER_SIZE 1024
 
 
 typedef struct jf_sax_context {
-	size_t parser_state;
-	size_t state_to_resume;
+	jf_sax_parser_state parser_state;
+	jf_sax_parser_state state_to_resume;
 	size_t maps_ignoring;
 	size_t arrays_ignoring;
 	jf_thread_buffer *tb;
-	unsigned char current_item_type;
+	jf_item_type current_item_type;
 	char *copy_buffer;
 	// the following _len specifiers must be int's instead of size_t's for the sake of printf precision
 	const unsigned char *name;			int name_len;

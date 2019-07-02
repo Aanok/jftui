@@ -13,10 +13,13 @@
 #define JF_REPLY_ERROR_X_EMBY_AUTH -7
 
 
-// request types
+////////// REQUEST TYPES //////////
+typedef size_t jf_request_type;
+
 #define JF_REQUEST_IN_MEMORY		0
 #define JF_REQUEST_SAX_PROMISCUOUS	1
 #define JF_REQUEST_SAX				2
+///////////////////////////////////
 
 
 // function prototypes
@@ -29,7 +32,7 @@ size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *userdat
 bool jf_network_init(const jf_options *options);
 bool jf_network_make_headers(void);
 bool jf_network_reload_token(void);
-jf_reply *jf_request(const char *resource, size_t request_type, const char *POST_payload);
+jf_reply *jf_request(const char *resource, jf_request_type request_type, const char *POST_payload);
 jf_reply *jf_login_request(const char *POST_payload);
 void jf_network_cleanup(void);
 
