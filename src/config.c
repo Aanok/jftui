@@ -58,7 +58,7 @@ jf_options *jf_config_read(const char *config_path)
 		if (line[0] == '#') continue;
 		if ((value = strchr(line, '=')) == NULL) {
 			// malformed line, consider fatal and return NULL
-			JF_CONFIG_MALFORMED
+			JF_CONFIG_MALFORMED;
 		}
 		value += 1; // digest '='
 		// figure out which option key it is
@@ -86,7 +86,7 @@ jf_options *jf_config_read(const char *config_path)
 			JF_CONFIG_FILL_VALUE(version);
 		} else {
 			// unrecognized option key, consider fatal and return NULL
-			JF_CONFIG_MALFORMED
+			JF_CONFIG_MALFORMED;
 		}
 	}
 
