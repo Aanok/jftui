@@ -1,9 +1,3 @@
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-#include <pthread.h>
-#include <stdbool.h>
-#include <unistd.h>
 #include "shared.h"
 
 
@@ -55,55 +49,6 @@ bool jf_thread_buffer_init(jf_thread_buffer *tb)
 		return false;
 	}
 	return true;
-}
-
-
-jf_options *jf_options_new(void)
-{
-	jf_options *opts;
-
-	if ((opts = malloc(sizeof(jf_options))) == NULL) {
-		return NULL;
-	}
-
-	// initialize to empty, will NULL pointers
-	*opts = (jf_options){ 0 }; 
-
-	// initialize fields where 0 is a valid value
-	opts->ssl_verifyhost = JF_CONFIG_SSL_VERIFYHOST_DEFAULT;
-
-	return opts;
-}
-
-
-void jf_options_fill_defaults(jf_options *opts)
-{
-	if (opts != NULL) {
-		opts->client = opts->client != NULL ? opts-> client : JF_CONFIG_CLIENT_DEFAULT;
-		opts->device = opts->device != NULL ? opts->device : JF_CONFIG_DEVICE_DEFAULT;
-		if (opts->deviceid[0] == '\0') {
-			if (gethostname(opts->deviceid, JF_CONFIG_DEVICEID_MAX_LEN - 1) == 0) {
-				opts->deviceid[JF_CONFIG_DEVICEID_MAX_LEN - 1] = '\0';
-			} else {
-				strncpy(opts->deviceid, JF_CONFIG_DEVICEID_DEFAULT, JF_STATIC_STRLEN(JF_CONFIG_DEVICEID_DEFAULT));
-			}
-		}
-		opts->version = opts->version != NULL ? opts->version : JF_CONFIG_VERSION_DEFAULT;
-	}
-}
-
-
-void jf_options_free(jf_options *opts)
-{
-	if (opts != NULL) {
-		free(opts->server);
-		free(opts->token);
-		free(opts->userid);
-		free(opts->client);
-		free(opts->device);
-		free(opts->version);
-		free(opts);
-	}
 }
 
 

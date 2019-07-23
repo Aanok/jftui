@@ -1,12 +1,4 @@
-#include <curl/curl.h>
-#include <string.h>
-#include <stdlib.h>
-#include <pthread.h>
-
 #include "network.h"
-#include "shared.h"
-#include "json_parser.h"
-
 
 
 ////////// GLOBALS //////////

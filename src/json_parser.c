@@ -1,13 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <string.h>
-#include <pthread.h>
-#include <yajl/yajl_parse.h>
-#include <yajl/yajl_tree.h>
-#include <yajl/yajl_gen.h>
-
-#include "shared.h"
 #include "json_parser.h"
 
 
@@ -68,7 +58,7 @@ static int sax_items_end_map(void *ctx)
 							context->name_len, context->name);
 				} else {
 					printf("T %zu. %.*s - %.*s\n",
-							context->tb->item_count, 
+							context->tb->item_count,
 							JF_SAX_PRINT_FALLBACK(index, "??"),
 							context->name_len, context->name);
 				}
@@ -261,12 +251,12 @@ static int sax_items_string(void *ctx, const unsigned char *string, size_t strin
 				context->current_item_type = JF_ITEM_TYPE_ALBUM;
 			} else if (JF_SAX_STRING_IS("Episode")) {
 				context->current_item_type = JF_ITEM_TYPE_EPISODE;
-			} else if (JF_SAX_STRING_IS("Season")) { 
-				context->current_item_type = JF_ITEM_TYPE_SEASON; 
+			} else if (JF_SAX_STRING_IS("Season")) {
+				context->current_item_type = JF_ITEM_TYPE_SEASON;
 			} else if (JF_SAX_STRING_IS("Series")) {
 				context->current_item_type = JF_ITEM_TYPE_SERIES;
 			} else if (JF_SAX_STRING_IS("Movie")) {
-				context->current_item_type = JF_ITEM_TYPE_MOVIE;	
+				context->current_item_type = JF_ITEM_TYPE_MOVIE;
 			} else if (JF_SAX_STRING_IS("AudioBook")) {
 				context->current_item_type = JF_ITEM_TYPE_AUDIOBOOK;
 			}

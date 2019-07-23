@@ -1,14 +1,60 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-
 #include "config.h"
-#include "shared.h"
+
+
+jf_options *jf_options_new(void)
+{
+	jf_options *opts;
+
+	if ((opts = malloc(sizeof(jf_options))) == NULL) {
+		return NULL;
+	}
+
+	// initialize to empty, will NULL pointers
+	*opts = (jf_options){ 0 }; 
+
+	// initialize fields where 0 is a valid value
+	opts->ssl_verifyhost = JF_CONFIG_SSL_VERIFYHOST_DEFAULT;
+
+	return opts;
+}
+
+
+// Will provide defaults for fields: client, device, deviceid, version
+void jf_options_fill_defaults(jf_options *opts)
+{
+	if (opts != NULL) {
+		opts->client = opts->client != NULL ? opts-> client : JF_CONFIG_CLIENT_DEFAULT;
+		opts->device = opts->device != NULL ? opts->device : JF_CONFIG_DEVICE_DEFAULT;
+		if (opts->deviceid[0] == '\0') {
+			if (gethostname(opts->deviceid, JF_CONFIG_DEVICEID_MAX_LEN - 1) == 0) {
+				opts->deviceid[JF_CONFIG_DEVICEID_MAX_LEN - 1] = '\0';
+			} else {
+				strncpy(opts->deviceid, JF_CONFIG_DEVICEID_DEFAULT, JF_STATIC_STRLEN(JF_CONFIG_DEVICEID_DEFAULT));
+			}
+		}
+		opts->version = opts->version != NULL ? opts->version : JF_CONFIG_VERSION_DEFAULT;
+	}
+}
+
+
+void jf_options_free(jf_options *opts)
+{
+	if (opts != NULL) {
+		free(opts->server);
+		free(opts->token);
+		free(opts->userid);
+		free(opts->client);
+		free(opts->device);
+		free(opts->version);
+		free(opts->error);
+		free(opts);
+	}
+}
 
 
 // NB return value will need to be free'd
 // returns NULL if $HOME not set
-const char *jf_config_get_path(void)
+char *jf_config_get_path(void)
 {
 	char *str;
 	if ((str = getenv("XDG_CONFIG_HOME")) == NULL) {
@@ -22,8 +68,9 @@ const char *jf_config_get_path(void)
 }
 
 
-// TODO: better error handling
 // TODO: allow whitespace
+// NB this function is meant to work on an existing config file.
+// First time config should be handled separately.
 jf_options *jf_config_read(const char *config_path)
 {
 	FILE *config_file;
@@ -46,10 +93,11 @@ jf_options *jf_config_read(const char *config_path)
 		return NULL;
 	}
 
+	errno = 0;
 	if ((config_file = fopen(config_path, "r")) == NULL) {
-		jf_options_free(opts);
+		opts->error = jf_concat(4, "FATAL: fopen for config file at location ", config_path, ": ", strerror(errno));
 		free(line);
-		return NULL;
+		return opts;
 	}
 
 	// read from file
@@ -57,8 +105,9 @@ jf_options *jf_config_read(const char *config_path)
 		// allow comments
 		if (line[0] == '#') continue;
 		if ((value = strchr(line, '=')) == NULL) {
-			// malformed line, consider fatal and return NULL
-			JF_CONFIG_MALFORMED;
+			// the line is malformed; issue a warning but go no further
+			fprintf(stderr, "WARNING: malformed config file line: %s\n", line);
+			continue;
 		}
 		value += 1; // digest '='
 		// figure out which option key it is
@@ -85,8 +134,8 @@ jf_options *jf_config_read(const char *config_path)
 		} else if JF_CONFIG_KEY_IS("version") {
 			JF_CONFIG_FILL_VALUE(version);
 		} else {
-			// unrecognized option key, consider fatal and return NULL
-			JF_CONFIG_MALFORMED;
+			// option key was not recognized; print a warning but do no more
+			fprintf(stderr, "WARNING: unrecognized option key in config file line: %s\n", line);
 		}
 	}
 
@@ -118,4 +167,12 @@ void jf_config_write(const jf_options *opts, const char *config_path)
 
 		fclose(config_file);
 	}
+}
+
+
+// TODO: this is a stub
+jf_options *jf_user_config(jf_options *opts)
+{
+	printf("FUNCTION STUB: jf_user_config\n");
+	exit(EXIT_SUCCESS);
 }

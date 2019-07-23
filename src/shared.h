@@ -4,6 +4,11 @@
 #include <pthread.h>
 #include <curl/curl.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdarg.h>
+#include <pthread.h>
+#include <unistd.h>
 
 // for hardcoded strings
 #define JF_STATIC_STRLEN(str) (sizeof(str) - 1)
@@ -18,51 +23,33 @@
 
 
 ////////// GENERIC JELLYFIN ITEM REPRESENTATION //////////
+// Information about persistency is used to make part of the menu interface
+// tree not get deallocated when navigating upwards
 typedef unsigned char jf_item_type;
 
-#define JF_ITEM_TYPE_NONE		0
-#define JF_ITEM_TYPE_COLLECTION	1
-#define JF_ITEM_TYPE_FOLDER		2
-#define JF_ITEM_TYPE_PLAYLIST	3
-#define JF_ITEM_TYPE_AUDIO		4
-#define JF_ITEM_TYPE_ARTIST		5
-#define JF_ITEM_TYPE_ALBUM		6
-#define JF_ITEM_TYPE_EPISODE	7
-#define JF_ITEM_TYPE_SEASON		8
-#define JF_ITEM_TYPE_SERIES		9
-#define JF_ITEM_TYPE_MOVIE		10
-#define JF_ITEM_TYPE_AUDIOBOOK	11
+#define JF_ITEM_TYPE_NONE		0 << 1
+#define JF_ITEM_TYPE_COLLECTION	1 << 1
+#define JF_ITEM_TYPE_FOLDER		2 << 1
+#define JF_ITEM_TYPE_PLAYLIST	3 << 1
+#define JF_ITEM_TYPE_AUDIO		4 << 1
+#define JF_ITEM_TYPE_ARTIST		5 << 1
+#define JF_ITEM_TYPE_ALBUM		6 << 1
+#define JF_ITEM_TYPE_EPISODE	7 << 1
+#define JF_ITEM_TYPE_SEASON		8 << 1
+#define JF_ITEM_TYPE_SERIES		9 << 1
+#define JF_ITEM_TYPE_MOVIE		10 << 1
+#define JF_ITEM_TYPE_AUDIOBOOK	11 << 1
+
+#define JF_MENU_ITEM_TYPE_IS_PERSISTENT(item_type) (item_type & 0x1)
+#define JF_MENU_ITEM_TYPE_SET_PERSISTENT(item_type) do	\
+{														\
+	item_type |= 0x1;									\
+} while (false);
+#define JF_MENU_ITEM_TYPE_SET_DYNAMIC(item_type) do	\
+{													\
+	item_type &= ~0x1;								\
+} while (false);
 //////////////////////////////////////////////////////////
-
-
-////////// OPTIONS DEFAULTS //////////
-#define JF_CONFIG_SSL_VERIFYHOST_DEFAULT	true
-#define JF_CONFIG_CLIENT_DEFAULT			"jftui"
-#define JF_CONFIG_DEVICE_DEFAULT			"PC"
-#define JF_CONFIG_DEVICEID_DEFAULT			"Linux"
-#define JF_CONFIG_VERSION_DEFAULT			JF_VERSION
-//////////////////////////////////////
-
-
-// TODO: consider refactoring into global state for application
-typedef struct jf_options {
-	char *server;
-	size_t server_len;
-	char *token;
-	char *userid;
-	bool ssl_verifyhost;
-	char *client;
-	char *device;
-	char deviceid[JF_CONFIG_DEVICEID_MAX_LEN];
-	char *version;
-} jf_options;
-
-
-typedef struct jf_menu_item {
-	unsigned char type;
-	unsigned char *id;
-	struct jf_menu_item *children; // array, shall be NULL-terminated
-} jf_menu_item;
 
 
 typedef struct jf_thread_buffer {
@@ -102,9 +89,7 @@ typedef struct jf_reply {
 char *jf_concat(const size_t n, ...);
 
 bool jf_thread_buffer_init(jf_thread_buffer *tb);
-jf_options *jf_options_new(void);
-void jf_options_fill_defaults(jf_options *opts);
-void jf_options_free(jf_options *opts);
+
 
 // UNUSED FOR NOW
 // jf_synced_queue *jf_synced_queue_new(const size_t slot_count);

@@ -1,6 +1,18 @@
 #ifndef _JF_JSON_PARSER
 #define _JF_JSON_PARSER
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <string.h>
+#include <pthread.h>
+#include <yajl/yajl_parse.h>
+#include <yajl/yajl_tree.h>
+#include <yajl/yajl_gen.h>
+
+#include "shared.h"
+#include "config.h"
+
 
 // CODE MACROS
 #define JF_GEN_BAD_JUMP_OUT(gen)				\

@@ -1,7 +1,16 @@
 #ifndef _JF_NETWORK
 #define _JF_NETWORK
 
+#include <curl/curl.h>
+#include <string.h>
+#include <stdlib.h>
+#include <pthread.h>
+
 #include "shared.h"
+#include "json_parser.h"
+#include "menu.h"
+#include "config.h"
+
 
 // error codes
 #define JF_REPLY_ERROR_STUB -1
