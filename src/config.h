@@ -15,10 +15,10 @@
 do {												\
 	value_len = strlen(value);						\
 	if (value[value_len - 1] == '\n') value_len--;	\
-	opts->key = strndup(value, value_len);			\
+	g_options.key = strndup(value, value_len);			\
 } while (false)
 
-#define JF_CONFIG_WRITE_VALUE(key) fprintf(config_file, #key "=%s\n", opts->key)
+#define JF_CONFIG_WRITE_VALUE(key) fprintf(config_file, #key "=%s\n", g_options.key)
 
 
 ////////// OPTIONS DEFAULTS //////////
@@ -45,14 +45,14 @@ typedef struct jf_options {
 } jf_options;
 
 
-jf_options *jf_options_new(void);
-void jf_options_fill_defaults(jf_options *opts);
-void jf_options_free(jf_options *opts);
+void jf_options_init(void);
+void jf_options_complete_with_defaults(void);
+void jf_options_clear(void);
 
 char *jf_config_get_path(void);
-jf_options *jf_config_read(const char *config_path);
-void jf_config_write(const jf_options *opts, const char *config_path);
-jf_options *jf_user_config(jf_options *opts);
+bool jf_config_read(const char *config_path);
+bool jf_config_write(const char *config_path);
+bool jf_user_config(void);
 
 
 #endif

@@ -20,17 +20,23 @@
 do {																				\
 	if (status < 0) {																\
 		fprintf(stderr, "FATAL: mpv API error: %s\n", mpv_error_string(status));	\
-		free(options);																\
+		jf_network_cleanup();														\
+		jf_options_clear();															\
 		mpv_destroy(mpv_ctx);														\
+		exit(EXIT_FAILURE);															\
 	}																				\
 } while (false);
+
+
+////////// GLOBALS //////////
+jf_options g_options;
+/////////////////////////////
 
 
 int main(int argc, char *argv[])
 {
 	// VARIABLES
 	char *config_path;
-	jf_options *options;
 	mpv_handle *mpv_ctx;
 	mpv_event *event;
 
@@ -43,7 +49,21 @@ int main(int argc, char *argv[])
 	///////////////////////
 
 
+	// VARIABLES INIT
+	jf_options_init();
+	/////////////////
+	
+
 	// TODO command line arguments
+	
+
+	// SETUP NETWORK
+	// NB the network unit keeps a reference to options, not a copy. Keep it live till cleanup!
+	if (! jf_network_pre_init()) {
+		fprintf(stderr, "FATAL: could not initialize network context.\n");
+		exit(EXIT_FAILURE);
+	}
+	////////////////
 	
 
 	// READ AND PARSE CONFIGURATION FILE
@@ -56,24 +76,24 @@ int main(int argc, char *argv[])
 	errno = 0;
 	if (access(config_path, F_OK) == 0) {
 		// it's there
-		if ((options = jf_config_read(config_path)) == NULL) {
-			fprintf(stderr, "FATAL: malloc error allocating jf_options.\n");
+		if (! jf_config_read(config_path)) {
+			fprintf(stderr, "FATAL: error during config parse.\n");
 			exit(EXIT_FAILURE);
 		}
-		if (options->error != NULL) {
-			fprintf(stderr, "%s\n", options->error);
+		if (g_options.error != NULL) {
+			fprintf(stderr, "%s\n", g_options.error);
 			free(config_path);
-			jf_options_free(options);
+			jf_options_clear();
 			exit(EXIT_FAILURE);
 		}
 
 		// if server, userid or token are missing (may happen if the config file was edited badly)
-		if (options->server == NULL || options->userid == NULL || options->token == NULL) {
-			jf_user_config(options);
+		if (g_options.server == NULL || g_options.userid == NULL || g_options.token == NULL) {
+			jf_user_config();
 		}
 	} else if (errno == ENOENT) {
 		// it's not there
-		options = jf_user_config(NULL);
+		jf_user_config();
 	} else {
 		fprintf(stderr, "FATAL: access for config file at location %s: %s\n", config_path, strerror(errno));
 		free(config_path);
@@ -82,17 +102,10 @@ int main(int argc, char *argv[])
 	////////////////////////////////////
 	
 
-	// SETUP NETWORK SUBSYSTEM AND PING SERVER
-	if (! jf_network_init(options)) {
-		fprintf(stderr, "FATAL: could not initialize network context.\n"); free(config_path);
-		free(options);
-		exit(EXIT_FAILURE);
-	}
-
-	// TODO check token still valid, prompt relogin otherwise
 	// TODO ping server
+	// TODO check token still valid, prompt relogin otherwise
 	
-	jf_config_write(options, config_path);
+	jf_config_write(config_path);
 	free(config_path);
 	//////////////////////////////////////////
 
@@ -103,7 +116,7 @@ int main(int argc, char *argv[])
 
 	if ((mpv_ctx = mpv_create()) == NULL) {
 		fprintf(stderr, "FATAL: failed to create mpv context.\n");
-		free(options);
+		jf_options_clear();
 		exit(EXIT_FAILURE);
 	}
 	{
@@ -118,7 +131,7 @@ int main(int argc, char *argv[])
 
 	JF_MPV_ERROR_FATAL(mpv_initialize(mpv_ctx));
 	////////////
-	
+
 
 	// MAIN LOOP
 	while (true) {
@@ -133,7 +146,7 @@ int main(int argc, char *argv[])
 
 	// CLEANUP FOR EXIT
 	jf_network_cleanup();
-	jf_options_free(options);
+	jf_options_clear();
 	mpv_destroy(mpv_ctx);
 	///////////////////
 	

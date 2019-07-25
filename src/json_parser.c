@@ -1,7 +1,9 @@
 #include "json_parser.h"
 
-
+////////// GLOBALS //////////
+extern jf_options g_options;
 static char s_error_buffer[JF_PARSER_ERROR_BUFFER_SIZE];
+/////////////////////////////
 
 
 ////////// SAX PARSER CALLBACKS //////////
@@ -436,7 +438,7 @@ char *jf_parser_error_string(void)
 }
 
 
-bool jf_parse_login_reply(const char *payload, jf_options *options)
+bool jf_parse_login_reply(const char *payload)
 {
 	yajl_val parsed;
 	const char *userid_selector[3] = { "User", "Id", NULL };
@@ -455,8 +457,8 @@ bool jf_parse_login_reply(const char *payload, jf_options *options)
 	userid = YAJL_GET_STRING(yajl_tree_get(parsed, userid_selector, yajl_t_string));
 	token = YAJL_GET_STRING(yajl_tree_get(parsed, token_selector, yajl_t_string));
 	if (userid != NULL && token != NULL) {
-		options->userid = strdup(userid);
-		options->token = strdup(token);
+		g_options.userid = strdup(userid);
+		g_options.token = strdup(token);
 		yajl_tree_free(parsed);
 		return true;
 	} else {

@@ -2,11 +2,12 @@
 
 
 ////////// GLOBALS //////////
+extern jf_options g_options;
 static CURL *s_handle = NULL;
 static struct curl_slist *s_headers = NULL;
 static struct curl_slist *s_headers_POST = NULL;
-static const jf_options *s_options;
 static jf_thread_buffer s_tb;
+/////////////////////////////
 
 
 ////////// JF_REPLY //////////
@@ -73,6 +74,7 @@ size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *userdat
 	r->payload[r->size] = '\0';
 	return real_size;
 }
+//////////////////////////////
 
 
 ////////// PARSER THREAD COMMUNICATION //////////
@@ -122,23 +124,14 @@ jf_menu_item jf_thread_buffer_get_parsed_item(size_t n)
 /////////////////////////////////////////////////
 
 
-////////// NETWORKING FUNCTIONS //////////
-bool jf_network_init(const jf_options *options)
+////////// NETWORK UNIT //////////
+// TODO better error handling
+bool jf_network_pre_init()
 {
 	curl_global_init(CURL_GLOBAL_ALL | CURL_GLOBAL_SSL);
 	s_handle = curl_easy_init();
-	s_options = options;
 	pthread_t sax_parser_thread;
 
-	// headers
-	if (! jf_network_make_headers()) {
-		return false;
-	}
-
-	// security bypass stuff
-	if (! s_options->ssl_verifyhost) {
-		curl_easy_setopt(s_handle, CURLOPT_SSL_VERIFYHOST, 0);
-	}
 
 	// ask for compression (all kinds supported)
 	curl_easy_setopt(s_handle, CURLOPT_ACCEPT_ENCODING, "");
@@ -164,8 +157,13 @@ bool jf_network_make_headers(void)
 {
 	char *tmp;
 
-	if (s_options->token != NULL) {
-		if ((tmp = jf_concat(2, "x-emby-token: ", s_options->token)) == NULL) {
+	if (s_handle == NULL) {
+		// init not complete
+		return false;
+	}
+
+	if (g_options.token != NULL) {
+		if ((tmp = jf_concat(2, "x-emby-token: ", g_options.token)) == NULL) {
 			return false;
 		}
 		if ((s_headers = curl_slist_append(s_headers, tmp)) == NULL) {
@@ -186,15 +184,31 @@ bool jf_network_make_headers(void)
 }
 
 
-bool jf_network_reload_token(void)
+bool jf_network_refresh_config()
 {
-	curl_slist_free_all(s_headers_POST);
+	// security bypass stuff
+	if (! g_options.ssl_verifyhost) {
+		curl_easy_setopt(s_handle, CURLOPT_SSL_VERIFYHOST, 0);
+	}
+
+	// headers
+	curl_slist_free_all(s_headers_POST); // no-op if arg is NULL
 	s_headers = NULL;
 	s_headers_POST = NULL;
 	return jf_network_make_headers();
 }
 
 
+void jf_network_cleanup(void)
+{
+	curl_slist_free_all(s_headers_POST);
+	curl_easy_cleanup(s_handle);
+	curl_global_cleanup();
+}
+//////////////////////////////////
+
+
+////////// NETWORKING //////////
 jf_reply *jf_request(const char *resource, jf_request_type request_type, const char *POST_payload)
 {
 	CURLcode result;
@@ -202,7 +216,7 @@ jf_reply *jf_request(const char *resource, jf_request_type request_type, const c
 	jf_reply *reply;
 	
 	if ((reply = jf_reply_new()) == NULL) {
-		return (jf_reply *)NULL;
+		return NULL;
 	}
 	
 	if (s_handle == NULL) {
@@ -212,19 +226,11 @@ jf_reply *jf_request(const char *resource, jf_request_type request_type, const c
 
 	// url
 	{
-// 		size_t resource_len = strlen(resource);
 		char *url;
-		if ((url = jf_concat(2, s_options->server, resource)) == NULL) {
+		if ((url = jf_concat(2, g_options.server, resource)) == NULL) {
 			reply->size = JF_REPLY_ERROR_CONCAT;
 			return reply;
 		}
-// 		if ((url = (char *)malloc(s_options->server_len + resource_len + 1)) == NULL) {
-// 			reply->size = JF_REPLY_ERROR_MALLOC;
-// 			return reply;
-// 		}
-// 		strncpy(url, s_options->server, s_options->server_len);
-// 		strncpy(url + s_options->server_len, resource, resource_len);
-// 		url[s_options->server_len + resource_len] = '\0';
 		curl_easy_setopt(s_handle, CURLOPT_URL, url);
 		free(url);
 	}
@@ -285,18 +291,18 @@ jf_reply *jf_login_request(const char *POST_payload)
 
 	// add x-emby-authorization header
 	if ((tmp = jf_concat(9,
-			"x-emby-authorization: mediabrowser client=\"", s_options->client,
-			"\", device=\"", s_options->device, 
-			"\", deviceid=\"", s_options->deviceid,
-			"\", version=\"", s_options->version,
+			"x-emby-authorization: mediabrowser client=\"", g_options.client,
+			"\", device=\"", g_options.device, 
+			"\", deviceid=\"", g_options.deviceid,
+			"\", version=\"", g_options.version,
 			"\"")) == NULL ) {
-		return (jf_reply *)NULL;
+		return NULL;
 	}
 	if ((s_headers_POST = curl_slist_append(s_headers_POST, tmp)) == NULL) {
 		free(tmp);
 		jf_reply *reply;
 		if ((reply = jf_reply_new()) == NULL) {
-			return (jf_reply *)NULL;
+			return NULL;
 		}
 		reply->size = JF_REPLY_ERROR_X_EMBY_AUTH;
 		return reply;
@@ -306,11 +312,4 @@ jf_reply *jf_login_request(const char *POST_payload)
 	// send request
 	return jf_request("/users/authenticatebyname", 0, POST_payload);
 }
-
-
-void jf_network_cleanup(void)
-{
-	curl_slist_free_all(s_headers_POST);
-	curl_easy_cleanup(s_handle);
-	curl_global_cleanup();
-}
+////////////////////////////////

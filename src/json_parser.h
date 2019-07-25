@@ -113,7 +113,7 @@ void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb);
 void jf_sax_context_current_item_clear(jf_sax_context *context);
 void jf_sax_context_current_item_copy(jf_sax_context *context);
 char *jf_parser_error_string(void);
-bool jf_parse_login_reply(const char *payload, jf_options *options);
+bool jf_parse_login_reply(const char *payload);
 char *jf_generate_login_request(const char *username, const char *password);
 
 #endif
