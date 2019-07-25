@@ -39,6 +39,7 @@ int main(int argc, char *argv[])
 	char *config_path;
 	mpv_handle *mpv_ctx;
 	mpv_event *event;
+	bool run_ok = true;
 
 	// LIBMPV VERSION CHECK
 	// required due to the use of "set_property"
@@ -105,9 +106,11 @@ int main(int argc, char *argv[])
 	// TODO ping server
 	// TODO check token still valid, prompt relogin otherwise
 	
+	// COMMIT CONFIG TO DISK
 	jf_config_write(config_path);
 	free(config_path);
 	//////////////////////////////////////////
+
 
 	// SETUP MPV
 	if (setlocale(LC_NUMERIC, "C") == NULL) {
@@ -132,13 +135,27 @@ int main(int argc, char *argv[])
 	JF_MPV_ERROR_FATAL(mpv_initialize(mpv_ctx));
 	////////////
 
+ 	mpv_command_string(mpv_ctx, "loadfile /home/fabrizio/Music/future_people.opus append");
+	// NB there is now way to prebuild a playlist and pass it to mpv once
+	// you need to "loadfile file1" then "loadfile file2 append"
 
 	// MAIN LOOP
-	while (true) {
+	while (run_ok) {
 		event = mpv_wait_event(mpv_ctx, -1);
-		printf("event: %s\n", mpv_event_name(event->event_id));
-		if (event->event_id == MPV_EVENT_SHUTDOWN) {
-			break;
+		printf("event: %s\n", mpv_event_name(event->event_id)); //debug
+		switch (event->event_id) {
+			case MPV_EVENT_END_FILE:
+				// reason MPV_END_FILE_REASON_STOP (2) is next/prev on playlist and we should ignore it
+				// reason MPV_END_FILE_REASON_EOF (0) is triggered BOTH mid-playlist AND at the end of a playlist :/
+				// reason MPV_END_FILE_REASON_QUIT (3) is when the user presses q mid-playback
+				printf("\treason: %d\n", ((mpv_event_end_file *)event->data)->reason);
+				break;
+			case MPV_EVENT_IDLE:
+				//TODO go into UI mode
+				break;
+			case MPV_EVENT_SHUTDOWN: //debug, we'll probably want to ignore these
+				run_ok = false;
+				break;
 		}
 	}
 	////////////
@@ -152,29 +169,4 @@ int main(int argc, char *argv[])
 	
 
 	exit(EXIT_SUCCESS);
-
-	/*
-	jf_network_init(&options);
-	char *json = jf_generate_login_request(argv[2], argv[3]);
-	printf("login request: %s\n", json);
-	reply = jf_login_request(json);
-	free(json);
-	printf("reply: %s\n", reply->payload);
-	if (reply->size < 0) {
-		printf("%s\n", reply->payload);
-	} else {
-		if (! jf_parse_login_reply(reply->payload, &options)) printf("error in parse\n");
-		printf("userid = \"%s\", token = \"%s\"\n", options.userid, options.token);
-		jf_network_reload_token();
-		free(options.userid);
-		free(options.token);
-	}
-	jf_reply_free(reply);
-	*/
-
-// 	size_t n;
-// 	scanf("%zu", &n);
-// 	jf_menu_item item = jf_thread_buffer_get_parsed_item(n);
-// 	printf("type: %d\tid: %.*s\n", item.type, item.type == JF_ITEM_TYPE_NONE ? 0 : JF_ID_LENGTH, item.id);
-// 
 }
