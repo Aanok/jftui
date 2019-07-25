@@ -46,6 +46,8 @@ char *jf_reply_error_string(const jf_reply *r)
 			break;
 		case JF_REPLY_ERROR_MALLOC:
 			return "memory allocation failed";
+		case JF_REPLY_ERROR_CONCAT:
+			return "string concatenation failed";
 		case JF_REPLY_ERROR_X_EMBY_AUTH:
 			return "appending x-emby-authorization failed";
 		case JF_REPLY_ERROR_NETWORK:
@@ -210,15 +212,19 @@ jf_reply *jf_request(const char *resource, jf_request_type request_type, const c
 
 	// url
 	{
-		size_t resource_len = strlen(resource);
+// 		size_t resource_len = strlen(resource);
 		char *url;
-		if ((url = (char *)malloc(s_options->server_len + resource_len + 1)) == NULL) {
-			reply->size = JF_REPLY_ERROR_MALLOC;
+		if ((url = jf_concat(2, s_options->server, resource)) == NULL) {
+			reply->size = JF_REPLY_ERROR_CONCAT;
 			return reply;
 		}
-		strncpy(url, s_options->server, s_options->server_len);
-		strncpy(url + s_options->server_len, resource, resource_len);
-		url[s_options->server_len + resource_len] = '\0';
+// 		if ((url = (char *)malloc(s_options->server_len + resource_len + 1)) == NULL) {
+// 			reply->size = JF_REPLY_ERROR_MALLOC;
+// 			return reply;
+// 		}
+// 		strncpy(url, s_options->server, s_options->server_len);
+// 		strncpy(url + s_options->server_len, resource, resource_len);
+// 		url[s_options->server_len + resource_len] = '\0';
 		curl_easy_setopt(s_handle, CURLOPT_URL, url);
 		free(url);
 	}
