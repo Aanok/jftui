@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <locale.h>
 #include <mpv/client.h>
 
 #include "shared.h"
@@ -15,13 +16,14 @@
 #include "config.h"
 
 
-static inline void mpv_check_error(int status)
-{
-	if (status < 0) {
-		fprintf(stderr, "mpv API error: %s\n", mpv_error_string(status));
-		exit(EXIT_FAILURE);
-	}
-}
+#define JF_MPV_ERROR_FATAL(status)													\
+do {																				\
+	if (status < 0) {																\
+		fprintf(stderr, "FATAL: mpv API error: %s\n", mpv_error_string(status));	\
+		free(options);																\
+		mpv_destroy(mpv_ctx);														\
+	}																				\
+} while (false);
 
 
 int main(int argc, char *argv[])
@@ -29,6 +31,8 @@ int main(int argc, char *argv[])
 	// VARIABLES
 	char *config_path;
 	jf_options *options;
+	mpv_handle *mpv_ctx;
+	mpv_event *event;
 
 	// LIBMPV VERSION CHECK
 	// required due to the use of "set_property"
@@ -36,9 +40,12 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "FATAL: libmpv version 1.26 or greater required.\n");
 		exit(EXIT_FAILURE);
 	}
+	///////////////////////
+
 
 	// TODO command line arguments
 	
+
 	// READ AND PARSE CONFIGURATION FILE
 	if ((config_path = jf_config_get_path()) == NULL) {
 		fprintf(stderr, "FATAL: could not acquire configuration file location. $HOME could not be read and --config was not passed.\n");
@@ -72,56 +79,66 @@ int main(int argc, char *argv[])
 		free(config_path);
 		exit(EXIT_FAILURE);
 	}
+	////////////////////////////////////
 	
+
+	// SETUP NETWORK SUBSYSTEM AND PING SERVER
+	if (! jf_network_init(options)) {
+		fprintf(stderr, "FATAL: could not initialize network context.\n"); free(config_path);
+		free(options);
+		exit(EXIT_FAILURE);
+	}
+
+	// TODO check token still valid, prompt relogin otherwise
+	// TODO ping server
+	
+	jf_config_write(options, config_path);
 	free(config_path);
+	//////////////////////////////////////////
+
+	// SETUP MPV
+	if (setlocale(LC_NUMERIC, "C") == NULL) {
+		fprintf(stderr, "WARNING: could not set numeric locale to sane standard. mpv might refuse to work.\n");
+	}
+
+	if ((mpv_ctx = mpv_create()) == NULL) {
+		fprintf(stderr, "FATAL: failed to create mpv context.\n");
+		free(options);
+		exit(EXIT_FAILURE);
+	}
+	{
+		int flag_yes = 1;
+		JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "config", MPV_FORMAT_FLAG, &flag_yes));
+		JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "osc", MPV_FORMAT_FLAG, &flag_yes));
+		JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "input-default-bindings", MPV_FORMAT_FLAG, &flag_yes));
+		JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &flag_yes));
+		JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "input-terminal", MPV_FORMAT_FLAG, &flag_yes));
+		JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "terminal", MPV_FORMAT_FLAG, &flag_yes));
+	}
+
+	JF_MPV_ERROR_FATAL(mpv_initialize(mpv_ctx));
+	////////////
+	
+
+	// MAIN LOOP
+	while (true) {
+		event = mpv_wait_event(mpv_ctx, -1);
+		printf("event: %s\n", mpv_event_name(event->event_id));
+		if (event->event_id == MPV_EVENT_SHUTDOWN) {
+			break;
+		}
+	}
+	////////////
+
+
+	// CLEANUP FOR EXIT
+	jf_network_cleanup();
 	jf_options_free(options);
+	mpv_destroy(mpv_ctx);
+	///////////////////
+	
+
 	exit(EXIT_SUCCESS);
-
-// 	mpv_handle *mpv_ctx = mpv_create();
-// 	if (!mpv_ctx) {
-// 		fprintf(stderr, "FATAL: failed to create mpv context.\n");
-// 		exit(EXIT_FAILURE);
-// 	}
-// 
-// 	{
-// 		int flas_yes = 1;
-// 		mpv_check_error(mpv_set_property(mpv_ctx, "config", MPV_FORMAT_FLAG, &flas_yes));
-// 		mpv_check_error(mpv_set_property(mpv_ctx, "osc", MPV_FORMAT_FLAG, &flas_yes));
-// 		mpv_check_error(mpv_set_property(mpv_ctx, "input-default-bindings", MPV_FORMAT_FLAG, &flas_yes));
-// 		mpv_check_error(mpv_set_property(mpv_ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &flas_yes));
-// 		mpv_check_error(mpv_set_property(mpv_ctx, "input-terminal", MPV_FORMAT_FLAG, &flas_yes));
-// 		mpv_check_error(mpv_set_property(mpv_ctx, "terminal", MPV_FORMAT_FLAG, &flas_yes));
-// 	}
-// 
-// 	mpv_check_error(mpv_initialize(mpv_ctx));
-// 
-// 	mpv_check_error(mpv_command_string(mpv_ctx, "loadfile /home/fabrizio/Music/daisy.opus"));
-// 
-// 	while (1) {
-// 		mpv_event *event = mpv_wait_event(mpv_ctx, -1);
-// 		printf("event: %s\n", mpv_event_name(event->event_id));
-// 		if (event->event_id == MPV_EVENT_SHUTDOWN) {
-// 			break;
-// 		}
-// 	}
-// 
-// 	mpv_terminate_destroy(mpv_ctx);
-// 	
-
-// 	jf_reply *reply;
-// 	const char *config_path = jf_config_get_path();
-// 	jf_options *options = jf_config_read(config_path);
-// 	if (options == NULL) return 1;
-// 
-// 	printf("server: \"%s\"\n", options->server);
-// 	printf("token: \"%s\"\n", options->token);
-// 	printf("userid: \"%s\"\n", options->userid);
-// 	printf("client: \"%s\"\n", options->client);
-// 	printf("device: \"%s\"\n", options->device);
-// 	printf("deviceid: \"%s\"\n", options->deviceid);
-// 
-// 	jf_config_write(options, config_path);
-// 	free((char *)config_path);
 
 	/*
 	jf_network_init(&options);
@@ -142,28 +159,9 @@ int main(int argc, char *argv[])
 	jf_reply_free(reply);
 	*/
 
-// 	jf_network_init(options);
-// 	char *next_up = jf_concat(3, "/shows/nextup?userid=", options->userid, "&limit=15");
-// 	printf("NEXTUP: %s\n", next_up);
-// 	reply = jf_request(next_up, JF_REQUEST_SAX_PROMISCUOUS, NULL);
-// 	free(next_up);
-//	printf("GOT REPLY:\n%s", reply->payload);
-// 	jf_reply_free(reply);
-
-// 	// musica
-// 	reply = jf_request("/users/b8664437c69e4eb2802fc0a0eda8f852/items?ParentId=1b8414a45d245177d1c134bb724b1d92&SortBy=IsFolder,SortName&SortOrder=Ascending", JF_REQUEST_SAX_PROMISCUOUS, NULL);
-// 	jf_reply_free(reply);
-// 	// radiodrammi
-// 	reply = jf_request("/users/b8664437c69e4eb2802fc0a0eda8f852/items?ParentId=283bb226c01f9dc23b97447df77f04f2&SortBy=IsFolder,SortName&SortOrder=Ascending", JF_REQUEST_SAX_PROMISCUOUS, NULL);
-// 	jf_reply_free(reply);
-// 
 // 	size_t n;
 // 	scanf("%zu", &n);
 // 	jf_menu_item item = jf_thread_buffer_get_parsed_item(n);
 // 	printf("type: %d\tid: %.*s\n", item.type, item.type == JF_ITEM_TYPE_NONE ? 0 : JF_ID_LENGTH, item.id);
 // 
-// 	jf_options_free(options);
-// 	jf_network_cleanup();
-
-	return 0;
 }
