@@ -52,9 +52,10 @@ int main(int argc, char *argv[])
 
 	// VARIABLES INIT
 	jf_options_init();
+	jf_menu_stack_init();
 	/////////////////
 	
-
+	
 	// TODO command line arguments
 	
 
@@ -135,7 +136,7 @@ int main(int argc, char *argv[])
 	JF_MPV_ERROR_FATAL(mpv_initialize(mpv_ctx));
 	////////////
 
- 	mpv_command_string(mpv_ctx, "loadfile /home/fabrizio/Music/future_people.opus append");
+//  	mpv_command_string(mpv_ctx, "loadfile /home/fabrizio/Music/future_people.opus append");
 	// NB there is now way to prebuild a playlist and pass it to mpv once
 	// you need to "loadfile file1" then "loadfile file2 append"
 
@@ -162,6 +163,7 @@ int main(int argc, char *argv[])
 
 
 	// CLEANUP FOR EXIT
+	jf_menu_stack_clear();
 	jf_network_cleanup();
 	jf_options_clear();
 	mpv_destroy(mpv_ctx);
