@@ -47,7 +47,7 @@ do {																				\
 
 
 ////////// SAX PARSER STATE MACHINE //////////
-typedef size_t jf_sax_parser_state;
+typedef unsigned char jf_sax_parser_state;
 
 #define JF_SAX_NO_STATE						0
 #define JF_SAX_IDLE							1
@@ -68,7 +68,7 @@ typedef size_t jf_sax_parser_state;
 #define JF_SAX_IN_USERDATA_MAP				14
 #define JF_SAX_IN_USERDATA_VALUE			15
 #define JF_SAX_IN_USERDATA_TICKS_VALUE		16
-#define JF_SAX_IGNORE						666
+#define JF_SAX_IGNORE						255
 //////////////////////////////////////////////
 
 
@@ -96,22 +96,8 @@ typedef struct jf_sax_context {
 } jf_sax_context;
 
 
-// SAX PARSER FUNCTION STUBS
-static int sax_items_start_map(void *ctx) __attribute__((unused));
-static int sax_items_end_map(void *ctx) __attribute__((unused));
-static int sax_items_map_key(void *ctx, const unsigned char *key, size_t key_len) __attribute__((unused));
-static int sax_items_start_array(void *ctx) __attribute__((unused));
-static int sax_items_end_array(void *ctx) __attribute__((unused));
-static int sax_items_string(void *ctx, const unsigned char *string, size_t strins_len) __attribute__((unused));
-static int sax_items_number(void *ctx, const char *string, size_t strins_len) __attribute__((unused));
-
-
 void *jf_sax_parser_thread(void *arg);
 
-// MISC FUNCTION STUBS
-void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb);
-void jf_sax_context_current_item_clear(jf_sax_context *context);
-void jf_sax_context_current_item_copy(jf_sax_context *context);
 char *jf_parser_error_string(void);
 bool jf_parse_login_reply(const char *payload);
 char *jf_generate_login_request(const char *username, const char *password);

@@ -2,8 +2,27 @@
 
 ////////// GLOBALS //////////
 extern jf_options g_options;
-static char s_error_buffer[JF_PARSER_ERROR_BUFFER_SIZE];
 /////////////////////////////
+
+
+////////// STATIC VARIABLES //////////
+static char s_error_buffer[JF_PARSER_ERROR_BUFFER_SIZE];
+//////////////////////////////////////
+
+
+////////// STATIC FUNCTIONS //////////
+static int sax_items_start_map(void *ctx);
+static int sax_items_end_map(void *ctx);
+static int sax_items_map_key(void *ctx, const unsigned char *key, size_t key_len);
+static int sax_items_start_array(void *ctx);
+static int sax_items_end_array(void *ctx);
+static int sax_items_string(void *ctx, const unsigned char *string, size_t strins_len);
+static int sax_items_number(void *ctx, const char *string, size_t strins_len);
+
+void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb);
+void jf_sax_context_current_item_clear(jf_sax_context *context);
+void jf_sax_context_current_item_copy(jf_sax_context *context);
+//////////////////////////////////////
 
 
 ////////// SAX PARSER CALLBACKS //////////

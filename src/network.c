@@ -3,15 +3,26 @@
 
 ////////// GLOBALS //////////
 extern jf_options g_options;
+/////////////////////////////
+
+
+////////// STATIC VARIABLES //////////
 static CURL *s_handle = NULL;
 static struct curl_slist *s_headers = NULL;
 static struct curl_slist *s_headers_POST = NULL;
 static jf_thread_buffer s_tb;
-/////////////////////////////
+//////////////////////////////////////
+
+
+////////// STATIC FUNCTIONS //////////
+static size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *userdata);
+static size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, __attribute__((unused)) void *userdata);
+static bool jf_network_make_headers(void);
+//////////////////////////////////////
 
 
 ////////// JF_REPLY //////////
-jf_reply *jf_reply_new(void)
+jf_reply *jf_reply_new()
 {
 	jf_reply *r;
 	if (!(r = (jf_reply *)malloc(sizeof(jf_reply)))) {
@@ -60,7 +71,7 @@ char *jf_reply_error_string(const jf_reply *r)
 }
 
 
-size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *userdata)
+static size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *userdata)
 {
 	size_t real_size = size * nmemb;
 	jf_reply *r = (jf_reply *)userdata;
@@ -153,7 +164,7 @@ bool jf_network_pre_init()
 }
 
 
-bool jf_network_make_headers(void)
+static bool jf_network_make_headers()
 {
 	char *tmp;
 
@@ -199,7 +210,7 @@ bool jf_network_refresh_config()
 }
 
 
-void jf_network_cleanup(void)
+void jf_network_cleanup()
 {
 	curl_slist_free_all(s_headers_POST);
 	curl_easy_cleanup(s_handle);

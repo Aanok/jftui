@@ -46,7 +46,6 @@ typedef struct jf_options {
 
 
 void jf_options_init(void);
-void jf_options_complete_with_defaults(void);
 void jf_options_clear(void);
 
 char *jf_config_get_path(void);

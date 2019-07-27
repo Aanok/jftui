@@ -6,6 +6,15 @@ extern jf_options g_options;
 /////////////////////////////
 
 
+////////// STATIC FUNCTIONS //////////
+// Procedure: jf_options_complete_with_defaults
+//
+// Will fill in fields client, device, deviceid and version of the global options struct, unless they're already filled in.
+static void jf_options_complete_with_defaults(void);
+//////////////////////////////////////
+
+
+////////// JF_OPTIONS //////////
 void jf_options_init()
 {
 	// initialize to empty, will NULL pointers
@@ -17,7 +26,7 @@ void jf_options_init()
 
 
 // Will provide defaults for fields: client, device, deviceid, version
-void jf_options_complete_with_defaults()
+static void jf_options_complete_with_defaults()
 {
 	g_options.client = g_options.client != NULL ? g_options.client : JF_CONFIG_CLIENT_DEFAULT;
 	g_options.device = g_options.device != NULL ? g_options.device : JF_CONFIG_DEVICE_DEFAULT;
@@ -42,8 +51,10 @@ void jf_options_clear()
 	free(g_options.version);
 	free(g_options.error);
 }
+////////////////////////////////
 
 
+////////// CONFIGURATION FILE //////////
 // NB return value will need to be free'd
 // returns NULL if $HOME not set
 char *jf_config_get_path(void)
@@ -156,6 +167,7 @@ bool jf_config_write(const char *config_path)
 		return false;
 	}
 }
+////////////////////////////////////////
 
 
 // TODO: this is a stub
