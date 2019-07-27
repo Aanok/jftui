@@ -27,28 +27,22 @@
 // tree not get deallocated when navigating upwards
 typedef unsigned char jf_item_type;
 
-#define JF_ITEM_TYPE_NONE		0 << 1
-#define JF_ITEM_TYPE_COLLECTION	1 << 1
-#define JF_ITEM_TYPE_FOLDER		2 << 1
-#define JF_ITEM_TYPE_PLAYLIST	3 << 1
-#define JF_ITEM_TYPE_AUDIO		4 << 1
-#define JF_ITEM_TYPE_ARTIST		5 << 1
-#define JF_ITEM_TYPE_ALBUM		6 << 1
-#define JF_ITEM_TYPE_EPISODE	7 << 1
-#define JF_ITEM_TYPE_SEASON		8 << 1
-#define JF_ITEM_TYPE_SERIES		9 << 1
-#define JF_ITEM_TYPE_MOVIE		10 << 1
-#define JF_ITEM_TYPE_AUDIOBOOK	11 << 1
+#define JF_ITEM_TYPE_NONE		(0 << 1)
+#define JF_ITEM_TYPE_COLLECTION	(1 << 1)
+#define JF_ITEM_TYPE_FOLDER		(2 << 1)
+#define JF_ITEM_TYPE_PLAYLIST	(3 << 1)
+#define JF_ITEM_TYPE_AUDIO		(4 << 1)
+#define JF_ITEM_TYPE_ARTIST		(5 << 1)
+#define JF_ITEM_TYPE_ALBUM		(6 << 1)
+#define JF_ITEM_TYPE_EPISODE	(7 << 1)
+#define JF_ITEM_TYPE_SEASON		(8 << 1)
+#define JF_ITEM_TYPE_SERIES		(9 << 1)
+#define JF_ITEM_TYPE_MOVIE		(10 << 1)
+#define JF_ITEM_TYPE_AUDIOBOOK	(11 << 1)
 
 #define JF_MENU_ITEM_TYPE_IS_PERSISTENT(item_type) (item_type & 0x1)
-#define JF_MENU_ITEM_TYPE_SET_PERSISTENT(item_type) do	\
-{														\
-	item_type |= 0x1;									\
-} while (false);
-#define JF_MENU_ITEM_TYPE_SET_DYNAMIC(item_type) do	\
-{													\
-	item_type &= ~0x1;								\
-} while (false);
+#define JF_MENU_ITEM_TYPE_MAKE_PERSISTENT(item_type) (item_type | 0x1)
+#define JF_MENU_ITEM_TYPE_MAKE_DYNAMIC(item_type) (item_type & ~0x1)
 //////////////////////////////////////////////////////////
 
 
