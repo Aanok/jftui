@@ -1,12 +1,18 @@
 #include "menu.h"
 
 
+////////// GLOBAL VARIABLES //////////
+extern jf_options g_options;
+//////////////////////////////////////
+
+
 ////////// STATIC VARIABLES //////////
 static jf_menu_stack s_menu_stack;
 //////////////////////////////////////
 
 
 ////////// STATIC FUNCTIONS //////////
+
 // Function: jf_menu_item_conditional_free
 //
 // Deallocates a menu item, with a switch for checking or ignoring the persistence bit.
@@ -19,6 +25,8 @@ static jf_menu_stack s_menu_stack;
 // Returns:
 // 	true on success or menu_itme == NULL, false otherwise
 static bool jf_menu_item_conditional_free(jf_menu_item *menu_item, const bool check_persistence);
+
+static jf_menu_item *jf_menu_make_ui(void);
 //////////////////////////////////////
 
 
@@ -44,12 +52,6 @@ bool jf_menu_item_free(jf_menu_item *menu_item)
 }
 
 
-bool jf_menu_item_force_free(jf_menu_item *menu_item)
-{
-	return jf_menu_item_conditional_free(menu_item, false);
-}
-
-
 // TODO: review if free(id) is legit
 static bool jf_menu_item_conditional_free(jf_menu_item *menu_item, const bool check_persistent)
 {
@@ -72,6 +74,20 @@ static bool jf_menu_item_conditional_free(jf_menu_item *menu_item, const bool ch
 
 	return false;
 }
+
+
+static jf_menu_item *jf_menu_make_ui()
+{
+	{
+		jf_menu_item *libraries;
+		if ((libraries = jf_menu_item_new(JF_ITEM_TYPE_MENU_LIBRARIES,
+						jf_concat(3, "/users/", g_options.userid, "/views"), NULL)) == NULL) {
+			return NULL;
+		}
+		return libraries;
+	}
+}
+
 //////////////////////////////////
 
 
@@ -83,6 +99,9 @@ bool jf_menu_stack_init()
 	}
 	s_menu_stack.size = 10;
 	s_menu_stack.used = 0;
+
+	// create persistent interface tree
+
 	return true;
 }
 
@@ -134,7 +153,80 @@ const jf_menu_item *jf_menu_stack_peek()
 void jf_menu_stack_clear()
 {
 	while (s_menu_stack.used > 0) {
-		jf_menu_item_force_free(jf_menu_stack_pop());
+		jf_menu_item_conditional_free(jf_menu_stack_pop(), false);
 	}
+}
+
+
+bool jf_user_interface()
+{
+		jf_menu_item *context, *child;
+		jf_reply *reply;
+		size_t i = 0;
+
+		if ((context = jf_menu_stack_pop()) == NULL) {
+			if ((context = jf_menu_make_ui()) == NULL) {
+				fprintf(stderr, "FATAL: jf_menu_make_ui() returned NULL.\n");
+				return false;
+			}
+			jf_menu_stack_push(context);
+		}
+
+		// TODO print title
+
+		// dispatch; download more info if necessary
+		switch (context->type) {
+			// dynamic directories: fetch children, parser prints entries
+			case JF_ITEM_TYPE_COLLECTION:
+			case JF_ITEM_TYPE_FOLDER:
+			case JF_ITEM_TYPE_PLAYLIST:
+			case JF_ITEM_TYPE_ARTIST:
+			case JF_ITEM_TYPE_ALBUM:
+			case JF_ITEM_TYPE_SEASON:
+			case JF_ITEM_TYPE_SERIES:
+			case JF_ITEM_TYPE_MENU_LIBRARIES:
+				if ((reply = jf_request(context->id, JF_REQUEST_SAX, NULL)) == NULL) {
+					fprintf(stderr, "FATAL: could not allocate jf_request.\n");
+					return false;
+				}
+				if (reply->size < 0) {
+					fprintf(stderr, "ERROR: request for resource %s failed: %s\n",
+							context->id, jf_reply_error_string(reply));
+					jf_reply_free(reply);
+					return false;
+				}
+				jf_reply_free(reply);
+				break;
+			// persistent menu directories: fetch nothing, print entries by hand
+			case JF_ITEM_TYPE_MENU_ROOT:
+			case JF_ITEM_TYPE_MENU_FAVORITES:
+			case JF_ITEM_TYPE_MENU_ON_DECK:
+			case JF_ITEM_TYPE_MENU_LATEST:
+				child = context->children;
+				while (child) {
+					switch (child->type) {
+						case JF_ITEM_TYPE_MENU_FAVORITES:
+							printf("D %zu. Favorites\n", i);
+							break;
+						case JF_ITEM_TYPE_MENU_ON_DECK:
+							printf("D %zu. On Deck\n", i);
+							break;
+						default:
+							printf("[!!!] %zu. WARNING: unrecognized menu item. Undefined behaviour if chosen. This is a bug.\n", i);
+							break;
+					}
+					child++;
+					i++;
+				}
+				break;
+				// TODO: individual items should be handled by another function
+			default:
+				printf("Individual item; id: %s\n", context->id);
+				break;
+		}
+
+		// TODO read command
+
+		return true;
 }
 ///////////////////////////////////
