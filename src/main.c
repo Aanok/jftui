@@ -153,6 +153,7 @@ int main(int argc, char *argv[])
 				break;
 			case MPV_EVENT_IDLE:
 				//TODO go into UI mode
+				jf_user_interface();
 				break;
 			case MPV_EVENT_SHUTDOWN: //debug, we'll probably want to ignore these
 				run_ok = false;

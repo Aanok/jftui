@@ -5,12 +5,8 @@
 #include <stdbool.h>
 
 #include "shared.h"
-
-typedef struct jf_menu_item {
-	jf_item_type type;
-	char *id;
-	struct jf_menu_item *children; // NULL-terminated
-} jf_menu_item;
+#include "config.h"
+#include "network.h"
 
 
 typedef struct jf_menu_stack {
@@ -22,7 +18,6 @@ typedef struct jf_menu_stack {
 
 jf_menu_item *jf_menu_item_new(jf_item_type type, char *id, jf_menu_item *children);
 bool jf_menu_item_free(jf_menu_item *menu_item);
-bool jf_menu_item_force_free(jf_menu_item *menu_item);
 
 
 // Procedure: jf_menu_stack_init
@@ -76,7 +71,6 @@ void jf_menu_stack_clear(void);
 // Function: jf_user_interface
 //
 // Runs the user interface loop until switching context to mpv or exiting.
-// TODO
-void jf_user_interface(void);
+bool jf_user_interface(void);
 
 #endif
