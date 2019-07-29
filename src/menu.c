@@ -27,6 +27,32 @@ static jf_menu_stack s_menu_stack;
 static bool jf_menu_item_conditional_free(jf_menu_item *menu_item, const bool check_persistence);
 
 static jf_menu_item *jf_menu_make_ui(void);
+
+// Function: jf_menu_stack_push
+//
+// Pushes a jf_menu_item on the global menu stack. No-op if NULL is passed.
+// REQUIRES: global menu stack struct initialized.
+//
+// Parameters:
+//
+// 	menu_item - A pointer to the item to be pushed.
+//
+// Returns:
+// 	true if success or NULL was passed, false otherwise.
+static bool jf_menu_stack_push(jf_menu_item *menu_item);
+
+// Function: jf_menu_stack_pop
+//
+// Pops the top item out of the global menu stack.
+// The caller assumes ownership of the popped item (i.e. will have to free it).
+// REQUIRES: global menu stack struct initialized.
+//
+// Returns:
+// 	A pointer to the item popped or NULL if the stack is empty.
+static jf_menu_item *jf_menu_stack_pop(void);
+
+static bool jf_menu_read_commands(void);
+static char *jf_menu_item_get_request_url(const jf_menu_item *item);
 //////////////////////////////////////
 
 
@@ -80,8 +106,7 @@ static jf_menu_item *jf_menu_make_ui()
 {
 	{
 		jf_menu_item *libraries;
-		if ((libraries = jf_menu_item_new(JF_ITEM_TYPE_MENU_LIBRARIES,
-						jf_concat(3, "/users/", g_options.userid, "/views"), NULL)) == NULL) {
+		if ((libraries = jf_menu_item_new(JF_ITEM_TYPE_MENU_LIBRARIES, NULL, NULL)) == NULL) {
 			return NULL;
 		}
 		return libraries;
@@ -100,13 +125,11 @@ bool jf_menu_stack_init()
 	s_menu_stack.size = 10;
 	s_menu_stack.used = 0;
 
-	// create persistent interface tree
-
 	return true;
 }
 
 
-bool jf_menu_stack_push(jf_menu_item *menu_item)
+static bool jf_menu_stack_push(jf_menu_item *menu_item)
 {
 	if (menu_item == NULL) {
 		return true;
@@ -127,7 +150,7 @@ bool jf_menu_stack_push(jf_menu_item *menu_item)
 }
 
 
-jf_menu_item *jf_menu_stack_pop()
+static jf_menu_item *jf_menu_stack_pop()
 {
 	jf_menu_item *retval;
 
@@ -141,43 +164,86 @@ jf_menu_item *jf_menu_stack_pop()
 }
 
 
-const jf_menu_item *jf_menu_stack_peek()
-{
-	if (s_menu_stack.used == 0) {
-		return NULL;
-	}
-	return s_menu_stack.items[s_menu_stack.used - 1];
-}
-
-
 void jf_menu_stack_clear()
 {
 	while (s_menu_stack.used > 0) {
 		jf_menu_item_conditional_free(jf_menu_stack_pop(), false);
 	}
 }
+///////////////////////////////////
+
+
+////////// USER INTERFACE LOOP //////////
+
+// TODO innat
+static bool jf_menu_read_commands()
+{
+	size_t i;
+	fprintf(stderr, "DEBUG: this function is a stub! Enter a single number to select: ");
+	if (scanf("%zu", &i) != 1) {
+		while (getchar() != '\n') ; // clear stdin because scanf doesn't on error
+		return false;
+	}
+	jf_menu_stack_push(jf_thread_buffer_get_parsed_item(i));
+	return true;
+}
+
+
+// TODO: EXTREMELY incomplete, stub
+static char *jf_menu_item_get_request_url(const jf_menu_item *item)
+{
+	if (item != NULL) {
+		switch (item->type) {
+			case JF_ITEM_TYPE_COLLECTION:
+			case JF_ITEM_TYPE_USER_VIEW:
+			case JF_ITEM_TYPE_FOLDER:
+			case JF_ITEM_TYPE_PLAYLIST:
+			case JF_ITEM_TYPE_ALBUM:
+				return jf_concat(5, "/users/", g_options.userid, "/items?parentid=",
+						item->id, "&sortby=isfolder,sortname");
+			case JF_ITEM_TYPE_ARTIST:
+				return jf_concat(5, "/users/", g_options.userid, "/items?albumartistids=",
+						item->id, "&recursive=true&includeitemtypes=musicalbum");
+			case JF_ITEM_TYPE_MENU_LIBRARIES:
+				return jf_concat(3, "/users/", g_options.userid, "/views");
+			default:
+				fprintf(stderr, "ERROR: get_request_url is a stub and you requested an unsupported item_type (%d).\n", item->type);
+				return NULL;
+		}
+	}
+	return NULL;
+}
 
 
 bool jf_user_interface()
 {
-		jf_menu_item *context, *child;
-		jf_reply *reply;
-		size_t i = 0;
+	jf_menu_item *context, *child;
+	jf_reply *reply;
+	char *request_url;
+	size_t i = 0;
 
-		if ((context = jf_menu_stack_pop()) == NULL) {
+	// ACQUIRE ITEM CONTEXT
+	// if menu_stack is empty, assume first time run
+	// in case of error it's not an unreasonable fallback
+	// TODO: double check if that won't cause memory leaks
+	if ((context = jf_menu_stack_pop()) == NULL) {
 			if ((context = jf_menu_make_ui()) == NULL) {
-				fprintf(stderr, "FATAL: jf_menu_make_ui() returned NULL.\n");
-				return false;
-			}
-			jf_menu_stack_push(context);
+			fprintf(stderr, "FATAL: jf_menu_make_ui() returned NULL.\n");
+			return false;
 		}
+		jf_menu_stack_push(context);
+		return true;
+	}
 
+	do {
 		// TODO print title
+		printf("\n\n===== oh how I wish I was a real title ;( =====\n");
 
 		// dispatch; download more info if necessary
 		switch (context->type) {
 			// dynamic directories: fetch children, parser prints entries
 			case JF_ITEM_TYPE_COLLECTION:
+			case JF_ITEM_TYPE_USER_VIEW:
 			case JF_ITEM_TYPE_FOLDER:
 			case JF_ITEM_TYPE_PLAYLIST:
 			case JF_ITEM_TYPE_ARTIST:
@@ -185,17 +251,28 @@ bool jf_user_interface()
 			case JF_ITEM_TYPE_SEASON:
 			case JF_ITEM_TYPE_SERIES:
 			case JF_ITEM_TYPE_MENU_LIBRARIES:
-				if ((reply = jf_request(context->id, JF_REQUEST_SAX, NULL)) == NULL) {
+				if ((request_url = jf_menu_item_get_request_url(context)) == NULL) {
+					fprintf(stderr, "FATAL: could not get request url for menu context.\n");
+					jf_menu_item_free(context);
+					return false;
+				}
+				printf("request url: %s\n", request_url);
+				if ((reply = jf_request(request_url, JF_REQUEST_SAX, NULL)) == NULL) {
 					fprintf(stderr, "FATAL: could not allocate jf_request.\n");
+					jf_menu_item_free(context);
 					return false;
 				}
+				free(request_url);
 				if (reply->size < 0) {
-					fprintf(stderr, "ERROR: request for resource %s failed: %s\n",
-							context->id, jf_reply_error_string(reply));
+					fprintf(stderr, "ERROR: %s.\n", jf_reply_error_string(reply));
 					jf_reply_free(reply);
+					jf_menu_item_free(context);
 					return false;
 				}
+				printf("reply content: %s\n", reply->payload);
 				jf_reply_free(reply);
+				// push back on stack to allow backtracking
+				jf_menu_stack_push(context);
 				break;
 			// persistent menu directories: fetch nothing, print entries by hand
 			case JF_ITEM_TYPE_MENU_ROOT:
@@ -218,15 +295,17 @@ bool jf_user_interface()
 					child++;
 					i++;
 				}
+				// push back on stack to allow backtracking
+				jf_menu_stack_push(context);
 				break;
-				// TODO: individual items should be handled by another function
 			default:
+				// TODO: individual items should be handled by another function
 				printf("Individual item; id: %s\n", context->id);
 				break;
 		}
+	} while (jf_menu_read_commands() == false);
+	jf_menu_item_free(context);
 
-		// TODO read command
-
-		return true;
+	return true;
 }
-///////////////////////////////////
+/////////////////////////////////////////

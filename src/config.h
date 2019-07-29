@@ -30,7 +30,6 @@ do {												\
 //////////////////////////////////////
 
 
-// TODO: consider refactoring into global state for application
 typedef struct jf_options {
 	char *server;
 	size_t server_len;

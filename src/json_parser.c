@@ -69,72 +69,80 @@ static int sax_items_end_map(void *ctx)
 			break;
 		case JF_SAX_IN_ITEM_MAP:
 			context->tb->item_count++;
-			if (context->current_item_type == JF_ITEM_TYPE_AUDIO
-					|| context->current_item_type == JF_ITEM_TYPE_AUDIOBOOK) {
-				if (context->tb->promiscuous_context) {
-					printf("T %zu. %.*s - %.*s - %.*s\n",
+			switch (context->current_item_type) {
+				case JF_ITEM_TYPE_AUDIO:
+				case JF_ITEM_TYPE_AUDIOBOOK:
+					if (context->tb->promiscuous_context) {
+						printf("T %zu. %.*s - %.*s - %.*s\n",
+								context->tb->item_count,
+								JF_SAX_PRINT_FALLBACK(artist, "[Unknown Artist]"),
+								JF_SAX_PRINT_FALLBACK(album, "[Unknown Album]"),
+								context->name_len, context->name);
+					} else {
+						printf("T %zu. %.*s - %.*s\n",
+								context->tb->item_count,
+								JF_SAX_PRINT_FALLBACK(index, "??"),
+								context->name_len, context->name);
+					}
+				break;
+				case JF_ITEM_TYPE_ALBUM:
+					if (context->tb->promiscuous_context) {
+						printf("D %zu. %.*s - %.*s (%.*s)\n",
+								context->tb->item_count,
+								JF_SAX_PRINT_FALLBACK(artist, "[Unknown Artist]"),
+								context->name_len, context->name,
+								JF_SAX_PRINT_FALLBACK(year, "[Unknown Year]"));
+					} else {
+						printf("D %zu. %.*s (%.*s)\n",
+								context->tb->item_count,
+								context->name_len, context->name,
+								JF_SAX_PRINT_FALLBACK(year, "[Unknown Year]"));
+					}
+					break;
+				case JF_ITEM_TYPE_EPISODE:
+					if (context->tb->promiscuous_context) {
+						printf("V %zu. %.*s - S%.*sE%.*s - %.*s\n",
+								context->tb->item_count,
+								JF_SAX_PRINT_FALLBACK(series, "[Unknown Series]"),
+								JF_SAX_PRINT_FALLBACK(parent_index, "??"),
+								JF_SAX_PRINT_FALLBACK(index, "??"),
+								context->name_len, context->name);
+					} else {
+						printf("V %zu. S%.*sE%.*s - %.*s\n",
+								context->tb->item_count,
+								JF_SAX_PRINT_FALLBACK(parent_index, "??"),
+								JF_SAX_PRINT_FALLBACK(index, "??"),
+								context->name_len, context->name);
+					}
+					break;
+				case JF_ITEM_TYPE_SEASON:
+					if (context->tb->promiscuous_context) {
+						printf("D %zu. %.*s - %.*s\n", // TODO check if the name contains "Season" or is just the number
+								context->tb->item_count,
+								JF_SAX_PRINT_FALLBACK(series, "[Unknown Series]"),
+								context->name_len, context->name);
+					} else {
+						printf("D %zu. %.*s\n",
+								context->tb->item_count,
+								context->name_len, context->name);
+					}
+					break;
+				case JF_ITEM_TYPE_MOVIE:
+					printf("V %zu. %.*s (%.*s)\n",
 							context->tb->item_count,
-							JF_SAX_PRINT_FALLBACK(artist, "[Unknown Artist]"),
-							JF_SAX_PRINT_FALLBACK(album, "[Unknown Album]"),
-							context->name_len, context->name);
-				} else {
-					printf("T %zu. %.*s - %.*s\n",
-							context->tb->item_count,
-							JF_SAX_PRINT_FALLBACK(index, "??"),
-							context->name_len, context->name);
-				}
-			} else if (context->current_item_type == JF_ITEM_TYPE_ALBUM) {
-				if (context->tb->promiscuous_context) {
-					printf("D %zu. %.*s - %.*s (%.*s)\n",
-							context->tb->item_count,
-							JF_SAX_PRINT_FALLBACK(artist, "[Unknown Artist]"),
 							context->name_len, context->name,
 							JF_SAX_PRINT_FALLBACK(year, "[Unknown Year]"));
-				} else {
-					printf("D %zu. %.*s (%.*s)\n",
-							context->tb->item_count,
-							context->name_len, context->name,
-							JF_SAX_PRINT_FALLBACK(year, "[Unknown Year]"));
-				}
-			} else if (context->current_item_type == JF_ITEM_TYPE_EPISODE) {
-				if (context->tb->promiscuous_context) {
-					printf("V %zu. %.*s - S%.*sE%.*s - %.*s\n",
-							context->tb->item_count,
-							JF_SAX_PRINT_FALLBACK(series, "[Unknown Series]"),
-							JF_SAX_PRINT_FALLBACK(parent_index, "??"),
-							JF_SAX_PRINT_FALLBACK(index, "??"),
-							context->name_len, context->name);
-				} else {
-					printf("V %zu. S%.*sE%.*s - %.*s\n",
-							context->tb->item_count,
-							JF_SAX_PRINT_FALLBACK(parent_index, "??"),
-							JF_SAX_PRINT_FALLBACK(index, "??"),
-							context->name_len, context->name);
-				}
-			} else if (context->current_item_type == JF_ITEM_TYPE_SEASON) {
-				if (context->tb->promiscuous_context) {
-					printf("D %zu. %.*s - %.*s\n", // TODO check if the name contains "Season" or is just the number
-							context->tb->item_count,
-							JF_SAX_PRINT_FALLBACK(series, "[Unknown Series]"),
-							context->name_len, context->name);
-				} else {
+					break;
+				case JF_ITEM_TYPE_ARTIST:
+				case JF_ITEM_TYPE_SERIES:
+				case JF_ITEM_TYPE_PLAYLIST:
+				case JF_ITEM_TYPE_FOLDER:
+				case JF_ITEM_TYPE_COLLECTION:
+				case JF_ITEM_TYPE_USER_VIEW:
 					printf("D %zu. %.*s\n",
 							context->tb->item_count,
 							context->name_len, context->name);
-				}
-			} else if (context->current_item_type == JF_ITEM_TYPE_MOVIE) {
-				printf("V %zu. %.*s (%.*s)\n",
-						context->tb->item_count,
-						context->name_len, context->name,
-						JF_SAX_PRINT_FALLBACK(year, "[Unknown Year]"));
-			} else if (context->current_item_type == JF_ITEM_TYPE_ARTIST
-						|| context->current_item_type == JF_ITEM_TYPE_SERIES
-						|| context->current_item_type == JF_ITEM_TYPE_PLAYLIST
-						|| context->current_item_type == JF_ITEM_TYPE_FOLDER
-						|| context->current_item_type == JF_ITEM_TYPE_COLLECTION) {
-				printf("D %zu. %.*s\n",
-						context->tb->item_count,
-						context->name_len, context->name);
+					break;
 			}
 
 			// SAVE ITEM ID
@@ -260,6 +268,8 @@ static int sax_items_string(void *ctx, const unsigned char *string, size_t strin
 		case JF_SAX_IN_ITEM_TYPE_VALUE:
 			if (JF_SAX_STRING_IS("CollectionFolder")) {
 				context->current_item_type = JF_ITEM_TYPE_COLLECTION;
+			} else if (JF_SAX_STRING_IS("UserView")) {
+				context->current_item_type = JF_ITEM_TYPE_USER_VIEW;
 			} else if (JF_SAX_STRING_IS("Folder")) {
 				context->current_item_type = JF_ITEM_TYPE_FOLDER;
 			} else if (JF_SAX_STRING_IS("Playlist")) {
@@ -438,7 +448,7 @@ void *jf_sax_parser_thread(void *arg)
 			strncat(context.tb->data, (char *)error_str, JF_PARSER_ERROR_BUFFER_SIZE - strlen(context.tb->data));
 			pthread_mutex_unlock(&context.tb->mut);
 			yajl_free_error(parser, error_str);
-			return NULL;
+// 			return NULL;
 		} else if (context.parser_state == JF_SAX_IDLE) {
 			yajl_complete_parse(parser);
 		} else if (context.copy_buffer == NULL) { // make sure it's not already a copy...

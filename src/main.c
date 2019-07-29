@@ -40,6 +40,7 @@ int main(int argc, char *argv[])
 	mpv_handle *mpv_ctx;
 	mpv_event *event;
 	bool run_ok = true;
+	int mpv_flag_yes = 1, mpv_flag_no = 0;
 
 	// LIBMPV VERSION CHECK
 	// required due to the use of "set_property"
@@ -103,7 +104,11 @@ int main(int argc, char *argv[])
 	}
 	////////////////////////////////////
 	
-
+	// DOUBLE CHECK AND FINALIZE NETWORK CONFIG
+	if (! jf_network_refresh_config()) {
+		free(config_path);
+		exit(EXIT_FAILURE);
+	}
 	// TODO ping server
 	// TODO check token still valid, prompt relogin otherwise
 	
@@ -123,15 +128,12 @@ int main(int argc, char *argv[])
 		jf_options_clear();
 		exit(EXIT_FAILURE);
 	}
-	{
-		int flag_yes = 1;
-		JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "config", MPV_FORMAT_FLAG, &flag_yes));
-		JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "osc", MPV_FORMAT_FLAG, &flag_yes));
-		JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "input-default-bindings", MPV_FORMAT_FLAG, &flag_yes));
-		JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &flag_yes));
-		JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "input-terminal", MPV_FORMAT_FLAG, &flag_yes));
-		JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "terminal", MPV_FORMAT_FLAG, &flag_yes));
-	}
+	JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "config", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "osc", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "input-default-bindings", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "input-terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
 
 	JF_MPV_ERROR_FATAL(mpv_initialize(mpv_ctx));
 	////////////
@@ -153,7 +155,9 @@ int main(int argc, char *argv[])
 				break;
 			case MPV_EVENT_IDLE:
 				//TODO go into UI mode
-				jf_user_interface();
+				JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_no));
+				while (jf_user_interface()) ;
+				JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
 				break;
 			case MPV_EVENT_SHUTDOWN: //debug, we'll probably want to ignore these
 				run_ok = false;

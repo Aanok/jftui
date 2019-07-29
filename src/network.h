@@ -37,7 +37,7 @@ jf_reply *jf_reply_new(void);
 void jf_reply_free(jf_reply *r);
 char *jf_reply_error_string(const jf_reply *r);
 
-jf_menu_item jf_thread_buffer_get_parsed_item(size_t n);
+jf_menu_item *jf_thread_buffer_get_parsed_item(size_t n);
 
 bool jf_network_pre_init(void);
 bool jf_network_refresh_config(void);

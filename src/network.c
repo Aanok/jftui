@@ -15,7 +15,7 @@ static jf_thread_buffer s_tb;
 
 ////////// STATIC FUNCTIONS //////////
 static size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *userdata);
-static size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, __attribute__((unused)) void *userdata);
+static size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, void *userdata);
 static bool jf_network_make_headers(void);
 //////////////////////////////////////
 
@@ -114,21 +114,22 @@ size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, __att
 
 
 // NB n is 1-indexed as per user interface
-jf_menu_item jf_thread_buffer_get_parsed_item(size_t n)
+// TODO: refactor menu_item to always contain a static copy of id
+jf_menu_item *jf_thread_buffer_get_parsed_item(size_t n)
 {
-	jf_menu_item item;
 	size_t offset;
+	jf_item_type item_type;
+	char *item_id;
 	
 	if (n > 0 && n <= s_tb.item_count) {
 		offset = (n - 1) * (1 + JF_ID_LENGTH);
-		item.type = *(s_tb.parsed_ids + offset);
-		item.id = s_tb.parsed_ids + offset + 1;
-		item.children = NULL;
+		item_type = *(s_tb.parsed_ids + offset);
+		item_id = strndup(s_tb.parsed_ids + offset + 1, JF_ID_LENGTH);
+		return jf_menu_item_new(item_type, item_id, NULL);
+		// FIXME this will leak item_id if item_new fails. but it's a temp patch anyways
 	} else {
-		item.type = JF_ITEM_TYPE_NONE;
+		return NULL;
 	}
-
-	return item;
 }
 
 /////////////////////////////////////////////////
@@ -219,6 +220,8 @@ void jf_network_cleanup()
 
 
 ////////// NETWORKING //////////
+
+//TODO add error checks to all setopt's
 jf_reply *jf_request(const char *resource, jf_request_type request_type, const char *POST_payload)
 {
 	CURLcode result;
