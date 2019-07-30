@@ -15,19 +15,19 @@
 do {												\
 	value_len = strlen(value);						\
 	if (value[value_len - 1] == '\n') value_len--;	\
-	g_options.key = strndup(value, value_len);			\
+	g_options.key = strndup(value, value_len);		\
 } while (false)
 
 #define JF_CONFIG_WRITE_VALUE(key) fprintf(config_file, #key "=%s\n", g_options.key)
 
 
-////////// OPTIONS DEFAULTS //////////
+////////// JF_OPTIONS //////////
+// defaults
 #define JF_CONFIG_SSL_VERIFYHOST_DEFAULT	true
 #define JF_CONFIG_CLIENT_DEFAULT			"jftui"
 #define JF_CONFIG_DEVICE_DEFAULT			"PC"
 #define JF_CONFIG_DEVICEID_DEFAULT			"Linux"
 #define JF_CONFIG_VERSION_DEFAULT			JF_VERSION
-//////////////////////////////////////
 
 
 typedef struct jf_options {
@@ -46,11 +46,14 @@ typedef struct jf_options {
 
 void jf_options_init(void);
 void jf_options_clear(void);
+////////////////////////////////
 
+
+////////// USER CONFIGURATION //////////
 char *jf_config_get_path(void);
 bool jf_config_read(const char *config_path);
 bool jf_config_write(const char *config_path);
 bool jf_user_config(void);
-
+////////////////////////////////////////
 
 #endif

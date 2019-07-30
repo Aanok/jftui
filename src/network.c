@@ -65,6 +65,7 @@ char *jf_reply_error_string(const jf_reply *r)
 		case JF_REPLY_ERROR_NETWORK:
 		case JF_REPLY_ERROR_HTTP_NOT_OK:
 		case JF_REPLY_ERROR_PARSER:
+		case JF_REPLY_ERROR_PARSER_DEAD:
 			return r->payload;
 		default:
 			return "unknown error (this is a bug)";
@@ -75,15 +76,17 @@ char *jf_reply_error_string(const jf_reply *r)
 static size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *userdata)
 {
 	size_t real_size = size * nmemb;
-	jf_reply *r = (jf_reply *)userdata;
+	jf_reply *reply = (jf_reply *)userdata;
 	char *new_buf;
-	if (!(new_buf = realloc(r->payload, (size_t)r->size + real_size + 1))) { //NB r->size >=0
+	if (!(new_buf = realloc(reply->payload, (size_t)reply->size + real_size + 1))) { //NB reply->size >=0
+		free(reply->payload);
+		reply->size = JF_REPLY_ERROR_MALLOC;
 		return 0;
 	}
-	r->payload = new_buf;
-	memcpy(r->payload + r->size, payload, real_size);
-	r->size += real_size;
-	r->payload[r->size] = '\0';
+	reply->payload = new_buf;
+	memcpy(reply->payload + reply->size, payload, real_size);
+	reply->size += real_size;
+	reply->payload[reply->size] = '\0';
 	return real_size;
 }
 //////////////////////////////
@@ -99,14 +102,21 @@ size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, void 
 
 	pthread_mutex_lock(&s_tb.mut);
 	while (written_data < real_size) {
+		// wait for parser
 		while (s_tb.state == JF_THREAD_BUFFER_STATE_PENDING_DATA) {
 			pthread_cond_wait(&s_tb.cv_has_data, &s_tb.mut);
 		}
+		// check errors
 		if (s_tb.state == JF_THREAD_BUFFER_STATE_PARSER_ERROR) {
 			r->payload = strndup(s_tb.data, s_tb.used);
 			r->size = JF_REPLY_ERROR_PARSER;
 			return 0;	
+		} else if (s_tb.state == JF_THREAD_BUFFER_STATE_PARSER_DEAD) {
+			r->payload = strndup(s_tb.data, s_tb.used);
+			r->size = JF_REPLY_ERROR_PARSER_DEAD;
+			return 0;
 		}
+		// send data
 		chunk_size = real_size - written_data <= JF_THREAD_BUFFER_DATA_SIZE ? real_size - written_data : JF_THREAD_BUFFER_DATA_SIZE;
 		memcpy(s_tb.data, payload + written_data, chunk_size);
 	    written_data += chunk_size;
@@ -288,12 +298,14 @@ jf_reply *jf_request(const char *resource, jf_request_type request_type, const c
 	}
 	curl_easy_setopt(s_handle, CURLOPT_WRITEDATA, (void *)reply);
 	if ((result = curl_easy_perform(s_handle)) != CURLE_OK) {
-		if (! JF_REPLY_PTR_HAS_ERROR(reply) || ! (reply->size == JF_REPLY_ERROR_PARSER)) {
+		// keep error messages we've already set ourselves
+		if (! JF_REPLY_PTR_HAS_ERROR(reply)) {
 			free(reply->payload);
 			reply->payload = (char *)curl_easy_strerror(result);
 			reply->size = JF_REPLY_ERROR_NETWORK;
 		}
 	} else {
+		// request went well but check for http error
 		curl_easy_getinfo(s_handle, CURLINFO_RESPONSE_CODE, &status_code);
 		switch (status_code) { 
 			case 200:

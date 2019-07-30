@@ -219,7 +219,7 @@ bool jf_user_interface()
 	jf_menu_item *context, *child;
 	jf_reply *reply;
 	char *request_url;
-	size_t i = 0;
+	size_t i;
 
 	// ACQUIRE ITEM CONTEXT
 	// if menu_stack is empty, assume first time run
@@ -236,7 +236,7 @@ bool jf_user_interface()
 
 	do {
 		// TODO print title
-		printf("\n\n===== oh how I wish I was a real title ;( =====\n");
+		printf("\n\n===== oh how I wish I was a real title :( =====\n");
 
 		// dispatch; download more info if necessary
 		switch (context->type) {
@@ -264,11 +264,17 @@ bool jf_user_interface()
 				}
 				free(request_url);
 				if (JF_REPLY_PTR_HAS_ERROR(reply)) {
-					fprintf(stderr, "ERROR: %s.\n", jf_reply_error_string(reply));
-					jf_reply_free(reply);
 					jf_menu_item_free(context);
-					jf_thread_buffer_clear_error();
-					return true;
+					if (JF_REPLY_PTR_ERROR_IS(reply, JF_REPLY_ERROR_PARSER_DEAD)) {
+						fprintf(stderr, "FATAL: %s\n", jf_reply_error_string(reply));
+						jf_reply_free(reply);
+						return false;
+					} else {
+						fprintf(stderr, "ERROR: %s.\n", jf_reply_error_string(reply));
+						jf_reply_free(reply);
+						jf_thread_buffer_clear_error();
+						return true;
+					}
 				}
 				printf("reply content: %s\n", reply->payload);
 				jf_reply_free(reply);
@@ -281,6 +287,7 @@ bool jf_user_interface()
 			case JF_ITEM_TYPE_MENU_ON_DECK:
 			case JF_ITEM_TYPE_MENU_LATEST:
 				child = context->children;
+				i = 0;
 				while (child) {
 					switch (child->type) {
 						case JF_ITEM_TYPE_MENU_FAVORITES:

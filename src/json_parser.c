@@ -19,10 +19,22 @@ static int sax_items_end_array(void *ctx);
 static int sax_items_string(void *ctx, const unsigned char *string, size_t strins_len);
 static int sax_items_number(void *ctx, const char *string, size_t strins_len);
 
+// Function: jf_yajl_parser_new
+//
+// Allocates a new yajl parser instance, registering callbacks and context and setting yajl_allow_multiple_values to let it digest multiple JSON messages in a row.
+// Failures are considered catastrophic. Will set thread buffer state to JF_THREAD_BUFFER_STATE_PARSER_DEAD and put an error message in the thread buffer data buffer.
+//
+// Parameters:
+// 	- callbacks: Pointer to callbacks struct to register.
+// 	- context: Pointer to json parser context to register.
+//
+// Returns:
+// 	The yajl_handle of the new parser on success, NULL on failure.
 static yajl_handle jf_yajl_parser_new(yajl_callbacks *callbacks, jf_sax_context *context);
-void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb);
-void jf_sax_context_current_item_clear(jf_sax_context *context);
-void jf_sax_context_current_item_copy(jf_sax_context *context);
+
+static void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb);
+static void jf_sax_context_current_item_clear(jf_sax_context *context);
+static bool jf_sax_context_current_item_copy(jf_sax_context *context);
 //////////////////////////////////////
 
 
@@ -346,6 +358,7 @@ static yajl_handle jf_yajl_parser_new(yajl_callbacks *callbacks, jf_sax_context 
 	yajl_handle parser;
 
 	if ((parser = yajl_alloc(callbacks, NULL, (void *)(context))) == NULL) {
+		context->tb->state = JF_THREAD_BUFFER_STATE_PARSER_DEAD;
 		strcpy(context->tb->data, "sax parser yajl_alloc failed");
 		return NULL;
 	}
@@ -353,6 +366,7 @@ static yajl_handle jf_yajl_parser_new(yajl_callbacks *callbacks, jf_sax_context 
 	// allow persistent parser to digest many JSON objects
 	if (yajl_config(parser, yajl_allow_multiple_values, 1) == 0) {
 		yajl_free(parser);
+		context->tb->state = JF_THREAD_BUFFER_STATE_PARSER_DEAD;
 		strcpy(context->tb->data, "sax parser could not allow_multiple_values");
 		return NULL;
 	}
@@ -361,7 +375,7 @@ static yajl_handle jf_yajl_parser_new(yajl_callbacks *callbacks, jf_sax_context 
 }
 
 
-void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb)
+static void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb)
 {
 	context->parser_state = JF_SAX_IDLE;
 	context->state_to_resume = JF_SAX_NO_STATE;
@@ -379,7 +393,7 @@ void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb)
 }
 
 
-void jf_sax_context_current_item_clear(jf_sax_context *context)
+static void jf_sax_context_current_item_clear(jf_sax_context *context)
 {
 	context->current_item_type = JF_ITEM_TYPE_NONE;
 	context->name_len = 0;
@@ -396,7 +410,7 @@ void jf_sax_context_current_item_clear(jf_sax_context *context)
 }
 
 
-void jf_sax_context_current_item_copy(jf_sax_context *context)
+static bool jf_sax_context_current_item_copy(jf_sax_context *context)
 {
 	// allocate a contiguous buffer containing the copied values
 	// then update the context pointers to point within it
@@ -414,9 +428,10 @@ void jf_sax_context_current_item_copy(jf_sax_context *context)
 		JF_SAX_CONTEXT_COPY(year);
 		JF_SAX_CONTEXT_COPY(index);
 		JF_SAX_CONTEXT_COPY(parent_index);
+		return true;
 	}
+	return false;
 }
-
 
 
 // NB all data created by the thread itself is allocated on the stack,
@@ -446,7 +461,6 @@ void *jf_sax_parser_thread(void *arg)
 		return NULL;
 	}
 
-
 	pthread_mutex_lock(&context.tb->mut);
 	while (true) {
 		while (context.tb->state != JF_THREAD_BUFFER_STATE_PENDING_DATA) {
@@ -464,23 +478,32 @@ void *jf_sax_parser_thread(void *arg)
 			if ((parser = jf_yajl_parser_new(&callbacks, &context)) == NULL) {
 				return NULL;
 			}
-		} else {
-			if (context.parser_state == JF_SAX_IDLE) {
-				yajl_complete_parse(parser);
-				context.tb->state = JF_THREAD_BUFFER_STATE_CLEAR;
-			} else {
-				context.tb->state = JF_THREAD_BUFFER_STATE_AWAITING_DATA;
-				if (context.copy_buffer == NULL) { // make sure it's not already a copy...
-					jf_sax_context_current_item_copy(&context);
+		} else if (context.parser_state == JF_SAX_IDLE) {
+			// JSON fully parsed
+			yajl_complete_parse(parser);
+			context.tb->state = JF_THREAD_BUFFER_STATE_CLEAR;
+		} else if (context.copy_buffer == NULL) {
+			// we've still more to go, so we populate the copy buffer to not lose data
+			// but if it is already filled from last time, filling it again would be unnecessary
+			// and lead to a memory leak
+			context.tb->state = JF_THREAD_BUFFER_STATE_AWAITING_DATA;
+			if (! jf_sax_context_current_item_copy(&context)) {
+				context.tb->state = JF_THREAD_BUFFER_STATE_PARSER_ERROR;
+				strcpy(context.tb->data, "jf_sax_context_current_item_copy malloc fail");
+				// we need to reset the parser
+				yajl_free(parser);
+				if ((parser = jf_yajl_parser_new(&callbacks, &context)) == NULL) {
+					return NULL;
 				}
 			}
+		} else {
+			context.tb->state = JF_THREAD_BUFFER_STATE_AWAITING_DATA;
 		}
 		
 		context.tb->used = 0;
 		pthread_cond_signal(&context.tb->cv_has_data);
 	}
 }
-
 
 
 char *jf_parser_error_string(void)

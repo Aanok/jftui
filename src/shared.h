@@ -64,6 +64,7 @@ typedef unsigned char jf_thread_buffer_state;
 #define JF_THREAD_BUFFER_STATE_AWAITING_DATA	1
 #define JF_THREAD_BUFFER_STATE_PENDING_DATA		2
 #define JF_THREAD_BUFFER_STATE_PARSER_ERROR		3
+#define JF_THREAD_BUFFER_STATE_PARSER_DEAD		4
 
 
 typedef struct jf_thread_buffer {

@@ -28,8 +28,11 @@ typedef struct jf_reply {
 #define JF_REPLY_ERROR_CONCAT			-7
 #define JF_REPLY_ERROR_X_EMBY_AUTH		-8
 #define JF_REPLY_ERROR_PARSER			-9
+#define JF_REPLY_ERROR_PARSER_DEAD		-10
 
 #define JF_REPLY_PTR_HAS_ERROR(reply_ptr)	((reply_ptr)->size < 0)
+#define JF_REPLY_PTR_GET_ERROR(reply_ptr)	((reply_ptr)->size)
+#define JF_REPLY_PTR_ERROR_IS(reply_ptr, error_code) ((reply_ptr)->size == (error_code))
 
 jf_reply *jf_reply_new(void);
 void jf_reply_free(jf_reply *r);
