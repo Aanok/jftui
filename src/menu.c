@@ -137,8 +137,7 @@ static bool jf_menu_stack_push(jf_menu_item *menu_item)
 
 	if (s_menu_stack.size == s_menu_stack.used) {
 		jf_menu_item **tmp;
-		tmp = realloc(s_menu_stack.items, s_menu_stack.size * 2 * sizeof(jf_menu_item *));
-		if (tmp == NULL) {
+		if ((tmp = realloc(s_menu_stack.items, s_menu_stack.size * 2 * sizeof(jf_menu_item *))) == NULL) {
 			return false;
 		}
 		s_menu_stack.size *= 2;
@@ -258,16 +257,18 @@ bool jf_user_interface()
 				}
 				printf("request url: %s\n", request_url);
 				if ((reply = jf_request(request_url, JF_REQUEST_SAX, NULL)) == NULL) {
-					fprintf(stderr, "FATAL: could not allocate jf_request.\n");
+					fprintf(stderr, "FATAL: could not allocate jf_reply.\n");
 					jf_menu_item_free(context);
+					free(request_url);
 					return false;
 				}
 				free(request_url);
-				if (reply->size < 0) {
+				if (JF_REPLY_PTR_HAS_ERROR(reply)) {
 					fprintf(stderr, "ERROR: %s.\n", jf_reply_error_string(reply));
 					jf_reply_free(reply);
 					jf_menu_item_free(context);
-					return false;
+					jf_thread_buffer_clear_error();
+					return true;
 				}
 				printf("reply content: %s\n", reply->payload);
 				jf_reply_free(reply);
@@ -301,10 +302,10 @@ bool jf_user_interface()
 			default:
 				// TODO: individual items should be handled by another function
 				printf("Individual item; id: %s\n", context->id);
+				jf_menu_item_free(context);
 				break;
 		}
 	} while (jf_menu_read_commands() == false);
-	jf_menu_item_free(context);
 
 	return true;
 }

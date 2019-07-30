@@ -14,6 +14,7 @@ static jf_thread_buffer s_tb;
 
 
 ////////// STATIC FUNCTIONS //////////
+static void jf_request_wait_sax_parser(void);
 static size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *userdata);
 static size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, void *userdata);
 static bool jf_network_make_headers(void);
@@ -63,6 +64,7 @@ char *jf_reply_error_string(const jf_reply *r)
 			return "appending x-emby-authorization failed";
 		case JF_REPLY_ERROR_NETWORK:
 		case JF_REPLY_ERROR_HTTP_NOT_OK:
+		case JF_REPLY_ERROR_PARSER:
 			return r->payload;
 		default:
 			return "unknown error (this is a bug)";
@@ -88,23 +90,29 @@ static size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *
 
 
 ////////// PARSER THREAD COMMUNICATION //////////
-size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, __attribute__((unused)) void *userdata)
+size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, void *userdata)
 {
 	size_t real_size = size * nmemb;
 	size_t written_data = 0;
 	size_t chunk_size;
+	jf_reply *r = (jf_reply *)userdata;
 
 	pthread_mutex_lock(&s_tb.mut);
-	
 	while (written_data < real_size) {
-		while (s_tb.used != 0) {
+		while (s_tb.state == JF_THREAD_BUFFER_STATE_PENDING_DATA) {
 			pthread_cond_wait(&s_tb.cv_has_data, &s_tb.mut);
+		}
+		if (s_tb.state == JF_THREAD_BUFFER_STATE_PARSER_ERROR) {
+			r->payload = strndup(s_tb.data, s_tb.used);
+			r->size = JF_REPLY_ERROR_PARSER;
+			return 0;	
 		}
 		chunk_size = real_size - written_data <= JF_THREAD_BUFFER_DATA_SIZE ? real_size - written_data : JF_THREAD_BUFFER_DATA_SIZE;
 		memcpy(s_tb.data, payload + written_data, chunk_size);
 	    written_data += chunk_size;
 		s_tb.data[chunk_size] = '\0';
 		s_tb.used = chunk_size;
+		s_tb.state = JF_THREAD_BUFFER_STATE_PENDING_DATA;
 		pthread_cond_signal(&s_tb.cv_no_data);
 	}
 	pthread_mutex_unlock(&s_tb.mut);
@@ -123,8 +131,8 @@ jf_menu_item *jf_thread_buffer_get_parsed_item(size_t n)
 	
 	if (n > 0 && n <= s_tb.item_count) {
 		offset = (n - 1) * (1 + JF_ID_LENGTH);
-		item_type = *(s_tb.parsed_ids + offset);
-		item_id = strndup(s_tb.parsed_ids + offset + 1, JF_ID_LENGTH);
+		item_type = *(jf_item_type *)(s_tb.parsed_ids + offset);
+		item_id = strndup((const char*)s_tb.parsed_ids + offset + 1, JF_ID_LENGTH);
 		return jf_menu_item_new(item_type, item_id, NULL);
 		// FIXME this will leak item_id if item_new fails. but it's a temp patch anyways
 	} else {
@@ -132,6 +140,15 @@ jf_menu_item *jf_thread_buffer_get_parsed_item(size_t n)
 	}
 }
 
+
+void jf_thread_buffer_clear_error()
+{
+	pthread_mutex_lock(&s_tb.mut);
+	s_tb.data[0] = '\0';
+	s_tb.used = 0;
+	s_tb.state = JF_THREAD_BUFFER_STATE_CLEAR;
+	pthread_mutex_unlock(&s_tb.mut);
+}
 /////////////////////////////////////////////////
 
 
@@ -271,9 +288,11 @@ jf_reply *jf_request(const char *resource, jf_request_type request_type, const c
 	}
 	curl_easy_setopt(s_handle, CURLOPT_WRITEDATA, (void *)reply);
 	if ((result = curl_easy_perform(s_handle)) != CURLE_OK) {
-		free(reply->payload);
-		reply->payload = (char *)curl_easy_strerror(result);
-		reply->size = JF_REPLY_ERROR_NETWORK;
+		if (! JF_REPLY_PTR_HAS_ERROR(reply) || ! (reply->size == JF_REPLY_ERROR_PARSER)) {
+			free(reply->payload);
+			reply->payload = (char *)curl_easy_strerror(result);
+			reply->size = JF_REPLY_ERROR_NETWORK;
+		}
 	} else {
 		curl_easy_getinfo(s_handle, CURLINFO_RESPONSE_CODE, &status_code);
 		switch (status_code) { 

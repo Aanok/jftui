@@ -19,6 +19,7 @@ static int sax_items_end_array(void *ctx);
 static int sax_items_string(void *ctx, const unsigned char *string, size_t strins_len);
 static int sax_items_number(void *ctx, const char *string, size_t strins_len);
 
+static yajl_handle jf_yajl_parser_new(yajl_callbacks *callbacks, jf_sax_context *context);
 void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb);
 void jf_sax_context_current_item_clear(jf_sax_context *context);
 void jf_sax_context_current_item_copy(jf_sax_context *context);
@@ -340,6 +341,26 @@ static int sax_items_number(void *ctx, const char *string, size_t string_len)
 //////////////////////////////////////////
 
 
+static yajl_handle jf_yajl_parser_new(yajl_callbacks *callbacks, jf_sax_context *context)
+{
+	yajl_handle parser;
+
+	if ((parser = yajl_alloc(callbacks, NULL, (void *)(context))) == NULL) {
+		strcpy(context->tb->data, "sax parser yajl_alloc failed");
+		return NULL;
+	}
+
+	// allow persistent parser to digest many JSON objects
+	if (yajl_config(parser, yajl_allow_multiple_values, 1) == 0) {
+		yajl_free(parser);
+		strcpy(context->tb->data, "sax parser could not allow_multiple_values");
+		return NULL;
+	}
+
+	return parser;
+}
+
+
 void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb)
 {
 	context->parser_state = JF_SAX_IDLE;
@@ -398,8 +419,6 @@ void jf_sax_context_current_item_copy(jf_sax_context *context)
 
 
 
-// TODO: proper error mechanism (needs signaling)
-// TODO: arguments...
 // NB all data created by the thread itself is allocated on the stack,
 // so it is safe to detach it
 void *jf_sax_parser_thread(void *arg)
@@ -423,37 +442,40 @@ void *jf_sax_parser_thread(void *arg)
 
 	jf_sax_context_init(&context, (jf_thread_buffer *)arg);
 
-	if ((parser = yajl_alloc(&callbacks, NULL, (void *)(&context))) == NULL) {
-		strcpy(context.tb->data, "sax parser yajl_alloc failed");
-		return NULL;
-	}
-
-	// allow persistent parser to digest many JSON objects
-	if (yajl_config(parser, yajl_allow_multiple_values, 1) == 0) {
-		yajl_free(parser);
-		strcpy(context.tb->data, "sax parser could not allow_multiple_values");
+	if ((parser = jf_yajl_parser_new(&callbacks, &context)) == NULL) {
 		return NULL;
 	}
 
 
 	pthread_mutex_lock(&context.tb->mut);
-	while (1) {
-		while (context.tb->used == 0) {
+	while (true) {
+		while (context.tb->state != JF_THREAD_BUFFER_STATE_PENDING_DATA) {
 			pthread_cond_wait(&context.tb->cv_no_data, &context.tb->mut);
 		}
 		if ((status = yajl_parse(parser, (unsigned char*)context.tb->data, context.tb->used)) != yajl_status_ok) {
 			unsigned char *error_str = yajl_get_error(parser, 1, (unsigned char*)context.tb->data, context.tb->used);
-			printf("%s\n", error_str);
 			strcpy(context.tb->data, "yajl_parse error: ");
 			strncat(context.tb->data, (char *)error_str, JF_PARSER_ERROR_BUFFER_SIZE - strlen(context.tb->data));
+			context.tb->state = JF_THREAD_BUFFER_STATE_PARSER_ERROR;
 			pthread_mutex_unlock(&context.tb->mut);
 			yajl_free_error(parser, error_str);
-// 			return NULL;
-		} else if (context.parser_state == JF_SAX_IDLE) {
-			yajl_complete_parse(parser);
-		} else if (context.copy_buffer == NULL) { // make sure it's not already a copy...
-			jf_sax_context_current_item_copy(&context);
+			// the parser never recovers after an error; we must free and reallocate it
+			yajl_free(parser);
+			if ((parser = jf_yajl_parser_new(&callbacks, &context)) == NULL) {
+				return NULL;
+			}
+		} else {
+			if (context.parser_state == JF_SAX_IDLE) {
+				yajl_complete_parse(parser);
+				context.tb->state = JF_THREAD_BUFFER_STATE_CLEAR;
+			} else {
+				context.tb->state = JF_THREAD_BUFFER_STATE_AWAITING_DATA;
+				if (context.copy_buffer == NULL) { // make sure it's not already a copy...
+					jf_sax_context_current_item_copy(&context);
+				}
+			}
 		}
+		
 		context.tb->used = 0;
 		pthread_cond_signal(&context.tb->cv_has_data);
 	}
@@ -478,7 +500,7 @@ bool jf_parse_login_reply(const char *payload)
 	s_error_buffer[0] = '\0';
 	if ((parsed = yajl_tree_parse(payload, s_error_buffer, JF_PARSER_ERROR_BUFFER_SIZE)) == NULL) {
 		if (s_error_buffer[0] == '\0') {
-			strcpy(s_error_buffer, "yajl_tree_parse unkown error");
+			strcpy(s_error_buffer, "yajl_tree_parse unknown error");
 		}
 		return false;
 	}

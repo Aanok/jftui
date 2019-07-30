@@ -57,10 +57,20 @@ typedef struct jf_menu_item {
 } jf_menu_item;
 
 
+////////// THREAD_BUFFER //////////
+typedef unsigned char jf_thread_buffer_state;
+
+#define JF_THREAD_BUFFER_STATE_CLEAR			0
+#define JF_THREAD_BUFFER_STATE_AWAITING_DATA	1
+#define JF_THREAD_BUFFER_STATE_PENDING_DATA		2
+#define JF_THREAD_BUFFER_STATE_PARSER_ERROR		3
+
+
 typedef struct jf_thread_buffer {
 	char data[JF_THREAD_BUFFER_DATA_SIZE];
 	size_t used;
 	bool promiscuous_context;
+	jf_thread_buffer_state state;
 	unsigned char *parsed_ids;
 	size_t parsed_ids_size;
 	size_t item_count;
@@ -70,11 +80,10 @@ typedef struct jf_thread_buffer {
 } jf_thread_buffer;
 
 
-// size < 0 means an error occurred
-typedef struct jf_reply {
-	char *payload;
-	int size;
-} jf_reply;
+bool jf_thread_buffer_init(jf_thread_buffer *tb);
+///////////////////////////////////
+
+
 
 
 // UNUSED FOR NOW
@@ -93,7 +102,6 @@ typedef struct jf_reply {
 // the first argument is the number of following arguments
 char *jf_concat(const size_t n, ...);
 
-bool jf_thread_buffer_init(jf_thread_buffer *tb);
 
 
 // UNUSED FOR NOW

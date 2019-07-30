@@ -39,6 +39,7 @@ char *jf_concat(size_t n, ...)
 
 bool jf_thread_buffer_init(jf_thread_buffer *tb)
 {
+	tb->state = JF_THREAD_BUFFER_STATE_CLEAR;
 	tb->used = 0;
 	tb->promiscuous_context = false;
 	pthread_mutex_init(&tb->mut, NULL);
