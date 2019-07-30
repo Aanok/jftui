@@ -4,11 +4,15 @@ WFLAGS=-Wall -Wpedantic -Wextra -Wconversion -Wstrict-prototypes -Werror=implici
 CFLAGS=`pkg-config --cflags --libs libcurl yajl mpv` -pthread
 DFLAGS=-g -O1 -fno-omit-frame-pointer -fno-optimize-sibling-calls -fsanitize=address -fsanitize=undefined
 
-all: src/*.c
+
+jftui: src/*.c
 	$(CC) $(WFLAGS) $(CFLAGS) $(OFLAGS) $^ -o jftui
 
 debug: src/*.c
 	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) $^ -o jftui_debug
+
+
+.PHONY: clean
 
 clean:
 	rm -f jftui jftui_debug
