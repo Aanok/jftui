@@ -1,0 +1,21 @@
+%{
+	#define YYSTYPE unsigned long
+	#include <stdlib.h>
+%}
+
+Start = ws*
+	( "s" ws+ < string > ws*	{ printf("search %s\n", yytext); }
+	| 'q' ws+					{ printf("quit\n"); }
+	| ".." ws*					{ printf("dotdot\n"); }
+	| Selector ws*				{ putchar('\n'); }
+	) eol
+Selector = '*'					{ printf("universal selector"); }
+	| Items
+Items = Atom ws* ',' ws* Items
+	| Atom
+Atom = l:num ws* '-' ws* r:num	{ printf("range: %lu to %lu; ", l, r); }
+	| n:num						{ printf("num: %lu; ", n); }
+num = < [0-9]+ >				{ $$ = strtoul(yytext, NULL, 10); }
+ws = [ \t]
+string = [^\n\r]+
+eol = '\n' | '\r\n' | '\r'
