@@ -4,7 +4,7 @@
 %}
 
 Start = ws*
-	( "s" ws+ < string > ws*	{ printf("search %s\n", yytext); }
+	( "s" ws+ < string >		{ printf("search %s\n", yytext); }
 	| 'q' ws+					{ printf("quit\n"); }
 	| ".." ws*					{ printf("dotdot\n"); }
 	| Selector ws*				{ putchar('\n'); }

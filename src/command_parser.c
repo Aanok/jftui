@@ -550,25 +550,21 @@ if (!(YY_BEGIN)) goto l33;
 if (!(YY_END)) goto l33;
 #undef yytext
 #undef yyleng
-  }
-  l36:;	
-  {  int yypos37= yy->__pos, yythunkpos37= yy->__thunkpos;  if (!yy_ws(yy)) goto l37;  goto l36;
-  l37:;	  yy->__pos= yypos37; yy->__thunkpos= yythunkpos37;
   }  yyDo(yy, yy_1_Start, yy->__begin, yy->__end);  goto l32;
-  l33:;	  yy->__pos= yypos32; yy->__thunkpos= yythunkpos32;  if (!yymatchChar(yy, 'q')) goto l38;  if (!yy_ws(yy)) goto l38;
-  l39:;	
-  {  int yypos40= yy->__pos, yythunkpos40= yy->__thunkpos;  if (!yy_ws(yy)) goto l40;  goto l39;
-  l40:;	  yy->__pos= yypos40; yy->__thunkpos= yythunkpos40;
+  l33:;	  yy->__pos= yypos32; yy->__thunkpos= yythunkpos32;  if (!yymatchChar(yy, 'q')) goto l36;  if (!yy_ws(yy)) goto l36;
+  l37:;	
+  {  int yypos38= yy->__pos, yythunkpos38= yy->__thunkpos;  if (!yy_ws(yy)) goto l38;  goto l37;
+  l38:;	  yy->__pos= yypos38; yy->__thunkpos= yythunkpos38;
   }  yyDo(yy, yy_2_Start, yy->__begin, yy->__end);  goto l32;
-  l38:;	  yy->__pos= yypos32; yy->__thunkpos= yythunkpos32;  if (!yymatchString(yy, "..")) goto l41;
+  l36:;	  yy->__pos= yypos32; yy->__thunkpos= yythunkpos32;  if (!yymatchString(yy, "..")) goto l39;
+  l40:;	
+  {  int yypos41= yy->__pos, yythunkpos41= yy->__thunkpos;  if (!yy_ws(yy)) goto l41;  goto l40;
+  l41:;	  yy->__pos= yypos41; yy->__thunkpos= yythunkpos41;
+  }  yyDo(yy, yy_3_Start, yy->__begin, yy->__end);  goto l32;
+  l39:;	  yy->__pos= yypos32; yy->__thunkpos= yythunkpos32;  if (!yy_Selector(yy)) goto l29;
   l42:;	
   {  int yypos43= yy->__pos, yythunkpos43= yy->__thunkpos;  if (!yy_ws(yy)) goto l43;  goto l42;
   l43:;	  yy->__pos= yypos43; yy->__thunkpos= yythunkpos43;
-  }  yyDo(yy, yy_3_Start, yy->__begin, yy->__end);  goto l32;
-  l41:;	  yy->__pos= yypos32; yy->__thunkpos= yythunkpos32;  if (!yy_Selector(yy)) goto l29;
-  l44:;	
-  {  int yypos45= yy->__pos, yythunkpos45= yy->__thunkpos;  if (!yy_ws(yy)) goto l45;  goto l44;
-  l45:;	  yy->__pos= yypos45; yy->__thunkpos= yythunkpos45;
   }  yyDo(yy, yy_4_Start, yy->__begin, yy->__end);
   }
   l32:;	  if (!yy_eol(yy)) goto l29;

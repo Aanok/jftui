@@ -52,7 +52,7 @@ typedef char jf_item_type;
 
 typedef struct jf_menu_item {
 	jf_item_type type;
-	char *id;
+	char id[JF_ID_LENGTH +1];
 	struct jf_menu_item *children; // NULL-terminated
 } jf_menu_item;
 
