@@ -41,10 +41,34 @@ void jf_menu_stack_clear(void);
 
 
 ////////// USER INTERFACE LOOP //////////
-// Function: jf_user_interface
+
+// Function: jf_menu_child_is_folder
+//
+// Checks if the n-th child of the current open menu context is a folder type or not.
+// This function exists for the sake of the command parser.
+//
+// Parameters:
+// 	n - 1-indexed identifier of the child whose item_type to check.
+//
+// Returns:
+//  true if there is a context to check, the child exists and it is a folder; false otherwise.
+bool jf_menu_child_is_folder(const size_t n);
+
+
+// Procedure: jf_menu_push_item
+//
+// Pushes the n-th child of the current open menu context onto the menu_stack.
+// This function exists for the sake of the command parser.
+//
+// Parameters:
+// 	n - 1-indexed identifier of the child to push on the menu_stack.
+void jf_menu_push_item(const size_t n);
+
+
+// Function: jf_menu_ui
 //
 // Runs the user interface loop until switching context to mpv or exiting.
-bool jf_user_interface(void);
+bool jf_menu_ui(void);
 /////////////////////////////////////////
 
 

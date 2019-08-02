@@ -1,5 +1,9 @@
 #include "menu.h"
 
+////////// COMMAND PARSER //////////
+#include "command_parser.c"
+////////////////////////////////////
+
 
 ////////// GLOBAL VARIABLES //////////
 extern jf_options g_options;
@@ -177,13 +181,9 @@ void jf_menu_stack_clear()
 // TODO innat
 static bool jf_menu_read_commands()
 {
-	size_t i;
-	fprintf(stderr, "DEBUG: this function is a stub! Enter a single number to select: ");
-	if (scanf("%zu", &i) != 1) {
-		while (getchar() != '\n') ; // clear stdin because scanf doesn't on error
-		return false;
-	}
-	jf_menu_stack_push(jf_thread_buffer_get_parsed_item(i));
+	do {
+		printf("> ");
+	} while (yyparse());
 	return true;
 }
 
@@ -214,7 +214,21 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 }
 
 
-bool jf_user_interface()
+// TODO STUB
+bool jf_menu_child_is_folder(const size_t n)
+{
+	return false;
+}
+
+
+// TODO STUB
+void jf_menu_push_child(const size_t n)
+{
+	printf("STUB: jf_menu_push_child(%zu)\n", n);
+}
+
+
+bool jf_menu_ui()
 {
 	jf_menu_item *context, *child;
 	jf_reply *reply;

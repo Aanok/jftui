@@ -4,14 +4,14 @@ WFLAGS=-Wall -Wpedantic -Wextra -Wconversion -Wstrict-prototypes -Werror=implici
 CFLAGS=`pkg-config --cflags --libs libcurl yajl mpv` -pthread
 DFLAGS=-g -O1 -fno-omit-frame-pointer -fno-optimize-sibling-calls -fsanitize=address -fsanitize=undefined
 
-SOURCES=src/shared.c src/command_parser.c src/config.c src/json_parser.c src/menu.c src/network.c src/main.c
+SOURCES=src/shared.c src/config.c src/json_parser.c src/menu.c src/network.c src/main.c
 
 
-jftui: $(SOURCES)
-	$(CC) $(CFLAGS) $(OFLAGS) $^ -o $@
+jftui: $(SOURCES) src/command_parser.c
+	$(CC) $(CFLAGS) $(OFLAGS) $(SOURCES) -o $@
 
-debug: $(SOURCES)
-	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) $^ -o jftui_debug
+debug: $(SOURCES) src/command_parser.c
+	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) $(SOURCES) -o jftui_debug
 
 src/command_parser.c: src/command_grammar.leg
 	leg -o $@ $^

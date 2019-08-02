@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
 			case MPV_EVENT_IDLE:
 				//TODO go into UI mode
 				JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_no));
-				while (jf_user_interface()) ;
+				while (jf_menu_ui()) ;
 				JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
 				break;
 			case MPV_EVENT_SHUTDOWN: //debug, we'll probably want to ignore these

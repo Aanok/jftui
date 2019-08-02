@@ -1,20 +1,160 @@
 %{
 	#define YYSTYPE unsigned long
 	#include <stdlib.h>
+	#include <stdbool.h>
+
+	typedef char jf_zu_stack_state;
+
+	struct jf_zu_stack {
+		size_t *stack;
+		size_t size;
+		size_t used;
+		jf_zu_stack_state state;
+	} s_zu_stack = {
+		.stack = NULL
+	};
+
+	#define JF_ZU_STACK_SUCCESS		0
+	#define JF_ZU_STACK_CLEAR		1
+	#define JF_ZU_STACK_ATOMS		2
+	#define JF_ZU_STACK_FOLDER		3
+	#define JF_ZU_STACK_RECURSIVE	4
+	#define JF_ZU_STACK_FAIL_FOLDER	-1
+	#define JF_ZU_STACK_FAIL_MATCH	-2
+
+	#define JF_ZU_STACK_IS_FAIL(state)	((state) < 0)
+
+
+	jf_zu_stack_state jf_zu_stack_get_state(void);
+
+	static void jf_zu_stack_init(void);
+	static size_t jf_zu_stack_pop(void);
+	static void jf_zu_stack_clear(void);
+	static void jf_zu_stack_push(const size_t n);
+	static void jf_zu_stack_push_range(size_t l, const size_t r);
+	static void jf_zu_stack_finalize(const bool parse_ok);
+
+
+	jf_zu_stack_state jz_su_stack_get_state()
+	{
+		return s_zu_stack.state;
+	}
+
+
+	static void jf_zu_stack_init()
+	{
+		printf("DEBUG: init\n");
+		if (s_zu_stack.stack == NULL) {
+			s_zu_stack.stack = malloc(20 * sizeof(size_t));
+			s_zu_stack.size = 20;
+			s_zu_stack.used = 0;
+		}
+		s_zu_stack.state = JF_ZU_STACK_CLEAR;
+	}
+
+
+	static size_t jf_zu_stack_pop()
+	{
+		return s_zu_stack.used > 0 ? s_zu_stack.stack[--s_zu_stack.used] : 0;
+	}
+
+
+	static void jf_zu_stack_clear()
+	{
+		while (jf_zu_stack_pop() != 0) ;
+	}
+
+
+	static void jf_zu_stack_push(const size_t n)
+	{
+		bool is_folder = jf_menu_child_is_folder(n);
+		// no-op on fail state
+		if (JF_ZU_STACK_IS_FAIL(s_zu_stack.state)) {
+			printf("DEBUG: push noop for failstate\n");
+			return;
+		}
+
+		// folder change commands can only target one folder and no other items
+		// unless recursive
+		if (is_folder && (s_zu_stack.state != JF_ZU_STACK_CLEAR
+							|| s_zu_stack.state != JF_ZU_STACK_RECURSIVE)) {
+			jf_zu_stack_clear();
+			s_zu_stack.state = JF_ZU_STACK_FAIL_FOLDER;
+			printf("DEBUG: set fail_folder\n");
+			return;
+		}
+
+		// check space
+		if (s_zu_stack.size == s_zu_stack.used) {
+			size_t *tmp = realloc(s_zu_stack.stack, s_zu_stack.size * 2 * sizeof(size_t));
+			if (tmp == NULL) {
+				return;
+			}
+			s_zu_stack.stack = tmp;
+		}
+
+		// actual push
+		s_zu_stack.stack[s_zu_stack.used++] = n;
+		printf("DEBUG: pushed %zu on position %zu\n", n, s_zu_stack.used -1);
+
+		// check state, preserving recursiveness
+		if (s_zu_stack.state != JF_ZU_STACK_RECURSIVE) {
+			s_zu_stack.state = is_folder ? JF_ZU_STACK_FOLDER : JF_ZU_STACK_ATOMS;
+		}
+	}
+
+
+	static void jf_zu_stack_push_range(size_t l, const size_t r)
+	{
+		int step = l <= r ? 1 : -1;
+		jf_zu_stack_push(l);
+		while (l != r) {
+			l += step;
+			jf_zu_stack_push(l);
+		}
+	}
+
+
+	static void jf_zu_stack_finalize(const bool parse_ok)
+	{
+		size_t n;
+
+		if (parse_ok == false) {
+			printf("DEBUG: fail_match\n");
+			jf_zu_stack_clear();
+			s_zu_stack.state = JF_ZU_STACK_FAIL_MATCH;
+			return;
+		}
+
+		if (s_zu_stack.state == JF_ZU_STACK_FAIL_FOLDER) {
+			printf("DEBUG: fail_folder\n");
+			jf_zu_stack_clear();
+			return;
+		}
+
+		printf("DEBUG: match success: ");
+		while ((n = jf_zu_stack_pop()) != 0) {
+			//jf_menu_child_push(n);
+			printf("%zu ", n);
+		}
+		printf(".\n");
+		s_zu_stack.state = JF_ZU_STACK_SUCCESS;
+	}
 %}
 
-Start = ws*
-	( "s" ws+ < string > ws*	{ printf("search %s\n", yytext); }
-	| 'q' ws+					{ printf("quit\n"); }
-	| ".." ws*					{ printf("dotdot\n"); }
-	| Selector ws*				{ putchar('\n'); }
-	) eol
+Start = ws*						@{ jf_zu_stack_init(); } # runs every match: that means once
+	( ".." ws*					{ printf("dotdot\n"); }
+	| "r" @{ s_zu_stack.state = JF_ZU_STACK_RECURSIVE; printf("recursive "); } Selector ws*
+	| "s" ws+ < string >		{ printf("search \"%s\"\n", yytext); }
+	| 'q' ws*					{ printf("quit\n"); }
+	| Selector ws*
+	) eol						~ { jf_zu_stack_finalize(false); } { jf_zu_stack_finalize(true); }
 Selector = '*'					{ printf("universal selector"); }
 	| Items
 Items = Atom ws* ',' ws* Items
 	| Atom
-Atom = l:num ws* '-' ws* r:num	{ printf("range: %lu to %lu; ", l, r); }
-	| n:num						{ printf("num: %lu; ", n); }
+Atom = l:num ws* '-' ws* r:num	{ jf_zu_stack_push_range(l, r); }
+	| n:num						{ jf_zu_stack_push(n); }
 num = < [0-9]+ >				{ $$ = strtoul(yytext, NULL, 10); }
 ws = [ \t]
 string = [^\n\r]+
