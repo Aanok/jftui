@@ -19,15 +19,14 @@ static jf_menu_stack s_menu_stack;
 
 // Function: jf_menu_item_conditional_free
 //
-// Deallocates a menu item, with a switch for checking or ignoring the persistence bit.
-// It is static, used privately by jf_menu_item_free and jf_menu_item_forced_free.
+// Deallocates a menu item and all its descendants recursively, with a switch for checking or ignoring the persistence bit.
 //
 // Parameters:
-// 	menu_item - The item to deallocate
+// 	menu_item - Pointer to the struct to deallocate.
 // 	check_persistence - Boolean for checking or not the persistence bit.
 //
 // Returns:
-// 	true on success or menu_itme == NULL, false otherwise
+// 	true on success or menu_item == NULL, false otherwise
 static bool jf_menu_item_conditional_free(jf_menu_item *menu_item, const bool check_persistence);
 
 static jf_menu_item *jf_menu_make_ui(void);
@@ -42,7 +41,7 @@ static jf_menu_item *jf_menu_make_ui(void);
 // 	menu_item - A pointer to the item to be pushed.
 //
 // Returns:
-// 	true if success or NULL was passed, false otherwise.
+// 	true if the item was deallocated or NULL was passed, false otherwise.
 static bool jf_menu_stack_push(jf_menu_item *menu_item);
 
 // Function: jf_menu_stack_pop
@@ -61,7 +60,8 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item);
 
 
 ////////// JF_MENU_ITEM //////////
-jf_menu_item *jf_menu_item_new(jf_item_type type, char *id, jf_menu_item *children) {
+jf_menu_item *jf_menu_item_new(jf_item_type type, const char *id, jf_menu_item *children)
+{
 	jf_menu_item *menu_item;
 
 	if ((menu_item = malloc(sizeof(jf_menu_item))) == NULL) {
@@ -69,7 +69,12 @@ jf_menu_item *jf_menu_item_new(jf_item_type type, char *id, jf_menu_item *childr
 	}
 
 	menu_item->type = type;
-	menu_item->id = id;
+	if (id == NULL) {
+		menu_item->id[0] = '\0';
+	} else {
+		strncpy(menu_item->id, id, JF_ID_LENGTH);
+		menu_item->id[JF_ID_LENGTH] = '\0';
+	}
 	menu_item->children = children;
 
 	return menu_item;
@@ -82,7 +87,6 @@ bool jf_menu_item_free(jf_menu_item *menu_item)
 }
 
 
-// TODO: review if free(id) is legit
 static bool jf_menu_item_conditional_free(jf_menu_item *menu_item, const bool check_persistent)
 {
 	jf_menu_item *child;
@@ -92,7 +96,6 @@ static bool jf_menu_item_conditional_free(jf_menu_item *menu_item, const bool ch
 	}
 
 	if (! (check_persistent && JF_MENU_ITEM_TYPE_IS_PERSISTENT(menu_item->type))) {
-		free(menu_item->id);
 		child = menu_item->children;
 		while (child) {
 			jf_menu_item_conditional_free(child, check_persistent);

@@ -132,19 +132,17 @@ size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, void 
 
 
 // NB n is 1-indexed as per user interface
-// TODO: refactor menu_item to always contain a static copy of id
 jf_menu_item *jf_thread_buffer_get_parsed_item(size_t n)
 {
 	size_t offset;
 	jf_item_type item_type;
-	char *item_id;
+	const char *item_id;
 	
-	if (n > 0 && n <= s_tb.item_count) {
+	if (0 < n && n <= s_tb.item_count) {
 		offset = (n - 1) * (1 + JF_ID_LENGTH);
 		item_type = *(jf_item_type *)(s_tb.parsed_ids + offset);
-		item_id = strndup((const char*)s_tb.parsed_ids + offset + 1, JF_ID_LENGTH);
+		item_id = (const char *)s_tb.parsed_ids + offset + 1;
 		return jf_menu_item_new(item_type, item_id, NULL);
-		// FIXME this will leak item_id if item_new fails. but it's a temp patch anyways
 	} else {
 		return NULL;
 	}

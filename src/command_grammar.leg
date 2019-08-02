@@ -142,6 +142,7 @@
 	}
 %}
 
+
 Start = ws*						@{ jf_zu_stack_init(); } # runs every match: that means once
 	( ".." ws*					{ printf("dotdot\n"); }
 	| "r" @{ s_zu_stack.state = JF_ZU_STACK_RECURSIVE; printf("recursive "); } Selector ws*

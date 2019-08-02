@@ -432,7 +432,7 @@ YY_ACTION(void) yy_1_num(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_num\n"));
   {
-#line 158
+#line 159
    __ = strtoul(yytext, NULL, 10); ;
   }
 #undef yythunkpos
@@ -449,7 +449,7 @@ YY_ACTION(void) yy_2_Atom(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_2_Atom\n"));
   {
-#line 157
+#line 158
    jf_zu_stack_push(n); ;
   }
 #undef yythunkpos
@@ -469,7 +469,7 @@ YY_ACTION(void) yy_1_Atom(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_Atom\n"));
   {
-#line 156
+#line 157
    jf_zu_stack_push_range(l, r); ;
   }
 #undef yythunkpos
@@ -486,7 +486,7 @@ YY_ACTION(void) yy_1_Selector(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_Selector\n"));
   {
-#line 152
+#line 153
    printf("universal selector"); ;
   }
 #undef yythunkpos
@@ -500,7 +500,7 @@ YY_ACTION(void) yy_4_Start(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_4_Start\n"));
   {
-#line 151
+#line 152
    jf_zu_stack_finalize(true); ;
   }
 #undef yythunkpos
@@ -514,7 +514,7 @@ YY_ACTION(void) yy_3_Start(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_3_Start\n"));
   {
-#line 149
+#line 150
    printf("quit\n"); ;
   }
 #undef yythunkpos
@@ -528,7 +528,7 @@ YY_ACTION(void) yy_2_Start(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_2_Start\n"));
   {
-#line 148
+#line 149
    printf("search \"%s\"\n", yytext); ;
   }
 #undef yythunkpos
@@ -542,7 +542,7 @@ YY_ACTION(void) yy_1_Start(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_Start\n"));
   {
-#line 146
+#line 147
    printf("dotdot\n"); ;
   }
 #undef yythunkpos
