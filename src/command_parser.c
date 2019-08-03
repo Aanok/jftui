@@ -74,17 +74,20 @@
 
 	static void jf_zu_stack_push(const size_t n)
 	{
-		bool is_folder = jf_menu_child_is_folder(n);
+		bool is_folder;
+
 		// no-op on fail state
 		if (JF_ZU_STACK_IS_FAIL(s_zu_stack.state)) {
 			printf("DEBUG: push noop for failstate\n");
 			return;
 		}
 
+		is_folder = jf_menu_child_is_folder(n);
+
 		// folder change commands can only target one folder and no other items
 		// unless recursive
-		if (is_folder && (s_zu_stack.state != JF_ZU_STACK_CLEAR
-							|| s_zu_stack.state != JF_ZU_STACK_RECURSIVE)) {
+		if (is_folder && ! (s_zu_stack.state == JF_ZU_STACK_CLEAR
+							|| s_zu_stack.state == JF_ZU_STACK_RECURSIVE)) {
 			jf_zu_stack_clear();
 			s_zu_stack.state = JF_ZU_STACK_FAIL_FOLDER;
 			printf("DEBUG: set fail_folder\n");
@@ -102,7 +105,7 @@
 
 		// actual push
 		s_zu_stack.stack[s_zu_stack.used++] = n;
-		printf("DEBUG: pushed %zu on position %zu\n", n, s_zu_stack.used -1);
+		printf("%zu ", n);
 
 		// check state, preserving recursiveness
 		if (s_zu_stack.state != JF_ZU_STACK_RECURSIVE) {
@@ -141,7 +144,7 @@
 
 		printf("DEBUG: match success: ");
 		while ((n = jf_zu_stack_pop()) != 0) {
-			//jf_menu_child_push(n);
+			jf_menu_child_push(n);
 			printf("%zu ", n);
 		}
 		printf(".\n");
@@ -432,7 +435,7 @@ YY_ACTION(void) yy_1_num(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_num\n"));
   {
-#line 159
+#line 162
    __ = strtoul(yytext, NULL, 10); ;
   }
 #undef yythunkpos
@@ -449,7 +452,7 @@ YY_ACTION(void) yy_2_Atom(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_2_Atom\n"));
   {
-#line 158
+#line 161
    jf_zu_stack_push(n); ;
   }
 #undef yythunkpos
@@ -469,7 +472,7 @@ YY_ACTION(void) yy_1_Atom(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_Atom\n"));
   {
-#line 157
+#line 160
    jf_zu_stack_push_range(l, r); ;
   }
 #undef yythunkpos
@@ -486,7 +489,7 @@ YY_ACTION(void) yy_1_Selector(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_Selector\n"));
   {
-#line 153
+#line 156
    printf("universal selector"); ;
   }
 #undef yythunkpos
@@ -500,7 +503,7 @@ YY_ACTION(void) yy_4_Start(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_4_Start\n"));
   {
-#line 152
+#line 155
    jf_zu_stack_finalize(true); ;
   }
 #undef yythunkpos
@@ -514,7 +517,7 @@ YY_ACTION(void) yy_3_Start(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_3_Start\n"));
   {
-#line 150
+#line 153
    printf("quit\n"); ;
   }
 #undef yythunkpos
@@ -528,7 +531,7 @@ YY_ACTION(void) yy_2_Start(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_2_Start\n"));
   {
-#line 149
+#line 152
    printf("search \"%s\"\n", yytext); ;
   }
 #undef yythunkpos
@@ -542,8 +545,8 @@ YY_ACTION(void) yy_1_Start(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_Start\n"));
   {
-#line 147
-   printf("dotdot\n"); ;
+#line 150
+   jf_menu_dotdot(); ;
   }
 #undef yythunkpos
 #undef yypos
@@ -684,54 +687,58 @@ YY_RULE(int) yy_Start(yycontext *yy)
   {  int yypos35= yy->__pos, yythunkpos35= yy->__thunkpos;  if (!yy_ws(yy)) goto l35;  goto l34;
   l35:;	  yy->__pos= yypos35; yy->__thunkpos= yythunkpos35;
   }  yyDo(yy, yy_1_Start, yy->__begin, yy->__end);  goto l32;
-  l33:;	  yy->__pos= yypos32; yy->__thunkpos= yythunkpos32;  if (!yymatchChar(yy, 'r')) goto l36;  yyText(yy, yy->__begin, yy->__end);
+  l33:;	  yy->__pos= yypos32; yy->__thunkpos= yythunkpos32;  if (!yymatchChar(yy, 'r')) goto l36;  if (!yy_ws(yy)) goto l36;
+  l37:;	
+  {  int yypos38= yy->__pos, yythunkpos38= yy->__thunkpos;  if (!yy_ws(yy)) goto l38;  goto l37;
+  l38:;	  yy->__pos= yypos38; yy->__thunkpos= yythunkpos38;
+  }  yyText(yy, yy->__begin, yy->__end);
 #define yytext yy->__text
 #define yyleng yy->__textlen
  s_zu_stack.state = JF_ZU_STACK_RECURSIVE; printf("recursive "); ;
 #undef yytext
 #undef yyleng
   if (!yy_Selector(yy)) goto l36;
-  l37:;	
-  {  int yypos38= yy->__pos, yythunkpos38= yy->__thunkpos;  if (!yy_ws(yy)) goto l38;  goto l37;
-  l38:;	  yy->__pos= yypos38; yy->__thunkpos= yythunkpos38;
+  l39:;	
+  {  int yypos40= yy->__pos, yythunkpos40= yy->__thunkpos;  if (!yy_ws(yy)) goto l40;  goto l39;
+  l40:;	  yy->__pos= yypos40; yy->__thunkpos= yythunkpos40;
   }  goto l32;
-  l36:;	  yy->__pos= yypos32; yy->__thunkpos= yythunkpos32;  if (!yymatchChar(yy, 's')) goto l39;  if (!yy_ws(yy)) goto l39;
-  l40:;	
-  {  int yypos41= yy->__pos, yythunkpos41= yy->__thunkpos;  if (!yy_ws(yy)) goto l41;  goto l40;
-  l41:;	  yy->__pos= yypos41; yy->__thunkpos= yythunkpos41;
+  l36:;	  yy->__pos= yypos32; yy->__thunkpos= yythunkpos32;  if (!yymatchChar(yy, 's')) goto l41;  if (!yy_ws(yy)) goto l41;
+  l42:;	
+  {  int yypos43= yy->__pos, yythunkpos43= yy->__thunkpos;  if (!yy_ws(yy)) goto l43;  goto l42;
+  l43:;	  yy->__pos= yypos43; yy->__thunkpos= yythunkpos43;
   }  yyText(yy, yy->__begin, yy->__end);  {
 #define yytext yy->__text
 #define yyleng yy->__textlen
-if (!(YY_BEGIN)) goto l39;
+if (!(YY_BEGIN)) goto l41;
 #undef yytext
 #undef yyleng
-  }  if (!yy_string(yy)) goto l39;  yyText(yy, yy->__begin, yy->__end);  {
+  }  if (!yy_string(yy)) goto l41;  yyText(yy, yy->__begin, yy->__end);  {
 #define yytext yy->__text
 #define yyleng yy->__textlen
-if (!(YY_END)) goto l39;
+if (!(YY_END)) goto l41;
 #undef yytext
 #undef yyleng
   }  yyDo(yy, yy_2_Start, yy->__begin, yy->__end);  goto l32;
-  l39:;	  yy->__pos= yypos32; yy->__thunkpos= yythunkpos32;  if (!yymatchChar(yy, 'q')) goto l42;
-  l43:;	
-  {  int yypos44= yy->__pos, yythunkpos44= yy->__thunkpos;  if (!yy_ws(yy)) goto l44;  goto l43;
-  l44:;	  yy->__pos= yypos44; yy->__thunkpos= yythunkpos44;
-  }  yyDo(yy, yy_3_Start, yy->__begin, yy->__end);  goto l32;
-  l42:;	  yy->__pos= yypos32; yy->__thunkpos= yythunkpos32;  if (!yy_Selector(yy)) goto l29;
+  l41:;	  yy->__pos= yypos32; yy->__thunkpos= yythunkpos32;  if (!yymatchChar(yy, 'q')) goto l44;
   l45:;	
   {  int yypos46= yy->__pos, yythunkpos46= yy->__thunkpos;  if (!yy_ws(yy)) goto l46;  goto l45;
   l46:;	  yy->__pos= yypos46; yy->__thunkpos= yythunkpos46;
+  }  yyDo(yy, yy_3_Start, yy->__begin, yy->__end);  goto l32;
+  l44:;	  yy->__pos= yypos32; yy->__thunkpos= yythunkpos32;  if (!yy_Selector(yy)) goto l29;
+  l47:;	
+  {  int yypos48= yy->__pos, yythunkpos48= yy->__thunkpos;  if (!yy_ws(yy)) goto l48;  goto l47;
+  l48:;	  yy->__pos= yypos48; yy->__thunkpos= yythunkpos48;
   }
   }
-  l32:;	  if (!yy_eol(yy)) goto l48;  goto l47;
-  l48:;	  yyText(yy, yy->__begin, yy->__end);  {
+  l32:;	  if (!yy_eol(yy)) goto l50;  goto l49;
+  l50:;	  yyText(yy, yy->__begin, yy->__end);  {
 #define yytext yy->__text
 #define yyleng yy->__textlen
    jf_zu_stack_finalize(false); ;
 #undef yytext
 #undef yyleng
   }  goto l29;
-  l47:;	  yyDo(yy, yy_4_Start, yy->__begin, yy->__end);
+  l49:;	  yyDo(yy, yy_4_Start, yy->__begin, yy->__end);
   yyprintf((stderr, "  ok   %s @ %s\n", "Start", yy->__buf+yy->__pos));
   return 1;
   l29:;	  yy->__pos= yypos0; yy->__thunkpos= yythunkpos0;

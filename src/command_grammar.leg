@@ -67,17 +67,20 @@
 
 	static void jf_zu_stack_push(const size_t n)
 	{
-		bool is_folder = jf_menu_child_is_folder(n);
+		bool is_folder;
+
 		// no-op on fail state
 		if (JF_ZU_STACK_IS_FAIL(s_zu_stack.state)) {
 			printf("DEBUG: push noop for failstate\n");
 			return;
 		}
 
+		is_folder = jf_menu_child_is_folder(n);
+
 		// folder change commands can only target one folder and no other items
 		// unless recursive
-		if (is_folder && (s_zu_stack.state != JF_ZU_STACK_CLEAR
-							|| s_zu_stack.state != JF_ZU_STACK_RECURSIVE)) {
+		if (is_folder && ! (s_zu_stack.state == JF_ZU_STACK_CLEAR
+							|| s_zu_stack.state == JF_ZU_STACK_RECURSIVE)) {
 			jf_zu_stack_clear();
 			s_zu_stack.state = JF_ZU_STACK_FAIL_FOLDER;
 			printf("DEBUG: set fail_folder\n");
@@ -95,7 +98,7 @@
 
 		// actual push
 		s_zu_stack.stack[s_zu_stack.used++] = n;
-		printf("DEBUG: pushed %zu on position %zu\n", n, s_zu_stack.used -1);
+		printf("%zu ", n);
 
 		// check state, preserving recursiveness
 		if (s_zu_stack.state != JF_ZU_STACK_RECURSIVE) {
@@ -134,7 +137,7 @@
 
 		printf("DEBUG: match success: ");
 		while ((n = jf_zu_stack_pop()) != 0) {
-			//jf_menu_child_push(n);
+			jf_menu_child_push(n);
 			printf("%zu ", n);
 		}
 		printf(".\n");
@@ -144,8 +147,8 @@
 
 
 Start = ws*						@{ jf_zu_stack_init(); } # runs every match: that means once
-	( ".." ws*					{ printf("dotdot\n"); }
-	| "r" @{ s_zu_stack.state = JF_ZU_STACK_RECURSIVE; printf("recursive "); } Selector ws*
+	( ".." ws*					{ jf_menu_dotdot(); }
+	| "r" ws+ @{ s_zu_stack.state = JF_ZU_STACK_RECURSIVE; printf("recursive "); } Selector ws*
 	| "s" ws+ < string >		{ printf("search \"%s\"\n", yytext); }
 	| 'q' ws*					{ printf("quit\n"); }
 	| Selector ws*

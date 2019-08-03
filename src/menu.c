@@ -12,6 +12,7 @@ extern jf_options g_options;
 
 ////////// STATIC VARIABLES //////////
 static jf_menu_stack s_menu_stack;
+static jf_menu_item *s_context = NULL;
 //////////////////////////////////////
 
 
@@ -54,6 +55,7 @@ static bool jf_menu_stack_push(jf_menu_item *menu_item);
 // 	A pointer to the item popped or NULL if the stack is empty.
 static jf_menu_item *jf_menu_stack_pop(void);
 
+static jf_menu_item *jf_menu_child_get(size_t n);
 static bool jf_menu_read_commands(void);
 static char *jf_menu_item_get_request_url(const jf_menu_item *item);
 //////////////////////////////////////
@@ -186,7 +188,7 @@ static bool jf_menu_read_commands()
 {
 	do {
 		printf("> ");
-	} while (yyparse());
+	} while (yyparse() == false);
 	return true;
 }
 
@@ -217,23 +219,61 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 }
 
 
-// TODO STUB
-bool jf_menu_child_is_folder(const size_t n)
+static jf_menu_item *jf_menu_child_get(size_t n)
 {
-	return false;
+	jf_menu_item *child;
+
+	if (s_context == NULL) {
+		return NULL;
+	}
+	if (JF_MENU_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(s_context->type)) {
+		return jf_thread_buffer_get_parsed_item(n);
+	} else {
+		// TODO use a clever macro to access the menu structure instantaneously
+		// so we don't have to crawl through children every time
+		// (which is not terrible since the children are very few, but still)
+		child = s_context->children;
+		while (n-- > 0) {
+			if (child++ == NULL) {
+				return NULL;
+			}
+		}
+		return child;
+	}
 }
 
 
-// TODO STUB
-void jf_menu_push_child(const size_t n)
+bool jf_menu_child_is_folder(const size_t n)
 {
-	printf("STUB: jf_menu_push_child(%zu)\n", n);
+	jf_menu_item *child;
+
+	if (s_context == NULL) {
+		return false;
+	}
+	if ((child = jf_menu_child_get(n)) == NULL) {
+		return false;
+	}
+	return JF_MENU_ITEM_TYPE_IS_FOLDER(child->type);
+}
+
+
+void jf_menu_child_push(const size_t n)
+{
+	jf_menu_item *child = jf_menu_child_get(n);
+	jf_menu_stack_push(child);
+	printf("DEBUG: pushed child with id %s\n", child == NULL ? "nullchild" : child->id);
+}
+
+
+void jf_menu_dotdot()
+{
+	jf_menu_item_free(jf_menu_stack_pop());
 }
 
 
 bool jf_menu_ui()
 {
-	jf_menu_item *context, *child;
+	jf_menu_item *child;
 	jf_reply *reply;
 	char *request_url;
 	size_t i;
@@ -242,12 +282,12 @@ bool jf_menu_ui()
 	// if menu_stack is empty, assume first time run
 	// in case of error it's not an unreasonable fallback
 	// TODO: double check if that won't cause memory leaks
-	if ((context = jf_menu_stack_pop()) == NULL) {
-			if ((context = jf_menu_make_ui()) == NULL) {
+	if ((s_context = jf_menu_stack_pop()) == NULL) {
+			if ((s_context = jf_menu_make_ui()) == NULL) {
 			fprintf(stderr, "FATAL: jf_menu_make_ui() returned NULL.\n");
 			return false;
 		}
-		jf_menu_stack_push(context);
+		jf_menu_stack_push(s_context);
 		return true;
 	}
 
@@ -256,7 +296,7 @@ bool jf_menu_ui()
 		printf("\n\n===== oh how I wish I was a real title :( =====\n");
 
 		// dispatch; download more info if necessary
-		switch (context->type) {
+		switch (s_context->type) {
 			// dynamic directories: fetch children, parser prints entries
 			case JF_ITEM_TYPE_COLLECTION:
 			case JF_ITEM_TYPE_USER_VIEW:
@@ -267,21 +307,24 @@ bool jf_menu_ui()
 			case JF_ITEM_TYPE_SEASON:
 			case JF_ITEM_TYPE_SERIES:
 			case JF_ITEM_TYPE_MENU_LIBRARIES:
-				if ((request_url = jf_menu_item_get_request_url(context)) == NULL) {
-					fprintf(stderr, "FATAL: could not get request url for menu context.\n");
-					jf_menu_item_free(context);
+				if ((request_url = jf_menu_item_get_request_url(s_context)) == NULL) {
+					fprintf(stderr, "FATAL: could not get request url for menu s_context.\n");
+					jf_menu_item_free(s_context);
+					s_context = NULL;
 					return false;
 				}
 				printf("request url: %s\n", request_url);
 				if ((reply = jf_request(request_url, JF_REQUEST_SAX, NULL)) == NULL) {
 					fprintf(stderr, "FATAL: could not allocate jf_reply.\n");
-					jf_menu_item_free(context);
+					jf_menu_item_free(s_context);
+					s_context = NULL;
 					free(request_url);
 					return false;
 				}
 				free(request_url);
 				if (JF_REPLY_PTR_HAS_ERROR(reply)) {
-					jf_menu_item_free(context);
+					jf_menu_item_free(s_context);
+					s_context = NULL;
 					if (JF_REPLY_PTR_ERROR_IS(reply, JF_REPLY_ERROR_PARSER_DEAD)) {
 						fprintf(stderr, "FATAL: %s\n", jf_reply_error_string(reply));
 						jf_reply_free(reply);
@@ -296,14 +339,14 @@ bool jf_menu_ui()
 				printf("reply content: %s\n", reply->payload);
 				jf_reply_free(reply);
 				// push back on stack to allow backtracking
-				jf_menu_stack_push(context);
+				jf_menu_stack_push(s_context);
 				break;
 			// persistent menu directories: fetch nothing, print entries by hand
 			case JF_ITEM_TYPE_MENU_ROOT:
 			case JF_ITEM_TYPE_MENU_FAVORITES:
 			case JF_ITEM_TYPE_MENU_ON_DECK:
 			case JF_ITEM_TYPE_MENU_LATEST:
-				child = context->children;
+				child = s_context->children;
 				i = 0;
 				while (child) {
 					switch (child->type) {
@@ -321,12 +364,13 @@ bool jf_menu_ui()
 					i++;
 				}
 				// push back on stack to allow backtracking
-				jf_menu_stack_push(context);
+				jf_menu_stack_push(s_context);
 				break;
 			default:
 				// TODO: individual items should be handled by another function
-				printf("Individual item; id: %s\n", context->id);
-				jf_menu_item_free(context);
+				printf("Individual item; id: %s\n", s_context->id);
+				jf_menu_item_free(s_context);
+				s_context = NULL;
 				break;
 		}
 	} while (jf_menu_read_commands() == false);

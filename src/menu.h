@@ -77,14 +77,17 @@ void jf_menu_stack_clear(void);
 bool jf_menu_child_is_folder(const size_t n);
 
 
-// Procedure: jf_menu_push_item
+// Procedure: jf_menu_child_push
 //
 // Pushes the n-th child of the current open menu context onto the menu_stack.
 // This function exists for the sake of the command parser.
 //
 // Parameters:
 // 	n - 1-indexed identifier of the child to push on the menu_stack.
-void jf_menu_push_item(const size_t n);
+void jf_menu_child_push(const size_t n);
+
+
+void jf_menu_dotdot(void);
 
 
 // Function: jf_menu_ui

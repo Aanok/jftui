@@ -27,26 +27,35 @@
 // tree not get deallocated when navigating upwards
 typedef char jf_item_type;
 
+// Atoms
 #define JF_ITEM_TYPE_NONE			0
-#define JF_ITEM_TYPE_COLLECTION		1
-#define JF_ITEM_TYPE_USER_VIEW		2
-#define JF_ITEM_TYPE_FOLDER			3
-#define JF_ITEM_TYPE_PLAYLIST		4
-#define JF_ITEM_TYPE_AUDIO			5
-#define JF_ITEM_TYPE_ARTIST			6
-#define JF_ITEM_TYPE_ALBUM			7
-#define JF_ITEM_TYPE_EPISODE		8
-#define JF_ITEM_TYPE_SEASON			9
-#define JF_ITEM_TYPE_SERIES			10
-#define JF_ITEM_TYPE_MOVIE			11
-#define JF_ITEM_TYPE_AUDIOBOOK		12
+#define JF_ITEM_TYPE_AUDIO			1
+#define JF_ITEM_TYPE_EPISODE		2
+#define JF_ITEM_TYPE_MOVIE			3
+#define JF_ITEM_TYPE_AUDIOBOOK		4
+
+// Folders
+#define JF_ITEM_TYPE_COLLECTION		20
+#define JF_ITEM_TYPE_USER_VIEW		21
+#define JF_ITEM_TYPE_FOLDER			22
+#define JF_ITEM_TYPE_PLAYLIST		23
+#define JF_ITEM_TYPE_ARTIST			24
+#define JF_ITEM_TYPE_ALBUM			25
+#define JF_ITEM_TYPE_SEASON			26
+#define JF_ITEM_TYPE_SERIES			27
+
+// Persistent folders
 #define JF_ITEM_TYPE_MENU_ROOT		-1
 #define JF_ITEM_TYPE_MENU_FAVORITES	-2
 #define JF_ITEM_TYPE_MENU_ON_DECK	-3
 #define JF_ITEM_TYPE_MENU_LATEST	-4
 #define JF_ITEM_TYPE_MENU_LIBRARIES	-5
 
-#define JF_MENU_ITEM_TYPE_IS_PERSISTENT(item_type) (item_type < 0)
+// Category macros. They're all expressions
+// UPDATE THESE if you add item_type's or change the item_type representation!
+#define JF_MENU_ITEM_TYPE_IS_PERSISTENT(t)			((t) < 0)
+#define JF_MENU_ITEM_TYPE_IS_FOLDER(t)				((t) < 0 || (t) > 20)
+#define JF_MENU_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(t)	((t) < -1 || (t) > 20)
 //////////////////////////////////////////////////////////
 
 
