@@ -14,7 +14,7 @@ static jf_thread_buffer s_tb;
 
 
 ////////// STATIC FUNCTIONS //////////
-static void jf_request_wait_sax_parser(void);
+static void jf_thread_buffer_wait_parsing_done(void);
 static size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *userdata);
 static size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, void *userdata);
 static bool jf_network_make_headers(void);
@@ -93,6 +93,25 @@ static size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *
 
 
 ////////// PARSER THREAD COMMUNICATION //////////
+static void jf_thread_buffer_wait_parsing_done()
+{
+	pthread_mutex_lock(&s_tb.mut);
+	while (true) {
+		switch (s_tb.state) {
+			case JF_THREAD_BUFFER_STATE_AWAITING_DATA:
+				pthread_cond_wait(&s_tb.cv_no_data, &s_tb.mut);
+				break;
+			case JF_THREAD_BUFFER_STATE_PENDING_DATA:
+				pthread_cond_wait(&s_tb.cv_has_data, &s_tb.mut);
+				break;
+			default:
+				pthread_mutex_unlock(&s_tb.mut);
+				return;
+		}
+	}
+}
+
+
 size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, void *userdata)
 {
 	size_t real_size = size * nmemb;
@@ -288,9 +307,10 @@ jf_reply *jf_request(const char *resource, jf_request_type request_type, const c
 			curl_easy_setopt(s_handle, CURLOPT_WRITEFUNCTION, jf_reply_callback);		
 			break;
 		case JF_REQUEST_SAX_PROMISCUOUS:
-			s_tb.promiscuous_context = 1;
-			// NB no break, proceed
+			s_tb.promiscuous_context = true;
+			curl_easy_setopt(s_handle, CURLOPT_WRITEFUNCTION, jf_thread_buffer_callback);
 		case JF_REQUEST_SAX:
+			s_tb.promiscuous_context = false;
 			curl_easy_setopt(s_handle, CURLOPT_WRITEFUNCTION, jf_thread_buffer_callback);
 			break;
 	}
@@ -303,6 +323,9 @@ jf_reply *jf_request(const char *resource, jf_request_type request_type, const c
 			reply->size = JF_REPLY_ERROR_NETWORK;
 		}
 	} else {
+		if (request_type == JF_REQUEST_SAX_PROMISCUOUS || request_type == JF_REQUEST_SAX) {
+			jf_thread_buffer_wait_parsing_done();
+		}
 		// request went well but check for http error
 		curl_easy_getinfo(s_handle, CURLINFO_RESPONSE_CODE, &status_code);
 		switch (status_code) { 
