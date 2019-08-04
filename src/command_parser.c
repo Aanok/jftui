@@ -490,7 +490,7 @@ YY_ACTION(void) yy_1_Selector(yycontext *yy, char *yytext, int yyleng)
   yyprintf((stderr, "do yy_1_Selector\n"));
   {
 #line 156
-   printf("universal selector"); ;
+   jf_zu_stack_push_range(1, jf_menu_child_count()); ;
   }
 #undef yythunkpos
 #undef yypos

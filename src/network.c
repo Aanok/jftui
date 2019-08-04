@@ -168,6 +168,11 @@ jf_menu_item *jf_thread_buffer_get_parsed_item(size_t n)
 }
 
 
+size_t jf_thread_buffer_item_count()
+{
+	return s_tb.item_count;
+}
+
 void jf_thread_buffer_clear_error()
 {
 	pthread_mutex_lock(&s_tb.mut);

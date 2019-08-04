@@ -265,6 +265,29 @@ void jf_menu_child_push(const size_t n)
 }
 
 
+size_t jf_menu_child_count()
+{
+	jf_menu_item *child;
+	size_t n = 0;
+
+	if (s_context == NULL) {
+		return 0;
+	}
+	if (JF_MENU_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(s_context->type)) {
+		return jf_thread_buffer_item_count();
+	} else {
+		// TODO use a clever macro to access the menu structure instantaneously
+		// so we don't have to crawl through children every time
+		// (which is not terrible since the children are very few, but still)
+		child = s_context->children;
+		while (child++ != NULL) {
+			n++;
+		}
+		return n;
+	}
+}
+
+
 void jf_menu_dotdot()
 {
 	jf_menu_item_free(jf_menu_stack_pop());

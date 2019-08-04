@@ -51,6 +51,7 @@ typedef unsigned char jf_request_type;
 
 // function prototypes
 jf_menu_item *jf_thread_buffer_get_parsed_item(size_t n);
+size_t jf_thread_buffer_item_count();
 void jf_thread_buffer_clear_error(void);
 
 bool jf_network_pre_init(void);

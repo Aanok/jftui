@@ -87,6 +87,9 @@ bool jf_menu_child_is_folder(const size_t n);
 void jf_menu_child_push(const size_t n);
 
 
+size_t jf_menu_child_count();
+
+
 void jf_menu_dotdot(void);
 
 

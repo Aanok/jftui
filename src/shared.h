@@ -54,8 +54,8 @@ typedef char jf_item_type;
 // Category macros. They're all expressions
 // UPDATE THESE if you add item_type's or change the item_type representation!
 #define JF_MENU_ITEM_TYPE_IS_PERSISTENT(t)			((t) < 0)
-#define JF_MENU_ITEM_TYPE_IS_FOLDER(t)				((t) < 0 || (t) > 20)
-#define JF_MENU_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(t)	((t) < -1 || (t) > 20)
+#define JF_MENU_ITEM_TYPE_IS_FOLDER(t)				((t) < 0 || (t) >= 20)
+#define JF_MENU_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(t)	((t) < -1 || (t) >= 20)
 //////////////////////////////////////////////////////////
 
 

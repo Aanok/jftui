@@ -153,7 +153,7 @@ Start = ws*						@{ jf_zu_stack_init(); } # runs every match: that means once
 	| 'q' ws*					{ printf("quit\n"); }
 	| Selector ws*
 	) eol						~ { jf_zu_stack_finalize(false); } { jf_zu_stack_finalize(true); }
-Selector = '*'					{ printf("universal selector"); }
+Selector = '*'					{ jf_zu_stack_push_range(1, jf_menu_child_count()); }
 	| Items
 Items = Atom ws* ',' ws* Items
 	| Atom
