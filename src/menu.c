@@ -182,14 +182,25 @@ void jf_menu_stack_clear()
 
 
 ////////// USER INTERFACE LOOP //////////
-
-// TODO innat
 static bool jf_menu_read_commands()
 {
-	do {
+	while (true) {
 		printf("> ");
-	} while (yyparse() == false);
-	return true;
+		yyparse();
+		switch (jf_zu_stack_get_state()) {
+			case JF_ZU_STACK_SUCCESS:
+				return true;
+			case JF_ZU_STACK_FAIL_FOLDER:
+				fprintf(stderr, "ERROR: cannot target many folders or both folders and items with non-recursive command.\n");
+				return false;
+			case JF_ZU_STACK_FAIL_MATCH:
+				fprintf(stderr, "ERROR: malformed command.\n");
+				return false;
+			default:
+				fprintf(stderr, "ERROR: command parser ended in unexpected state. This is a bug.\n");
+				return false;
+		}
+	}
 }
 
 

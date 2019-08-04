@@ -5,7 +5,7 @@
 
 	typedef char jf_zu_stack_state;
 
-	struct jf_zu_stack {
+	static struct jf_zu_stack {
 		size_t *stack;
 		size_t size;
 		size_t used;
@@ -35,7 +35,7 @@
 	static void jf_zu_stack_finalize(const bool parse_ok);
 
 
-	jf_zu_stack_state jz_su_stack_get_state()
+	jf_zu_stack_state jf_zu_stack_get_state()
 	{
 		return s_zu_stack.state;
 	}
@@ -152,7 +152,7 @@ Start = ws*						@{ jf_zu_stack_init(); } # runs every match: that means once
 	| "s" ws+ < string >		{ printf("search \"%s\"\n", yytext); }
 	| 'q' ws*					{ printf("quit\n"); }
 	| Selector ws*
-	) eol						~ { jf_zu_stack_finalize(false); } { jf_zu_stack_finalize(true); }
+	) ~ { jf_zu_stack_finalize(false); } { jf_zu_stack_finalize(true); } eol
 Selector = '*'					{ jf_zu_stack_push_range(1, jf_menu_child_count()); }
 	| Items
 Items = Atom ws* ',' ws* Items
