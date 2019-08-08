@@ -743,7 +743,6 @@ YY_PARSE(yycontext *) YYRELEASE(yycontext *yyctx)
 
 		// actual push
 		ctx->zu_stack[ctx->zu_stack_used++] = n;
-		printf("%zu ", n);
 
 		// check state, preserving recursiveness
 		if (ctx->zu_stack_state != JF_ZU_STACK_RECURSIVE) {

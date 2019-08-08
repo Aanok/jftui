@@ -46,7 +46,7 @@ jf_menu_item *jf_menu_item_new(jf_item_type type, const char *id, jf_menu_item *
 
 // Function jf_menu_item_free
 //
-// Deallocates a jf_menu_item and all its descendants recursively, unless they are marked as persistent (as per JF_MENU_ITEM_TYPE_IS_PERSISTENT).
+// Deallocates a jf_menu_item and all its descendants recursively, unless they are marked as persistent (as per JF_ITEM_TYPE_IS_PERSISTENT).
 //
 // Parameters:
 // 	- menu_item: a pointer to the struct to deallocate. It may be NULL, in which case the function will no-op.

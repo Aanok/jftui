@@ -56,6 +56,7 @@ static bool jf_menu_stack_push(jf_menu_item *menu_item);
 static jf_menu_item *jf_menu_stack_pop(void);
 
 static jf_menu_item *jf_menu_child_get(size_t n);
+static jf_item_type jf_menu_child_get_type(size_t n);
 static bool jf_menu_read_commands(void);
 static char *jf_menu_item_get_request_url(const jf_menu_item *item);
 //////////////////////////////////////
@@ -78,7 +79,7 @@ jf_menu_item *jf_menu_item_new(jf_item_type type, const char *id, jf_menu_item *
 		menu_item->id[JF_ID_LENGTH] = '\0';
 	}
 	menu_item->children = children;
-
+	
 	return menu_item;
 }
 
@@ -97,7 +98,7 @@ static bool jf_menu_item_conditional_free(jf_menu_item *menu_item, const bool ch
 		return true;
 	}
 
-	if (! (check_persistent && JF_MENU_ITEM_TYPE_IS_PERSISTENT(menu_item->type))) {
+	if (! (check_persistent && JF_ITEM_TYPE_IS_PERSISTENT(menu_item->type))) {
 		child = menu_item->children;
 		while (child) {
 			jf_menu_item_conditional_free(child, check_persistent);
@@ -154,7 +155,6 @@ static bool jf_menu_stack_push(jf_menu_item *menu_item)
 	}
 
 	s_menu_stack.items[s_menu_stack.used++] = menu_item;
-		printf("DEBUG: pushed item of type %d, id %s\n", menu_item->type, menu_item->id);
 	return true;
 }
 
@@ -169,7 +169,6 @@ static jf_menu_item *jf_menu_stack_pop()
 
 	retval = s_menu_stack.items[--s_menu_stack.used];
 	s_menu_stack.items[s_menu_stack.used] = NULL;
-	printf("DEBUG: popped item of type %d, id %s\n", retval->type, retval->id);
 	return retval;
 }
 
@@ -244,7 +243,7 @@ static jf_menu_item *jf_menu_child_get(size_t n)
 	if (s_context == NULL) {
 		return NULL;
 	}
-	if (JF_MENU_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(s_context->type)) {
+	if (JF_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(s_context->type)) {
 		return jf_thread_buffer_get_parsed_item(n);
 	} else {
 		// TODO use a clever macro to access the menu structure instantaneously
@@ -261,17 +260,34 @@ static jf_menu_item *jf_menu_child_get(size_t n)
 }
 
 
-bool jf_menu_child_is_folder(const size_t n)
+static jf_item_type jf_menu_child_get_type(size_t n)
 {
 	jf_menu_item *child;
 
 	if (s_context == NULL) {
+		return JF_ITEM_TYPE_NONE;
+	}
+	if (JF_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(s_context->type)) {
+		return jf_thread_buffer_get_parsed_item_type(n);
+	} else {
+		// TODO clever macro and all that
+		child = s_context->children;
+		while (n-- > 0) {
+			if (child++ == NULL) {
+				return JF_ITEM_TYPE_NONE;
+			}
+		}
+		return child->type;
+	}
+}
+
+
+bool jf_menu_child_is_folder(const size_t n)
+{
+	if (s_context == NULL) {
 		return false;
 	}
-	if ((child = jf_menu_child_get(n)) == NULL) {
-		return false;
-	}
-	return JF_MENU_ITEM_TYPE_IS_FOLDER(child->type);
+	return JF_ITEM_TYPE_IS_FOLDER(jf_menu_child_get_type(n));
 }
 
 
@@ -290,7 +306,7 @@ size_t jf_menu_child_count()
 	if (s_context == NULL) {
 		return 0;
 	}
-	if (JF_MENU_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(s_context->type)) {
+	if (JF_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(s_context->type)) {
 		return jf_thread_buffer_item_count();
 	} else {
 		// TODO use a clever macro to access the menu structure instantaneously

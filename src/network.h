@@ -50,7 +50,8 @@ typedef unsigned char jf_request_type;
 
 
 // function prototypes
-jf_menu_item *jf_thread_buffer_get_parsed_item(size_t n);
+jf_menu_item *jf_thread_buffer_get_parsed_item(const size_t n);
+jf_item_type jf_thread_buffer_get_parsed_item_type(const size_t n);
 size_t jf_thread_buffer_item_count(void);
 void jf_thread_buffer_clear_error(void);
 
