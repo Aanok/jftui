@@ -10,16 +10,8 @@
 	#include <stdlib.h>
 	#include <stdbool.h>
 
+	////////// ZU_STACK_STATE //////////
 	typedef char jf_zu_stack_state;
-
-	static struct jf_zu_stack {
-		size_t *stack;
-		size_t size;
-		size_t used;
-		jf_zu_stack_state state;
-	} s_zu_stack = {
-		.stack = NULL
-	};
 
 	#define JF_ZU_STACK_SUCCESS		0
 	#define JF_ZU_STACK_CLEAR		1
@@ -30,126 +22,31 @@
 	#define JF_ZU_STACK_FAIL_MATCH	-2
 
 	#define JF_ZU_STACK_IS_FAIL(state)	((state) < 0)
+	////////////////////////////////////
 
 
-	jf_zu_stack_state jf_zu_stack_get_state(void);
+	////////// YY_CTX //////////
+	// forward declartion wrt PEG generated code
+	typedef struct _yycontext yycontext;
 
-	static void jf_zu_stack_init(void);
-	static size_t jf_zu_stack_pop(void);
-	static void jf_zu_stack_clear(void);
-	static void jf_zu_stack_push(const size_t n);
-	static void jf_zu_stack_push_range(size_t l, const size_t r);
-	static void jf_zu_stack_finalize(const bool parse_ok);
-
-
-	jf_zu_stack_state jf_zu_stack_get_state()
-	{
-		return s_zu_stack.state;
-	}
+	#define YY_CTX_LOCAL
+	#define YY_CTX_MEMBERS					\
+		size_t *zu_stack;					\
+		size_t zu_stack_size;				\
+		size_t zu_stack_used;				\
+		jf_zu_stack_state zu_stack_state;
+	////////////////////////////
 
 
-	static void jf_zu_stack_init()
-	{
-		printf("DEBUG: init\n");
-		if (s_zu_stack.stack == NULL) {
-			s_zu_stack.stack = malloc(20 * sizeof(size_t));
-			s_zu_stack.size = 20;
-			s_zu_stack.used = 0;
-		}
-		s_zu_stack.state = JF_ZU_STACK_CLEAR;
-	}
+	////////// FUNCTION PROTOTYPES //////////
+	jf_zu_stack_state yy_zu_stack_get_state(const yycontext *ctx);
 
-
-	static size_t jf_zu_stack_pop()
-	{
-		return s_zu_stack.used > 0 ? s_zu_stack.stack[--s_zu_stack.used] : 0;
-	}
-
-
-	static void jf_zu_stack_clear()
-	{
-		while (jf_zu_stack_pop() != 0) ;
-	}
-
-
-	static void jf_zu_stack_push(const size_t n)
-	{
-		bool is_folder;
-
-		// no-op on fail state
-		if (JF_ZU_STACK_IS_FAIL(s_zu_stack.state)) {
-			printf("DEBUG: push noop for failstate\n");
-			return;
-		}
-
-		is_folder = jf_menu_child_is_folder(n);
-
-		// folder change commands can only target one folder and no other items
-		// unless recursive
-		if (is_folder && ! (s_zu_stack.state == JF_ZU_STACK_CLEAR
-							|| s_zu_stack.state == JF_ZU_STACK_RECURSIVE)) {
-			jf_zu_stack_clear();
-			s_zu_stack.state = JF_ZU_STACK_FAIL_FOLDER;
-			printf("DEBUG: set fail_folder\n");
-			return;
-		}
-
-		// check space
-		if (s_zu_stack.size == s_zu_stack.used) {
-			size_t *tmp = realloc(s_zu_stack.stack, s_zu_stack.size * 2 * sizeof(size_t));
-			if (tmp == NULL) {
-				return;
-			}
-			s_zu_stack.stack = tmp;
-		}
-
-		// actual push
-		s_zu_stack.stack[s_zu_stack.used++] = n;
-		printf("%zu ", n);
-
-		// check state, preserving recursiveness
-		if (s_zu_stack.state != JF_ZU_STACK_RECURSIVE) {
-			s_zu_stack.state = is_folder ? JF_ZU_STACK_FOLDER : JF_ZU_STACK_ATOMS;
-		}
-	}
-
-
-	static void jf_zu_stack_push_range(size_t l, const size_t r)
-	{
-		int step = l <= r ? 1 : -1;
-		jf_zu_stack_push(l);
-		while (l != r) {
-			l += step;
-			jf_zu_stack_push(l);
-		}
-	}
-
-
-	static void jf_zu_stack_finalize(const bool parse_ok)
-	{
-		size_t n;
-
-		if (parse_ok == false) {
-			printf("DEBUG: fail_match\n");
-			jf_zu_stack_clear();
-			s_zu_stack.state = JF_ZU_STACK_FAIL_MATCH;
-			return;
-		}
-
-		if (s_zu_stack.state == JF_ZU_STACK_FAIL_FOLDER) {
-			printf("DEBUG: fail_folder\n");
-			jf_zu_stack_clear();
-			return;
-		}
-
-		printf("DEBUG: match success: ");
-		while ((n = jf_zu_stack_pop()) != 0) {
-			jf_menu_child_push(n);
-			printf("%zu ", n);
-		}
-		printf(".\n");
-		s_zu_stack.state = JF_ZU_STACK_SUCCESS;
-	}
+	static void yy_zu_stack_init(yycontext *ctx);
+	static size_t yy_zu_stack_pop(yycontext *ctx);
+	static void yy_zu_stack_push(yycontext *ctx, const size_t n);
+	static void yy_zu_stack_push_range(yycontext *ctx, size_t l, const size_t r);
+	static void yy_zu_stack_finalize(yycontext *ctx, const bool parse_ok);
+	/////////////////////////////////////////
 
 #ifndef YY_MALLOC
 #define YY_MALLOC(C, N)		malloc(N)
@@ -435,7 +332,7 @@ YY_ACTION(void) yy_1_num(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_num\n"));
   {
-#line 162
+#line 59
    __ = strtoul(yytext, NULL, 10); ;
   }
 #undef yythunkpos
@@ -452,8 +349,8 @@ YY_ACTION(void) yy_2_Atom(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_2_Atom\n"));
   {
-#line 161
-   jf_zu_stack_push(n); ;
+#line 58
+   yy_zu_stack_push(yy, n); ;
   }
 #undef yythunkpos
 #undef yypos
@@ -472,8 +369,8 @@ YY_ACTION(void) yy_1_Atom(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_Atom\n"));
   {
-#line 160
-   jf_zu_stack_push_range(l, r); ;
+#line 57
+   yy_zu_stack_push_range(yy, l, r); ;
   }
 #undef yythunkpos
 #undef yypos
@@ -489,8 +386,8 @@ YY_ACTION(void) yy_1_Selector(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_Selector\n"));
   {
-#line 156
-   jf_zu_stack_push_range(1, jf_menu_child_count()); ;
+#line 53
+   yy_zu_stack_push_range(yy, 1, jf_menu_child_count()); ;
   }
 #undef yythunkpos
 #undef yypos
@@ -503,8 +400,8 @@ YY_ACTION(void) yy_4_Start(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_4_Start\n"));
   {
-#line 155
-   jf_zu_stack_finalize(true); ;
+#line 52
+   yy_zu_stack_finalize(yy, true); ;
   }
 #undef yythunkpos
 #undef yypos
@@ -517,7 +414,7 @@ YY_ACTION(void) yy_3_Start(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_3_Start\n"));
   {
-#line 153
+#line 50
    printf("quit\n"); ;
   }
 #undef yythunkpos
@@ -531,7 +428,7 @@ YY_ACTION(void) yy_2_Start(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_2_Start\n"));
   {
-#line 152
+#line 49
    printf("search \"%s\"\n", yytext); ;
   }
 #undef yythunkpos
@@ -545,7 +442,7 @@ YY_ACTION(void) yy_1_Start(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_Start\n"));
   {
-#line 150
+#line 47
    jf_menu_dotdot(); ;
   }
 #undef yythunkpos
@@ -678,7 +575,7 @@ YY_RULE(int) yy_Start(yycontext *yy)
   }  yyText(yy, yy->__begin, yy->__end);
 #define yytext yy->__text
 #define yyleng yy->__textlen
- jf_zu_stack_init(); ;
+ yy_zu_stack_init(yy); ;
 #undef yytext
 #undef yyleng
 
@@ -694,7 +591,7 @@ YY_RULE(int) yy_Start(yycontext *yy)
   }  yyText(yy, yy->__begin, yy->__end);
 #define yytext yy->__text
 #define yyleng yy->__textlen
- s_zu_stack.state = JF_ZU_STACK_RECURSIVE; printf("recursive "); ;
+ yy->zu_stack_state = JF_ZU_STACK_RECURSIVE; printf("recursive "); ;
 #undef yytext
 #undef yyleng
   if (!yy_Selector(yy)) goto l38;
@@ -734,7 +631,7 @@ if (!(YY_END)) goto l43;
   l33:;	  yyText(yy, yy->__begin, yy->__end);  {
 #define yytext yy->__text
 #define yyleng yy->__textlen
-   jf_zu_stack_finalize(false); ;
+   yy_zu_stack_finalize(yy, false); ;
 #undef yytext
 #undef yyleng
   }  goto l29;
@@ -793,3 +690,99 @@ YY_PARSE(yycontext *) YYRELEASE(yycontext *yyctx)
 }
 
 #endif
+#line 65 "src/command_grammar.leg"
+
+	jf_zu_stack_state yy_zu_stack_get_state(const yycontext *ctx)
+	{
+		return ctx->zu_stack_state;
+	}
+
+
+	static void yy_zu_stack_init(yycontext *ctx)
+	{
+		ctx->zu_stack = malloc(20 * sizeof(size_t));
+		ctx->zu_stack_size = 20;
+		ctx->zu_stack_used = 0;
+		ctx->zu_stack_state = JF_ZU_STACK_CLEAR;
+	}
+
+
+	static size_t yy_zu_stack_pop(yycontext *ctx)
+	{
+		return ctx->zu_stack_used > 0 ? ctx->zu_stack[--ctx->zu_stack_used] : 0;
+	}
+
+
+	static void yy_zu_stack_push(yycontext *ctx, const size_t n)
+	{
+		bool is_folder;
+
+		// no-op on fail state
+		if (JF_ZU_STACK_IS_FAIL(ctx->zu_stack_state)) {
+			return;
+		}
+
+		is_folder = jf_menu_child_is_folder(n);
+
+		// folder change commands can only target one folder and no other items
+		// unless recursive
+		if (is_folder && ! (ctx->zu_stack_state == JF_ZU_STACK_CLEAR
+							|| ctx->zu_stack_state == JF_ZU_STACK_RECURSIVE)) {
+			ctx->zu_stack_state = JF_ZU_STACK_FAIL_FOLDER;
+			return;
+		}
+
+		// check space
+		if (ctx->zu_stack_size == ctx->zu_stack_used) {
+			size_t *tmp = realloc(ctx->zu_stack, ctx->zu_stack_size * 2 * sizeof(size_t));
+			if (tmp == NULL) {
+				return;
+			}
+			ctx->zu_stack = tmp;
+		}
+
+		// actual push
+		ctx->zu_stack[ctx->zu_stack_used++] = n;
+		printf("%zu ", n);
+
+		// check state, preserving recursiveness
+		if (ctx->zu_stack_state != JF_ZU_STACK_RECURSIVE) {
+			ctx->zu_stack_state = is_folder ? JF_ZU_STACK_FOLDER : JF_ZU_STACK_ATOMS;
+		}
+	}
+
+
+	static void yy_zu_stack_push_range(yycontext *ctx, size_t l, const size_t r)
+	{
+		int step = l <= r ? 1 : -1;
+		while (true) {
+			yy_zu_stack_push(ctx, l);
+			l += step;
+			if (l == r) break;
+		}
+	}
+
+
+	static void yy_zu_stack_finalize(yycontext *ctx, const bool parse_ok)
+	{
+		size_t n;
+
+		if (parse_ok == false) {
+			free(ctx->zu_stack);
+			ctx->zu_stack_state = JF_ZU_STACK_FAIL_MATCH;
+			return;
+		}
+
+		if (ctx->zu_stack_state == JF_ZU_STACK_FAIL_FOLDER) {
+			free(ctx->zu_stack);
+			return;
+		}
+
+		while ((n = yy_zu_stack_pop(ctx)) != 0) {
+			jf_menu_child_push(n);
+			printf("%zu ", n);
+		}
+		printf(".\n");
+		ctx->zu_stack_state = JF_ZU_STACK_SUCCESS;
+	}
+

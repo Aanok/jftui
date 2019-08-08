@@ -4,11 +4,21 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <fcntl.h>
 
 #include "shared.h"
 #include "config.h"
 #include "network.h"
 
+
+#define JF_CLEAR_STDIN()									\
+	do {													\
+		fcntl(0, F_SETFL, fcntl(0, F_GETFL)|O_NONBLOCK);	\
+		while (getchar() != EOF) ;							\
+		fcntl(0, F_SETFL, fcntl(0, F_GETFL)& ~O_NONBLOCK);	\
+	} while (false)
+
+	
 
 ////////// JF_MENU_ITEM //////////
 
