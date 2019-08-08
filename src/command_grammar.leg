@@ -47,7 +47,7 @@ Start = ws*						@{ yy_zu_stack_init(yy); } # runs every match: that means once
 	( ".." ws*					{ jf_menu_dotdot(); }
 	| "r" ws+ @{ yy->zu_stack_state = JF_ZU_STACK_RECURSIVE; printf("recursive "); } Selector ws*
 	| "s" ws+ < string >		{ printf("search \"%s\"\n", yytext); }
-	| 'q' ws*					{ printf("quit\n"); }
+	| 'q' ws*					{ jf_menu_quit(); }
 	| Selector ws*
 	) ~ { yy_zu_stack_finalize(yy, false); } { yy_zu_stack_finalize(yy, true); } eol
 Selector = '*'					{ yy_zu_stack_push_range(yy, 1, jf_menu_child_count()); }
@@ -151,8 +151,7 @@ eol = '\n' | '\r\n' | '\r'
 
 		while ((n = yy_zu_stack_pop(ctx)) != 0) {
 			jf_menu_child_push(n);
-			printf("%zu ", n);
 		}
-		printf(".\n");
+		free(ctx->zu_stack);
 		ctx->zu_stack_state = JF_ZU_STACK_SUCCESS;
 	}

@@ -18,7 +18,16 @@
 		fcntl(0, F_SETFL, fcntl(0, F_GETFL)& ~O_NONBLOCK);	\
 	} while (false)
 
-	
+
+////////// JF_MENU_UI_STATUS //////////
+typedef unsigned char jf_menu_ui_status;
+
+#define JF_MENU_UI_STATUS_GO_ON		0
+#define JF_MENU_UI_STATUS_PLAYBACK	1
+#define JF_MENU_UI_STATUS_ERROR		2
+#define JF_MENU_UI_STATUS_QUIT		3
+///////////////////////////////////////
+
 
 ////////// JF_MENU_ITEM //////////
 
@@ -103,10 +112,19 @@ size_t jf_menu_child_count(void);
 void jf_menu_dotdot(void);
 
 
+void jf_menu_quit(void);
+
+
 // Function: jf_menu_ui
 //
 // Runs the user interface loop until switching context to mpv or exiting.
-bool jf_menu_ui(void);
+//
+// Returns:
+// 	- JF_MENU_UI_STATUS_GO_ON if the UI loop should iterate again;
+// 	- JF_MENU_UI_STATUS_PLAYBACK if the context should switch to mpv playback;
+// 	- JF_MENU_UI_STATUS_ERROR on an error state;
+// 	- JF_MENU_UI_STATUS_QUIT if the user requested the application to exit.
+jf_menu_ui_status jf_menu_ui(void);
 /////////////////////////////////////////
 
 

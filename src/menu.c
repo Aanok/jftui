@@ -154,6 +154,7 @@ static bool jf_menu_stack_push(jf_menu_item *menu_item)
 	}
 
 	s_menu_stack.items[s_menu_stack.used++] = menu_item;
+		printf("DEBUG: pushed item of type %d, id %s\n", menu_item->type, menu_item->id);
 	return true;
 }
 
@@ -168,6 +169,7 @@ static jf_menu_item *jf_menu_stack_pop()
 
 	retval = s_menu_stack.items[--s_menu_stack.used];
 	s_menu_stack.items[s_menu_stack.used] = NULL;
+	printf("DEBUG: popped item of type %d, id %s\n", retval->type, retval->id);
 	return retval;
 }
 
@@ -277,7 +279,6 @@ void jf_menu_child_push(const size_t n)
 {
 	jf_menu_item *child = jf_menu_child_get(n);
 	jf_menu_stack_push(child);
-	printf("DEBUG: pushed child with id %s\n", child == NULL ? "nullchild" : child->id);
 }
 
 
@@ -310,7 +311,13 @@ void jf_menu_dotdot()
 }
 
 
-bool jf_menu_ui()
+void jf_menu_quit()
+{
+	jf_menu_stack_push(jf_menu_item_new(JF_ITEM_TYPE_COMMAND_QUIT, NULL, NULL));
+}
+
+
+jf_menu_ui_status jf_menu_ui()
 {
 	jf_menu_item *child;
 	jf_reply *reply;
@@ -324,10 +331,10 @@ bool jf_menu_ui()
 	if ((s_context = jf_menu_stack_pop()) == NULL) {
 			if ((s_context = jf_menu_make_ui()) == NULL) {
 			fprintf(stderr, "FATAL: jf_menu_make_ui() returned NULL.\n");
-			return false;
+			return JF_MENU_UI_STATUS_ERROR;
 		}
 		jf_menu_stack_push(s_context);
-		return true;
+		return JF_MENU_UI_STATUS_GO_ON;
 	}
 
 	do {
@@ -350,7 +357,7 @@ bool jf_menu_ui()
 					fprintf(stderr, "FATAL: could not get request url for menu s_context.\n");
 					jf_menu_item_free(s_context);
 					s_context = NULL;
-					return false;
+					return JF_MENU_UI_STATUS_ERROR;
 				}
 				printf("request url: %s\n", request_url);
 				if ((reply = jf_request(request_url, JF_REQUEST_SAX, NULL)) == NULL) {
@@ -358,7 +365,7 @@ bool jf_menu_ui()
 					jf_menu_item_free(s_context);
 					s_context = NULL;
 					free(request_url);
-					return false;
+					return JF_MENU_UI_STATUS_ERROR;
 				}
 				free(request_url);
 				if (JF_REPLY_PTR_HAS_ERROR(reply)) {
@@ -367,15 +374,14 @@ bool jf_menu_ui()
 					if (JF_REPLY_PTR_ERROR_IS(reply, JF_REPLY_ERROR_PARSER_DEAD)) {
 						fprintf(stderr, "FATAL: %s\n", jf_reply_error_string(reply));
 						jf_reply_free(reply);
-						return false;
+						return JF_MENU_UI_STATUS_ERROR;
 					} else {
 						fprintf(stderr, "ERROR: %s.\n", jf_reply_error_string(reply));
 						jf_reply_free(reply);
 						jf_thread_buffer_clear_error();
-						return true;
+						return JF_MENU_UI_STATUS_GO_ON;
 					}
 				}
-				printf("reply content: %s\n", reply->payload);
 				jf_reply_free(reply);
 				// push back on stack to allow backtracking
 				jf_menu_stack_push(s_context);
@@ -405,6 +411,9 @@ bool jf_menu_ui()
 				// push back on stack to allow backtracking
 				jf_menu_stack_push(s_context);
 				break;
+			case JF_ITEM_TYPE_COMMAND_QUIT:
+				jf_menu_item_free(s_context);
+				return JF_MENU_UI_STATUS_QUIT;
 			default:
 				// TODO: individual items should be handled by another function
 				printf("Individual item; id: %s\n", s_context->id);
@@ -414,6 +423,6 @@ bool jf_menu_ui()
 		}
 	} while (jf_menu_read_commands() == false);
 
-	return true;
+	return JF_MENU_UI_STATUS_GO_ON;
 }
 /////////////////////////////////////////

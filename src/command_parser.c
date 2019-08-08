@@ -415,7 +415,7 @@ YY_ACTION(void) yy_3_Start(yycontext *yy, char *yytext, int yyleng)
   yyprintf((stderr, "do yy_3_Start\n"));
   {
 #line 50
-   printf("quit\n"); ;
+   jf_menu_quit(); ;
   }
 #undef yythunkpos
 #undef yypos
@@ -780,9 +780,8 @@ YY_PARSE(yycontext *) YYRELEASE(yycontext *yyctx)
 
 		while ((n = yy_zu_stack_pop(ctx)) != 0) {
 			jf_menu_child_push(n);
-			printf("%zu ", n);
 		}
-		printf(".\n");
+		free(ctx->zu_stack);
 		ctx->zu_stack_state = JF_ZU_STACK_SUCCESS;
 	}
 

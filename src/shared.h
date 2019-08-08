@@ -34,6 +34,9 @@ typedef char jf_item_type;
 #define JF_ITEM_TYPE_MOVIE			3
 #define JF_ITEM_TYPE_AUDIOBOOK		4
 
+// Special menu commands
+#define JF_ITEM_TYPE_COMMAND_QUIT	10
+
 // Folders
 #define JF_ITEM_TYPE_COLLECTION		20
 #define JF_ITEM_TYPE_USER_VIEW		21

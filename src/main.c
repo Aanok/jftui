@@ -40,6 +40,7 @@ int main(int argc, char *argv[])
 	mpv_handle *mpv_ctx;
 	mpv_event *event;
 	bool run_ok = true;
+	jf_menu_ui_status ui_status;
 	int mpv_flag_yes = 1, mpv_flag_no = 0;
 
 	// LIBMPV VERSION CHECK
@@ -154,9 +155,19 @@ int main(int argc, char *argv[])
 				printf("\treason: %d\n", ((mpv_event_end_file *)event->data)->reason);
 				break;
 			case MPV_EVENT_IDLE:
-				//TODO go into UI mode
+				// go into UI mode
 				JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_no));
-				while (jf_menu_ui()) ;
+				while ((ui_status = jf_menu_ui()) == JF_MENU_UI_STATUS_GO_ON) ;
+				switch (ui_status) {
+					case JF_MENU_UI_STATUS_ERROR:
+					case JF_MENU_UI_STATUS_QUIT:
+						run_ok = false;
+						break;
+					default:
+						// GO_ON (which never happens) and PLAYBACK
+						// TODO: double check that we don't have something to do for PLAYBACK
+						break;
+				}
 				JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
 				break;
 			case MPV_EVENT_SHUTDOWN: //debug, we'll probably want to ignore these
