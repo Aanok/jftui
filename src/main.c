@@ -22,7 +22,7 @@ do {																				\
 		fprintf(stderr, "FATAL: mpv API error: %s\n", mpv_error_string(status));	\
 		jf_network_cleanup();														\
 		jf_options_clear();															\
-		mpv_destroy(mpv_ctx);														\
+		mpv_destroy(g_mpv_ctx);														\
 		exit(EXIT_FAILURE);															\
 	}																				\
 } while (false);
@@ -30,14 +30,45 @@ do {																				\
 
 ////////// GLOBALS //////////
 jf_options g_options;
+mpv_handle *g_mpv_ctx;
 /////////////////////////////
+
+
+static mpv_handle *jf_mpv_context_new(void);
+
+
+mpv_handle *jf_mpv_context_new()
+{
+	mpv_handle *ctx;
+	int mpv_flag_yes = 1, mpv_flag_no = 0;
+	char *x_emby_token;
+
+	if ((ctx = mpv_create()) == NULL) {
+		fprintf(stderr, "FATAL: failed to create mpv context.\n");
+		return NULL;
+	}
+	JF_MPV_ERROR_FATAL(mpv_set_property(ctx, "config", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ERROR_FATAL(mpv_set_property(ctx, "osc", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ERROR_FATAL(mpv_set_property(ctx, "input-default-bindings", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ERROR_FATAL(mpv_set_property(ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ERROR_FATAL(mpv_set_property(ctx, "input-terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ERROR_FATAL(mpv_set_property(ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	if ((x_emby_token = jf_concat(2, "x-emby-token: ", g_options.token)) == NULL) {
+		fprintf(stderr, "FATAL: jf_concat for x-emby-token header field for mpv requests returned NULL.\n");
+	}
+	JF_MPV_ERROR_FATAL(mpv_set_property_string(ctx, "http-header-fields", x_emby_token));
+	free(x_emby_token);
+
+	JF_MPV_ERROR_FATAL(mpv_initialize(ctx));
+
+	return ctx;
+}
 
 
 int main(int argc, char *argv[])
 {
 	// VARIABLES
 	char *config_path;
-	mpv_handle *mpv_ctx;
 	mpv_event *event;
 	bool run_ok = true;
 	jf_menu_ui_status ui_status;
@@ -124,28 +155,20 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "WARNING: could not set numeric locale to sane standard. mpv might refuse to work.\n");
 	}
 
-	if ((mpv_ctx = mpv_create()) == NULL) {
-		fprintf(stderr, "FATAL: failed to create mpv context.\n");
+	if ((g_mpv_ctx = jf_mpv_context_new()) == NULL) {
+		jf_network_cleanup();
 		jf_options_clear();
 		exit(EXIT_FAILURE);
 	}
-	JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "config", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "osc", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "input-default-bindings", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "input-terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
-
-	JF_MPV_ERROR_FATAL(mpv_initialize(mpv_ctx));
 	////////////
 
-//  	mpv_command_string(mpv_ctx, "loadfile /home/fabrizio/Music/future_people.opus append");
+//  	mpv_command_string(g_mpv_ctx, "loadfile /home/fabrizio/Music/future_people.opus append");
 	// NB there is now way to prebuild a playlist and pass it to mpv once
 	// you need to "loadfile file1" then "loadfile file2 append"
 
 	// MAIN LOOP
 	while (run_ok) {
-		event = mpv_wait_event(mpv_ctx, -1);
+		event = mpv_wait_event(g_mpv_ctx, -1);
 		printf("event: %s\n", mpv_event_name(event->event_id)); //debug
 		switch (event->event_id) {
 			case MPV_EVENT_END_FILE:
@@ -156,7 +179,7 @@ int main(int argc, char *argv[])
 				break;
 			case MPV_EVENT_IDLE:
 				// go into UI mode
-				JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_no));
+				JF_MPV_ERROR_FATAL(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_no));
 				while ((ui_status = jf_menu_ui()) == JF_MENU_UI_STATUS_GO_ON) ;
 				switch (ui_status) {
 					case JF_MENU_UI_STATUS_ERROR:
@@ -168,10 +191,22 @@ int main(int argc, char *argv[])
 						// TODO: double check that we don't have something to do for PLAYBACK
 						break;
 				}
-				JF_MPV_ERROR_FATAL(mpv_set_property(mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+				JF_MPV_ERROR_FATAL(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
 				break;
-			case MPV_EVENT_SHUTDOWN: //debug, we'll probably want to ignore these
-				run_ok = false;
+			case MPV_EVENT_SHUTDOWN:
+				// it is unfortunate, but the cleanest way to handle this case
+				// (which is when mpv receives a "quit" command)
+				// is to comply and create a new context
+				mpv_terminate_destroy(g_mpv_ctx);
+				if ((g_mpv_ctx = jf_mpv_context_new()) == NULL) {
+					jf_menu_stack_clear();
+					jf_network_cleanup();
+					jf_options_clear();
+					exit(EXIT_FAILURE);
+				}
+				break;
+			default:
+				// no-op on everything else
 				break;
 		}
 	}
@@ -182,7 +217,7 @@ int main(int argc, char *argv[])
 	jf_menu_stack_clear();
 	jf_network_cleanup();
 	jf_options_clear();
-	mpv_destroy(mpv_ctx);
+	mpv_destroy(g_mpv_ctx);
 	///////////////////
 	
 

@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <mpv/client.h>
 
 #include "shared.h"
 #include "config.h"
@@ -16,6 +17,54 @@
 		fcntl(0, F_SETFL, fcntl(0, F_GETFL)|O_NONBLOCK);	\
 		while (getchar() != EOF) ;							\
 		fcntl(0, F_SETFL, fcntl(0, F_GETFL)& ~O_NONBLOCK);	\
+	} while (false)
+
+#define JF_MENU_UI_GET_REQUEST_URL_FATAL()										\
+	do {																				\
+		if ((request_url = jf_menu_item_get_request_url(s_context)) == NULL) {			\
+			fprintf(stderr, "FATAL: could not get request url for menu s_context.\n");	\
+			jf_menu_item_free(s_context);												\
+			s_context = NULL;															\
+			return JF_MENU_UI_STATUS_ERROR;												\
+		}																				\
+	} while (false)
+
+#define JF_MENU_UI_DO_REQUEST_FATAL(request_type)								\
+	do {																		\
+		if ((reply = jf_request(request_url, request_type, NULL)) == NULL) {	\
+			fprintf(stderr, "FATAL: could not allocate jf_reply.\n");			\
+			jf_menu_item_free(s_context);										\
+			s_context = NULL;													\
+			free(request_url);													\
+			return JF_MENU_UI_STATUS_ERROR;										\
+		}																		\
+	} while (false)
+
+#define JF_MENU_UI_FOLDER_CHECK_REPLY_FATAL()									\
+	do {																		\
+		if (JF_REPLY_PTR_HAS_ERROR(reply)) {									\
+			jf_menu_item_free(s_context);										\
+			if (JF_REPLY_PTR_ERROR_IS(reply, JF_REPLY_ERROR_PARSER_DEAD)) {		\
+				fprintf(stderr, "FATAL: %s\n", jf_reply_error_string(reply));	\
+				jf_reply_free(reply);											\
+				return JF_MENU_UI_STATUS_ERROR;									\
+			} else {															\
+				fprintf(stderr, "ERROR: %s.\n", jf_reply_error_string(reply));	\
+				jf_reply_free(reply);											\
+				jf_thread_buffer_clear_error();									\
+				return JF_MENU_UI_STATUS_GO_ON;									\
+			}																	\
+		}																		\
+	} while (false)
+
+#define JF_MENU_UI_PRINT_FOLDER(request_type)			\
+	do {												\
+			JF_MENU_UI_GET_REQUEST_URL_FATAL();			\
+			JF_MENU_UI_DO_REQUEST_FATAL(request_type);	\
+			free(request_url);							\
+			JF_MENU_UI_FOLDER_CHECK_REPLY_FATAL();		\
+			jf_reply_free(reply);						\
+			jf_menu_stack_push(s_context);				\
 	} while (false)
 
 

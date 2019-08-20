@@ -26,7 +26,7 @@
 
 
 	////////// YY_CTX //////////
-	// forward declartion wrt PEG generated code
+	// forward declaration wrt PEG generated code
 	typedef struct _yycontext yycontext;
 
 	#define YY_CTX_LOCAL
@@ -756,8 +756,8 @@ YY_PARSE(yycontext *) YYRELEASE(yycontext *yyctx)
 		int step = l <= r ? 1 : -1;
 		while (true) {
 			yy_zu_stack_push(ctx, l);
-			l += step;
 			if (l == r) break;
+			l += step;
 		}
 	}
 

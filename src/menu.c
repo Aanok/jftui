@@ -7,6 +7,7 @@
 
 ////////// GLOBAL VARIABLES //////////
 extern jf_options g_options;
+extern mpv_handle *g_mpv_ctx;
 //////////////////////////////////////
 
 
@@ -215,16 +216,28 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 {
 	if (item != NULL) {
 		switch (item->type) {
+			// Atoms
+			case JF_ITEM_TYPE_AUDIO:
+			case JF_ITEM_TYPE_AUDIOBOOK:
+				return jf_concat(4, g_options.server, "/items/", item->id, "/file");
+			case JF_ITEM_TYPE_EPISODE:
+			case JF_ITEM_TYPE_MOVIE:
+				return jf_concat(4, "/users/", g_options.userid, "/items/", item->id);
+			// Folders
 			case JF_ITEM_TYPE_COLLECTION:
 			case JF_ITEM_TYPE_USER_VIEW:
 			case JF_ITEM_TYPE_FOLDER:
 			case JF_ITEM_TYPE_PLAYLIST:
 			case JF_ITEM_TYPE_ALBUM:
+			case JF_ITEM_TYPE_SEASON:
+			case JF_ITEM_TYPE_SERIES:
 				return jf_concat(5, "/users/", g_options.userid, "/items?parentid=",
 						item->id, "&sortby=isfolder,sortname");
 			case JF_ITEM_TYPE_ARTIST:
 				return jf_concat(5, "/users/", g_options.userid, "/items?albumartistids=",
 						item->id, "&recursive=true&includeitemtypes=musicalbum");
+			// Persistent folders
+			// TODO incomplete
 			case JF_ITEM_TYPE_MENU_LIBRARIES:
 				return jf_concat(3, "/users/", g_options.userid, "/views");
 			default:
@@ -354,55 +367,44 @@ jf_menu_ui_status jf_menu_ui()
 	}
 
 	do {
-		// TODO print title
-		printf("\n\n===== oh how I wish I was a real title :( =====\n");
-
 		// dispatch; download more info if necessary
 		switch (s_context->type) {
-			// dynamic directories: fetch children, parser prints entries
+			// AUDIO ATOMS
+			case JF_ITEM_TYPE_AUDIO:
+			case JF_ITEM_TYPE_AUDIOBOOK:
+				JF_MENU_UI_GET_REQUEST_URL_FATAL();
+				const char *mpv_command_args[3] = { "loadfile", request_url, NULL };
+				mpv_command(g_mpv_ctx, mpv_command_args);
+				free(request_url);
+				jf_menu_item_free(s_context);
+				return JF_MENU_UI_STATUS_PLAYBACK;
+			// VIDEO ATOMS
+			case JF_ITEM_TYPE_EPISODE:
+			case JF_ITEM_TYPE_MOVIE:
+				JF_MENU_UI_GET_REQUEST_URL_FATAL();
+				JF_MENU_UI_DO_REQUEST_FATAL(JF_REQUEST_IN_MEMORY);
+				free(request_url);
+				jf_menu_item_free(s_context);
+				break;
+			// DYNAMIC FOLDERS: fetch children, parser prints entries
 			case JF_ITEM_TYPE_COLLECTION:
 			case JF_ITEM_TYPE_USER_VIEW:
 			case JF_ITEM_TYPE_FOLDER:
 			case JF_ITEM_TYPE_PLAYLIST:
+			case JF_ITEM_TYPE_MENU_LIBRARIES:
+				// TODO print title
+				printf("\n\n===== oh how I wish I was a real title :( =====\n");
+				JF_MENU_UI_PRINT_FOLDER(JF_REQUEST_SAX_PROMISCUOUS);
+				break;
 			case JF_ITEM_TYPE_ARTIST:
 			case JF_ITEM_TYPE_ALBUM:
 			case JF_ITEM_TYPE_SEASON:
 			case JF_ITEM_TYPE_SERIES:
-			case JF_ITEM_TYPE_MENU_LIBRARIES:
-				if ((request_url = jf_menu_item_get_request_url(s_context)) == NULL) {
-					fprintf(stderr, "FATAL: could not get request url for menu s_context.\n");
-					jf_menu_item_free(s_context);
-					s_context = NULL;
-					return JF_MENU_UI_STATUS_ERROR;
-				}
-				printf("request url: %s\n", request_url);
-				if ((reply = jf_request(request_url, JF_REQUEST_SAX, NULL)) == NULL) {
-					fprintf(stderr, "FATAL: could not allocate jf_reply.\n");
-					jf_menu_item_free(s_context);
-					s_context = NULL;
-					free(request_url);
-					return JF_MENU_UI_STATUS_ERROR;
-				}
-				free(request_url);
-				if (JF_REPLY_PTR_HAS_ERROR(reply)) {
-					jf_menu_item_free(s_context);
-					s_context = NULL;
-					if (JF_REPLY_PTR_ERROR_IS(reply, JF_REPLY_ERROR_PARSER_DEAD)) {
-						fprintf(stderr, "FATAL: %s\n", jf_reply_error_string(reply));
-						jf_reply_free(reply);
-						return JF_MENU_UI_STATUS_ERROR;
-					} else {
-						fprintf(stderr, "ERROR: %s.\n", jf_reply_error_string(reply));
-						jf_reply_free(reply);
-						jf_thread_buffer_clear_error();
-						return JF_MENU_UI_STATUS_GO_ON;
-					}
-				}
-				jf_reply_free(reply);
-				// push back on stack to allow backtracking
-				jf_menu_stack_push(s_context);
+				// TODO print title
+				printf("\n\n===== oh how I wish I was a real title :( =====\n");
+				JF_MENU_UI_PRINT_FOLDER(JF_REQUEST_SAX);
 				break;
-			// persistent menu directories: fetch nothing, print entries by hand
+			// PERSISTENT FOLDERS: fetch nothing, print entries by hand
 			case JF_ITEM_TYPE_MENU_ROOT:
 			case JF_ITEM_TYPE_MENU_FAVORITES:
 			case JF_ITEM_TYPE_MENU_ON_DECK:
@@ -431,10 +433,8 @@ jf_menu_ui_status jf_menu_ui()
 				jf_menu_item_free(s_context);
 				return JF_MENU_UI_STATUS_QUIT;
 			default:
-				// TODO: individual items should be handled by another function
-				printf("Individual item; id: %s\n", s_context->id);
+				fprintf(stderr, "WARNING: unsupported menu item type. This is a bug.\n");
 				jf_menu_item_free(s_context);
-				s_context = NULL;
 				break;
 		}
 	} while (jf_menu_read_commands() == false);
