@@ -136,10 +136,10 @@ size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, void 
 			return 0;
 		}
 		// send data
-		chunk_size = real_size - written_data <= JF_THREAD_BUFFER_DATA_SIZE ? real_size - written_data : JF_THREAD_BUFFER_DATA_SIZE;
+		chunk_size = real_size - written_data < JF_THREAD_BUFFER_DATA_SIZE - 1 ? real_size - written_data : JF_THREAD_BUFFER_DATA_SIZE - 2;
 		memcpy(s_tb.data, payload + written_data, chunk_size);
 	    written_data += chunk_size;
-		s_tb.data[chunk_size] = '\0';
+		s_tb.data[chunk_size + 1] = '\0';
 		s_tb.used = chunk_size;
 		s_tb.state = JF_THREAD_BUFFER_STATE_PENDING_DATA;
 		pthread_cond_signal(&s_tb.cv_no_data);
@@ -327,6 +327,7 @@ jf_reply *jf_request(const char *resource, jf_request_type request_type, const c
 		case JF_REQUEST_SAX_PROMISCUOUS:
 			s_tb.promiscuous_context = true;
 			curl_easy_setopt(s_handle, CURLOPT_WRITEFUNCTION, jf_thread_buffer_callback);
+			break;
 		case JF_REQUEST_SAX:
 			s_tb.promiscuous_context = false;
 			curl_easy_setopt(s_handle, CURLOPT_WRITEFUNCTION, jf_thread_buffer_callback);

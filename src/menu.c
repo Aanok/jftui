@@ -393,7 +393,7 @@ jf_menu_ui_status jf_menu_ui()
 			case JF_ITEM_TYPE_PLAYLIST:
 			case JF_ITEM_TYPE_MENU_LIBRARIES:
 				// TODO print title
-				printf("\n\n===== oh how I wish I was a real title :( =====\n");
+				printf("\n\n===== DYNAMIC PROMISCUOUS FOLDER =====\n");
 				JF_MENU_UI_PRINT_FOLDER(JF_REQUEST_SAX_PROMISCUOUS);
 				break;
 			case JF_ITEM_TYPE_ARTIST:
@@ -401,7 +401,7 @@ jf_menu_ui_status jf_menu_ui()
 			case JF_ITEM_TYPE_SEASON:
 			case JF_ITEM_TYPE_SERIES:
 				// TODO print title
-				printf("\n\n===== oh how I wish I was a real title :( =====\n");
+				printf("\n\n===== DYNAMIC FOLDER =====\n");
 				JF_MENU_UI_PRINT_FOLDER(JF_REQUEST_SAX);
 				break;
 			// PERSISTENT FOLDERS: fetch nothing, print entries by hand
@@ -409,6 +409,7 @@ jf_menu_ui_status jf_menu_ui()
 			case JF_ITEM_TYPE_MENU_FAVORITES:
 			case JF_ITEM_TYPE_MENU_ON_DECK:
 			case JF_ITEM_TYPE_MENU_LATEST:
+				printf("\n\n===== PERSISTENT FOLDER =====\n");
 				child = s_context->children;
 				i = 0;
 				while (child) {

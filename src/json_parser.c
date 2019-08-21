@@ -92,12 +92,11 @@ static int sax_items_end_map(void *ctx)
 								JF_SAX_PRINT_FALLBACK(album, "[Unknown Album]"),
 								context->name_len, context->name);
 					} else {
-						printf("T %zu. %.*s - %.*s\n",
+						printf("T %zu. %.*s\n",
 								context->tb->item_count,
-								JF_SAX_PRINT_FALLBACK(index, "??"),
 								context->name_len, context->name);
 					}
-				break;
+					break;
 				case JF_ITEM_TYPE_ALBUM:
 					if (context->tb->promiscuous_context) {
 						printf("D %zu. %.*s - %.*s (%.*s)\n",
