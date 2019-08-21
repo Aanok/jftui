@@ -20,10 +20,10 @@ do {											\
 	if ((gen) != yajl_gen_status_ok) goto out;	\
 } while (false)
 
-#define JF_SAX_ITEM_FILL(field)												\
-do {																		\
-	context->field = (const unsigned char *)string;							\
-	context->field ## _len = (int)string_len;								\
+#define JF_SAX_ITEM_FILL(field)						\
+do {												\
+	context->field = (const unsigned char *)string;	\
+	context->field ## _len = string_len;			\
 } while (false)
 
 #define JF_SAX_CONTEXT_COPY(field)													\
@@ -40,9 +40,21 @@ do {																				\
 
 #define JF_SAX_STRING_IS(name) (strncmp((const char *)string, name, sizeof(name) > string_len ? string_len : sizeof(name)) == 0)
 
-#define JF_SAX_PRINT_FALLBACK(field, fallback)										\
-	context->field ## _len > 0 ? context->field ## _len : (int)sizeof(fallback) - 1,\
-	context->field ## _len > 0 ? context->field : (unsigned char *)fallback			\
+#define JF_SAX_PRINT_LEADER(tag)				\
+	do {										\
+		JF_STATIC_PRINT(tag " ");				\
+		jf_print_zu(context->tb->item_count);	\
+		JF_STATIC_PRINT(". ");					\
+	} while (false);							\
+
+#define JF_SAX_TRY_PRINT(prefix, field, suffix)					\
+	do {														\
+		if (context->field ## _len > 0) {						\
+			JF_STATIC_PRINT(prefix);							\
+			write(1, context->field, context->field ## _len);	\
+			JF_STATIC_PRINT(suffix);							\
+		}														\
+	} while (false)
 
 
 
@@ -83,15 +95,14 @@ typedef struct jf_sax_context {
 	jf_thread_buffer *tb;
 	jf_item_type current_item_type;
 	char *copy_buffer;
-	// the following _len specifiers must be int's instead of size_t's for the sake of printf precision
-	const unsigned char *name;			int name_len;
-	const unsigned char *id;			int id_len;
-	const unsigned char *artist;		int artist_len;
-	const unsigned char *album;			int album_len;
-	const unsigned char *series;		int series_len;
-	const unsigned char *year;			int year_len;
-	const unsigned char *index;			int index_len;
-	const unsigned char *parent_index;	int parent_index_len;
+	const unsigned char *name;			size_t name_len;
+	const unsigned char *id;			size_t id_len;
+	const unsigned char *artist;		size_t artist_len;
+	const unsigned char *album;			size_t album_len;
+	const unsigned char *series;		size_t series_len;
+	const unsigned char *year;			size_t year_len;
+	const unsigned char *index;			size_t index_len;
+	const unsigned char *parent_index;	size_t parent_index_len;
 	long long ticks;
 } jf_sax_context;
 

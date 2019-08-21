@@ -85,65 +85,46 @@ static int sax_items_end_map(void *ctx)
 			switch (context->current_item_type) {
 				case JF_ITEM_TYPE_AUDIO:
 				case JF_ITEM_TYPE_AUDIOBOOK:
+					JF_SAX_PRINT_LEADER("T");
 					if (context->tb->promiscuous_context) {
-						printf("T %zu. %.*s - %.*s - %.*s\n",
-								context->tb->item_count,
-								JF_SAX_PRINT_FALLBACK(artist, "[Unknown Artist]"),
-								JF_SAX_PRINT_FALLBACK(album, "[Unknown Album]"),
-								context->name_len, context->name);
-					} else {
-						printf("T %zu. %.*s\n",
-								context->tb->item_count,
-								context->name_len, context->name);
+						JF_SAX_TRY_PRINT("", artist, " - ");
+						JF_SAX_TRY_PRINT("", album, " - ");
 					}
+					write(1, context->name, context->name_len);
+					write(1, "\n", 1);
 					break;
 				case JF_ITEM_TYPE_ALBUM:
+					JF_SAX_PRINT_LEADER("D");
 					if (context->tb->promiscuous_context) {
-						printf("D %zu. %.*s - %.*s (%.*s)\n",
-								context->tb->item_count,
-								JF_SAX_PRINT_FALLBACK(artist, "[Unknown Artist]"),
-								context->name_len, context->name,
-								JF_SAX_PRINT_FALLBACK(year, "[Unknown Year]"));
-					} else {
-						printf("D %zu. %.*s (%.*s)\n",
-								context->tb->item_count,
-								context->name_len, context->name,
-								JF_SAX_PRINT_FALLBACK(year, "[Unknown Year]"));
+						JF_SAX_TRY_PRINT("", artist, " - ");
 					}
+					write(1, context->name, context->name_len);
+					JF_SAX_TRY_PRINT(" (", year, ")");
+					write(1, "\n", 1);
 					break;
 				case JF_ITEM_TYPE_EPISODE:
+					JF_SAX_PRINT_LEADER("V");
 					if (context->tb->promiscuous_context) {
-						printf("V %zu. %.*s - S%.*sE%.*s - %.*s\n",
-								context->tb->item_count,
-								JF_SAX_PRINT_FALLBACK(series, "[Unknown Series]"),
-								JF_SAX_PRINT_FALLBACK(parent_index, "??"),
-								JF_SAX_PRINT_FALLBACK(index, "??"),
-								context->name_len, context->name);
-					} else {
-						printf("V %zu. S%.*sE%.*s - %.*s\n",
-								context->tb->item_count,
-								JF_SAX_PRINT_FALLBACK(parent_index, "??"),
-								JF_SAX_PRINT_FALLBACK(index, "??"),
-								context->name_len, context->name);
+						JF_SAX_TRY_PRINT("", series, " - ");
+						JF_SAX_TRY_PRINT("S", parent_index, "");
+						JF_SAX_TRY_PRINT("E", index, " ");
 					}
+					write(1, context->name, context->name_len);
+					write(1, "\n", 1);
 					break;
 				case JF_ITEM_TYPE_SEASON:
+					JF_SAX_PRINT_LEADER("D");
 					if (context->tb->promiscuous_context) {
-						printf("D %zu. %.*s - %.*s\n", // TODO check if the name contains "Season" or is just the number
-								context->tb->item_count,
-								JF_SAX_PRINT_FALLBACK(series, "[Unknown Series]"),
-								context->name_len, context->name);
-					} else {
-						printf("D %zu. %.*s\n",
-								context->tb->item_count,
-								context->name_len, context->name);
+						JF_SAX_TRY_PRINT("", series, " - ");
 					}
+					write(1, context->name, context->name_len);
+					write(1, "\n", 1);
 					break;
 				case JF_ITEM_TYPE_MOVIE:
-					printf("V %zu. %.*s (%.*s)\n",
-							context->tb->item_count,
-							context->name_len, context->name,
-							JF_SAX_PRINT_FALLBACK(year, "[Unknown Year]"));
+					JF_SAX_PRINT_LEADER("V");
+					write(1, context->name, context->name_len);
+					JF_SAX_TRY_PRINT(" (", year, ")");
+					write(1, "\n", 1);
 					break;
 				case JF_ITEM_TYPE_ARTIST:
 				case JF_ITEM_TYPE_SERIES:
@@ -151,9 +132,9 @@ static int sax_items_end_map(void *ctx)
 				case JF_ITEM_TYPE_FOLDER:
 				case JF_ITEM_TYPE_COLLECTION:
 				case JF_ITEM_TYPE_USER_VIEW:
-					printf("D %zu. %.*s\n",
-							context->tb->item_count,
-							context->name_len, context->name);
+					JF_SAX_PRINT_LEADER("D");
+					write(1, context->name, context->name_len);
+					write(1, "\n", 1);
 					break;
 			}
 
