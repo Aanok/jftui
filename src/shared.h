@@ -13,6 +13,11 @@
 // for hardcoded strings
 #define JF_STATIC_STRLEN(str) (sizeof(str) - 1)
 
+#define JF_STATIC_PRINT(str)					\
+	do {										\
+		write(1, str, JF_STATIC_STRLEN(str));	\
+	} while(false)
+
 #define JF_VERSION "prealpha"
 
 #define JF_THREAD_BUFFER_DATA_SIZE (CURL_MAX_WRITE_SIZE +1)
@@ -125,7 +130,7 @@ char *jf_concat(const size_t n, ...);
 // Parameters:
 // 	- n: The number to print. It is always treated as unsigned and base-10. Regardless of the system's
 // 		 implementation of size_t, it must fit into 64 bits for the internal buffer not to overflow.
-void jf_print_zu(size_t n)                                               
+void jf_print_zu(size_t n);
 
 
 // UNUSED FOR NOW

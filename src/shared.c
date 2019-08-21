@@ -39,16 +39,14 @@ char *jf_concat(size_t n, ...)
 
 void jf_print_zu(size_t n)                                               
 {                                                                       
-	static char str[21];                                              
-	char tmp;                   
+	static char str[20];                                              
 	unsigned char i = 0;
 	do {
 		str[i++] = n % 10 + '0';
 	} while ((n /= 10) > 0);
-	do {
-		putchar(str[i]);
-	} while (i-- != 0);
-	putchar('\n');
+	while (i-- != 0) {
+		write(1, str + i, 1);
+	}
 }
 
 
