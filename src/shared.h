@@ -116,6 +116,17 @@ bool jf_thread_buffer_init(jf_thread_buffer *tb);
 char *jf_concat(const size_t n, ...);
 
 
+// Function: jf_print_zu
+//
+// Prints an unsigned, base-10 number to stdout. The function is NEITHER reentrant NOR thread-safe.
+// IT WILL CAUSE UNDEFINED BEHAVIOUR if the base-10 representation of the argument is longer than 20 digits,
+// which means the binary representation of the number takes more than 64 bits.
+//
+// Parameters:
+// 	- n: The number to print. It is always treated as unsigned and base-10. Regardless of the system's
+// 		 implementation of size_t, it must fit into 64 bits for the internal buffer not to overflow.
+void jf_print_zu(size_t n)                                               
+
 
 // UNUSED FOR NOW
 // jf_synced_queue *jf_synced_queue_new(const size_t slot_count);
