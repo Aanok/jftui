@@ -161,6 +161,7 @@ jf_menu_item *jf_thread_buffer_get_parsed_item(const size_t n)
 		offset = (n - 1) * (1 + JF_ID_LENGTH);
 		item_type = *(jf_item_type *)(s_tb.parsed_ids + offset);
 		item_id = (const char *)s_tb.parsed_ids + offset + 1;
+		printf("DEBUG: got item_type %d\n", item_type);
 		return jf_menu_item_new(item_type, item_id, NULL);
 	} else {
 		return NULL;

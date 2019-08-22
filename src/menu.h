@@ -19,7 +19,7 @@
 		fcntl(0, F_SETFL, fcntl(0, F_GETFL)& ~O_NONBLOCK);	\
 	} while (false)
 
-#define JF_MENU_UI_GET_REQUEST_URL_FATAL()										\
+#define JF_MENU_UI_GET_REQUEST_URL_FATAL()												\
 	do {																				\
 		if ((request_url = jf_menu_item_get_request_url(s_context)) == NULL) {			\
 			fprintf(stderr, "FATAL: could not get request url for menu s_context.\n");	\
@@ -27,6 +27,7 @@
 			s_context = NULL;															\
 			return JF_MENU_UI_STATUS_ERROR;												\
 		}																				\
+		printf("DEBUG: request_url = %s\n", request_url);								\
 	} while (false)
 
 #define JF_MENU_UI_DO_REQUEST_FATAL(request_type)								\

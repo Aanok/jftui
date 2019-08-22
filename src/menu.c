@@ -100,12 +100,13 @@ static bool jf_menu_item_conditional_free(jf_menu_item *menu_item, const bool ch
 	}
 
 	if (! (check_persistent && JF_ITEM_TYPE_IS_PERSISTENT(menu_item->type))) {
-		child = menu_item->children;
-		while (child && *child) {
-			jf_menu_item_conditional_free(*child, check_persistent);
-			child++;
+		if ((child = menu_item->children) != NULL) {
+			while (*child != NULL) {
+				jf_menu_item_conditional_free(*child, check_persistent);
+				child++;
+			}
+			free(menu_item->children);
 		}
-		free(menu_item->children);
 		free(menu_item);
 		return true;
 	}
@@ -120,16 +121,17 @@ static jf_menu_item *jf_menu_make_ui()
 				 **root_children = NULL;
 	int i;
 
-	if ((root_children = calloc(5, sizeof(jf_menu_item *))) == NULL) {
+	if ((root_children = calloc(6, sizeof(jf_menu_item *))) == NULL) {
 		return NULL;
 	}
 
-	if ((root_children[0] = jf_menu_item_new(JF_ITEM_TYPE_MENU_FAVORITES, "test", NULL)) == NULL
-		|| (root_children[1] = jf_menu_item_new(JF_ITEM_TYPE_MENU_ON_DECK, NULL, NULL)) == NULL
-		|| (root_children[2] = jf_menu_item_new(JF_ITEM_TYPE_MENU_LATEST, NULL, NULL)) == NULL
-		|| (root_children[3] = jf_menu_item_new(JF_ITEM_TYPE_MENU_LIBRARIES, NULL, NULL)) == NULL
+	if ((root_children[0] = jf_menu_item_new(JF_ITEM_TYPE_MENU_FAVORITES, NULL, NULL)) == NULL
+		|| (root_children[1] = jf_menu_item_new(JF_ITEM_TYPE_MENU_CONTINUE, NULL, NULL)) == NULL
+		|| (root_children[2] = jf_menu_item_new(JF_ITEM_TYPE_MENU_NEXT_UP, NULL, NULL)) == NULL
+		|| (root_children[3] = jf_menu_item_new(JF_ITEM_TYPE_MENU_LATEST, NULL, NULL)) == NULL
+		|| (root_children[4] = jf_menu_item_new(JF_ITEM_TYPE_MENU_LIBRARIES, NULL, NULL)) == NULL
 		|| (root = jf_menu_item_new(JF_ITEM_TYPE_MENU_ROOT, NULL, root_children)) == NULL) {
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < 5; i++) {
 			jf_menu_item_conditional_free(root_children[i], false);
 		}
 		free(root_children);
@@ -192,9 +194,13 @@ static jf_menu_item *jf_menu_stack_pop()
 
 void jf_menu_stack_clear()
 {
-	while (s_menu_stack.used > 0) {
-		jf_menu_item_conditional_free(jf_menu_stack_pop(), false);
+	// clear non persistent items up to the root
+	while (s_menu_stack.used > 1) {
+		jf_menu_item_conditional_free(jf_menu_stack_pop(), true);
 	}
+	// persistent item deletion must cascade from the root because persistent
+	// children popped from the stack would get free'd twice otherwise
+	jf_menu_item_conditional_free(jf_menu_stack_pop(), false);
 }
 ///////////////////////////////////
 
@@ -254,16 +260,17 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 						item->id, "&recursive=true&includeitemtypes=musicalbum");
 			// Persistent folders
 			case JF_ITEM_TYPE_MENU_FAVORITES:
-				return jf_concat(3, "/users/", g_options.userid, "/items?filters=isfavorite&sortby=sortname");
-			case JF_ITEM_TYPE_MENU_ON_DECK:
-				fprintf(stderr, "ERROR: get_request_url should never be called on JF_ITEM_TYPE_MENU_ON_DECK\n");
-				return NULL;
+				return jf_concat(3, "/users/", g_options.userid, "/items?filters=isfavorite&recursive=true&sortby=sortname");
+			case JF_ITEM_TYPE_MENU_CONTINUE:
+				return jf_concat(3, "/users/", g_options.userid, "/items/resume?recursive=true");
+			case JF_ITEM_TYPE_MENU_NEXT_UP:
+				return jf_concat(3, "/shows/nextup?userid=", g_options.userid, "&limit=15");
 			case JF_ITEM_TYPE_MENU_LATEST:
 				return jf_concat(3, "/users/", g_options.userid, "/items/latest?isfolder=true&limit=50");
 			case JF_ITEM_TYPE_MENU_LIBRARIES:
 				return jf_concat(3, "/users/", g_options.userid, "/views");
 			default:
-				fprintf(stderr, "ERROR: get_request_url is a stub and you requested an unsupported item_type (%d).\n", item->type);
+				fprintf(stderr, "ERROR: get_request_url was called on an unsupported item_type (%d).\n", item->type);
 				return NULL;
 		}
 	}
@@ -281,9 +288,6 @@ static jf_menu_item *jf_menu_child_get(size_t n)
 	if (JF_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(s_context->type)) {
 		return jf_thread_buffer_get_parsed_item(n);
 	} else {
-		// TODO use a clever macro to access the menu structure instantaneously
-		// so we don't have to crawl through children every time
-		// (which is not terrible since the children are very few, but still)
 		child = s_context->children;
 		while (--n > 0) {
 			if (*(++child) == NULL) {
@@ -305,7 +309,6 @@ static jf_item_type jf_menu_child_get_type(size_t n)
 	if (JF_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(s_context->type)) {
 		return jf_thread_buffer_get_parsed_item_type(n);
 	} else {
-		// TODO clever macro and all that
 		child = s_context->children;
 		while (--n > 0) {
 			if (*(++child) == NULL) {
@@ -344,9 +347,6 @@ size_t jf_menu_child_count()
 	if (JF_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(s_context->type)) {
 		return jf_thread_buffer_item_count();
 	} else {
-		// TODO use a clever macro to access the menu structure instantaneously
-		// so we don't have to crawl through children every time
-		// (which is not terrible since the children are very few, but still)
 		child = s_context->children;
 		while (*(child++) != NULL) {
 			n++;
@@ -361,7 +361,7 @@ void jf_menu_dotdot()
 	jf_menu_item *menu_item;
 	if ((menu_item = jf_menu_stack_pop()) != NULL) {
 		if (menu_item->type == JF_ITEM_TYPE_MENU_ROOT) {
-			// root entry should be pushed back to not cause memory leaks due to the children
+			// root entry should be pushed back to not cause memory leaks due to its children
 			jf_menu_stack_push(menu_item);
 		} else {
 			jf_menu_item_free(menu_item);
@@ -420,9 +420,13 @@ jf_menu_ui_status jf_menu_ui()
 			case JF_ITEM_TYPE_USER_VIEW:
 			case JF_ITEM_TYPE_FOLDER:
 			case JF_ITEM_TYPE_PLAYLIST:
+			case JF_ITEM_TYPE_MENU_FAVORITES:
+			case JF_ITEM_TYPE_MENU_CONTINUE:
+			case JF_ITEM_TYPE_MENU_NEXT_UP:
+			case JF_ITEM_TYPE_MENU_LATEST:
 			case JF_ITEM_TYPE_MENU_LIBRARIES:
 				// TODO print title
-				printf("\n\n===== DYNAMIC PROMISCUOUS FOLDER =====\n");
+				printf("\n===== DYNAMIC PROMISCUOUS FOLDER =====\n");
 				JF_MENU_UI_PRINT_FOLDER(JF_REQUEST_SAX_PROMISCUOUS);
 				break;
 			case JF_ITEM_TYPE_ARTIST:
@@ -430,12 +434,12 @@ jf_menu_ui_status jf_menu_ui()
 			case JF_ITEM_TYPE_SEASON:
 			case JF_ITEM_TYPE_SERIES:
 				// TODO print title
-				printf("\n\n===== DYNAMIC FOLDER =====\n");
+				printf("\n===== DYNAMIC FOLDER =====\n");
 				JF_MENU_UI_PRINT_FOLDER(JF_REQUEST_SAX);
 				break;
 			// PERSISTENT FOLDERS
 			case JF_ITEM_TYPE_MENU_ROOT:
-				printf("\n\n===== Server Root =====\n");
+				printf("\n===== Server Root =====\n");
 				child = s_context->children;
 				i = 1;
 				while (*child) {
@@ -443,11 +447,14 @@ jf_menu_ui_status jf_menu_ui()
 						case JF_ITEM_TYPE_MENU_FAVORITES:
 							printf("D %zu. Favorites\n", i);
 							break;
-						case JF_ITEM_TYPE_MENU_ON_DECK:
-							printf("D %zu. On Deck\n", i);
+						case JF_ITEM_TYPE_MENU_CONTINUE:
+							printf("D %zu. Continue Watching\n", i);
+							break;
+						case JF_ITEM_TYPE_MENU_NEXT_UP:
+							printf("D %zu. Next Up\n", i);
 							break;
 						case JF_ITEM_TYPE_MENU_LATEST:
-							printf("D %zu. Latest Added\n", i);
+							printf("D %zu. Latest Added (!!unsupported!!)\n", i);
 							break;
 						case JF_ITEM_TYPE_MENU_LIBRARIES:
 							printf("D %zu. User Views\n", i);
@@ -466,7 +473,7 @@ jf_menu_ui_status jf_menu_ui()
 				jf_menu_item_free(s_context);
 				return JF_MENU_UI_STATUS_QUIT;
 			default:
-				fprintf(stderr, "WARNING: unsupported menu item type. This is a bug.\n");
+				fprintf(stderr, "ERROR: jf_menu_ui unsupported menu item type. This is a bug.\n");
 				jf_menu_item_free(s_context);
 				break;
 		}

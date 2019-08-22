@@ -55,9 +55,10 @@ typedef char jf_item_type;
 // Persistent folders
 #define JF_ITEM_TYPE_MENU_ROOT		-1
 #define JF_ITEM_TYPE_MENU_FAVORITES	-2
-#define JF_ITEM_TYPE_MENU_ON_DECK	-3
-#define JF_ITEM_TYPE_MENU_LATEST	-4
-#define JF_ITEM_TYPE_MENU_LIBRARIES	-5
+#define JF_ITEM_TYPE_MENU_CONTINUE  -3
+#define JF_ITEM_TYPE_MENU_NEXT_UP	-4
+#define JF_ITEM_TYPE_MENU_LATEST	-5
+#define JF_ITEM_TYPE_MENU_LIBRARIES	-6
 
 // Category macros. They're all expressions
 // UPDATE THESE if you add item_type's or change the item_type representation!
