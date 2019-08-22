@@ -64,12 +64,12 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item);
 
 
 ////////// JF_MENU_ITEM //////////
-jf_menu_item *jf_menu_item_new(jf_item_type type, const char *id, jf_menu_item *children)
+jf_menu_item *jf_menu_item_new(jf_item_type type, const char *id, jf_menu_item **children)
 {
 	jf_menu_item *menu_item;
 
 	if ((menu_item = malloc(sizeof(jf_menu_item))) == NULL) {
-		return (jf_menu_item *)NULL;
+		return NULL;
 	}
 
 	menu_item->type = type;
@@ -93,7 +93,7 @@ bool jf_menu_item_free(jf_menu_item *menu_item)
 
 static bool jf_menu_item_conditional_free(jf_menu_item *menu_item, const bool check_persistent)
 {
-	jf_menu_item *child;
+	jf_menu_item **child;
 
 	if (menu_item == NULL) {
 		return true;
@@ -101,10 +101,11 @@ static bool jf_menu_item_conditional_free(jf_menu_item *menu_item, const bool ch
 
 	if (! (check_persistent && JF_ITEM_TYPE_IS_PERSISTENT(menu_item->type))) {
 		child = menu_item->children;
-		while (child) {
-			jf_menu_item_conditional_free(child, check_persistent);
+		while (child && *child) {
+			jf_menu_item_conditional_free(*child, check_persistent);
 			child++;
 		}
+		free(menu_item->children);
 		free(menu_item);
 		return true;
 	}
@@ -115,13 +116,28 @@ static bool jf_menu_item_conditional_free(jf_menu_item *menu_item, const bool ch
 
 static jf_menu_item *jf_menu_make_ui()
 {
-	{
-		jf_menu_item *libraries;
-		if ((libraries = jf_menu_item_new(JF_ITEM_TYPE_MENU_LIBRARIES, NULL, NULL)) == NULL) {
-			return NULL;
-		}
-		return libraries;
+	jf_menu_item *root = NULL,
+				 **root_children = NULL;
+	int i;
+
+	if ((root_children = calloc(5, sizeof(jf_menu_item *))) == NULL) {
+		return NULL;
 	}
+
+	if ((root_children[0] = jf_menu_item_new(JF_ITEM_TYPE_MENU_FAVORITES, "test", NULL)) == NULL
+		|| (root_children[1] = jf_menu_item_new(JF_ITEM_TYPE_MENU_ON_DECK, NULL, NULL)) == NULL
+		|| (root_children[2] = jf_menu_item_new(JF_ITEM_TYPE_MENU_LATEST, NULL, NULL)) == NULL
+		|| (root_children[3] = jf_menu_item_new(JF_ITEM_TYPE_MENU_LIBRARIES, NULL, NULL)) == NULL
+		|| (root = jf_menu_item_new(JF_ITEM_TYPE_MENU_ROOT, NULL, root_children)) == NULL) {
+		for (i = 0; i < 4; i++) {
+			jf_menu_item_conditional_free(root_children[i], false);
+		}
+		free(root_children);
+		free(root);
+		return NULL;
+	}
+
+	return root;
 }
 
 //////////////////////////////////
@@ -237,7 +253,13 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 				return jf_concat(5, "/users/", g_options.userid, "/items?albumartistids=",
 						item->id, "&recursive=true&includeitemtypes=musicalbum");
 			// Persistent folders
-			// TODO incomplete
+			case JF_ITEM_TYPE_MENU_FAVORITES:
+				return jf_concat(3, "/users/", g_options.userid, "/items?filters=isfavorite&sortby=sortname");
+			case JF_ITEM_TYPE_MENU_ON_DECK:
+				fprintf(stderr, "ERROR: get_request_url should never be called on JF_ITEM_TYPE_MENU_ON_DECK\n");
+				return NULL;
+			case JF_ITEM_TYPE_MENU_LATEST:
+				return jf_concat(3, "/users/", g_options.userid, "/items/latest?isfolder=true&limit=50");
 			case JF_ITEM_TYPE_MENU_LIBRARIES:
 				return jf_concat(3, "/users/", g_options.userid, "/views");
 			default:
@@ -251,7 +273,7 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 
 static jf_menu_item *jf_menu_child_get(size_t n)
 {
-	jf_menu_item *child;
+	jf_menu_item **child;
 
 	if (s_context == NULL) {
 		return NULL;
@@ -263,19 +285,19 @@ static jf_menu_item *jf_menu_child_get(size_t n)
 		// so we don't have to crawl through children every time
 		// (which is not terrible since the children are very few, but still)
 		child = s_context->children;
-		while (n-- > 0) {
-			if (child++ == NULL) {
+		while (--n > 0) {
+			if (*(++child) == NULL) {
 				return NULL;
 			}
 		}
-		return child;
+		return *child;
 	}
 }
 
 
 static jf_item_type jf_menu_child_get_type(size_t n)
 {
-	jf_menu_item *child;
+	jf_menu_item **child;
 
 	if (s_context == NULL) {
 		return JF_ITEM_TYPE_NONE;
@@ -285,12 +307,12 @@ static jf_item_type jf_menu_child_get_type(size_t n)
 	} else {
 		// TODO clever macro and all that
 		child = s_context->children;
-		while (n-- > 0) {
-			if (child++ == NULL) {
+		while (--n > 0) {
+			if (*(++child) == NULL) {
 				return JF_ITEM_TYPE_NONE;
 			}
 		}
-		return child->type;
+		return (*child)->type;
 	}
 }
 
@@ -313,7 +335,7 @@ void jf_menu_child_push(const size_t n)
 
 size_t jf_menu_child_count()
 {
-	jf_menu_item *child;
+	jf_menu_item **child;
 	size_t n = 0;
 
 	if (s_context == NULL) {
@@ -326,7 +348,7 @@ size_t jf_menu_child_count()
 		// so we don't have to crawl through children every time
 		// (which is not terrible since the children are very few, but still)
 		child = s_context->children;
-		while (child++ != NULL) {
+		while (*(child++) != NULL) {
 			n++;
 		}
 		return n;
@@ -338,7 +360,7 @@ void jf_menu_dotdot()
 {
 	jf_menu_item *menu_item;
 	if ((menu_item = jf_menu_stack_pop()) != NULL) {
-		if (menu_item->type == JF_ITEM_TYPE_MENU_LIBRARIES) {
+		if (menu_item->type == JF_ITEM_TYPE_MENU_ROOT) {
 			// root entry should be pushed back to not cause memory leaks due to the children
 			jf_menu_stack_push(menu_item);
 		} else {
@@ -356,7 +378,7 @@ void jf_menu_quit()
 
 jf_menu_ui_status jf_menu_ui()
 {
-	jf_menu_item *child;
+	jf_menu_item **child;
 	jf_reply *reply;
 	char *request_url;
 	size_t i;
@@ -411,21 +433,24 @@ jf_menu_ui_status jf_menu_ui()
 				printf("\n\n===== DYNAMIC FOLDER =====\n");
 				JF_MENU_UI_PRINT_FOLDER(JF_REQUEST_SAX);
 				break;
-			// PERSISTENT FOLDERS: fetch nothing, print entries by hand
+			// PERSISTENT FOLDERS
 			case JF_ITEM_TYPE_MENU_ROOT:
-			case JF_ITEM_TYPE_MENU_FAVORITES:
-			case JF_ITEM_TYPE_MENU_ON_DECK:
-			case JF_ITEM_TYPE_MENU_LATEST:
-				printf("\n\n===== PERSISTENT FOLDER =====\n");
+				printf("\n\n===== Server Root =====\n");
 				child = s_context->children;
-				i = 0;
-				while (child) {
-					switch (child->type) {
+				i = 1;
+				while (*child) {
+					switch ((*child)->type) {
 						case JF_ITEM_TYPE_MENU_FAVORITES:
 							printf("D %zu. Favorites\n", i);
 							break;
 						case JF_ITEM_TYPE_MENU_ON_DECK:
 							printf("D %zu. On Deck\n", i);
+							break;
+						case JF_ITEM_TYPE_MENU_LATEST:
+							printf("D %zu. Latest Added\n", i);
+							break;
+						case JF_ITEM_TYPE_MENU_LIBRARIES:
+							printf("D %zu. User Views\n", i);
 							break;
 						default:
 							printf("[!!!] %zu. WARNING: unrecognized menu item. Undefined behaviour if chosen. This is a bug.\n", i);

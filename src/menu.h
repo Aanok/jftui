@@ -87,11 +87,11 @@ typedef unsigned char jf_menu_ui_status;
 // Parameters:
 // 	- type: the jf_item_type of the menu item being represented.
 // 	- id: the string marking the id of the item. It will be copied to an internal buffer and must have JF_ID_LENGTH size but does not need to be \0-terminated. May be NULL for persistent menu items, in which case the internal buffer will contain a \0-terminated empty string.
-// 	- children: a NULL-terminated array of jf_menu_item's that descend from the current one in the UI/library hierarchy.
+// 	- children: a NULL-terminated array of pointers to jf_menu_item's that descend from the current one in the UI/library hierarchy.
 //
 // Returns:
 //  A pointer to the newly allocated struct on success or NULL on failure.
-jf_menu_item *jf_menu_item_new(jf_item_type type, const char *id, jf_menu_item *children);
+jf_menu_item *jf_menu_item_new(jf_item_type type, const char *id, jf_menu_item **children);
 
 // Function jf_menu_item_free
 //
