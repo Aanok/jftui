@@ -336,7 +336,15 @@ size_t jf_menu_child_count()
 
 void jf_menu_dotdot()
 {
-	jf_menu_item_free(jf_menu_stack_pop());
+	jf_menu_item *menu_item;
+	if ((menu_item = jf_menu_stack_pop()) != NULL) {
+		if (menu_item->type == JF_ITEM_TYPE_MENU_LIBRARIES) {
+			// root entry should be pushed back to not cause memory leaks due to the children
+			jf_menu_stack_push(menu_item);
+		} else {
+			jf_menu_item_free(menu_item);
+		}
+	}
 }
 
 
@@ -355,8 +363,7 @@ jf_menu_ui_status jf_menu_ui()
 
 	// ACQUIRE ITEM CONTEXT
 	// if menu_stack is empty, assume first time run
-	// in case of error it's not an unreasonable fallback
-	// TODO: double check if that won't cause memory leaks
+	// in case of error it's not an unreasonable fallback (though it might cause memory leaks depending on what happened)
 	if ((s_context = jf_menu_stack_pop()) == NULL) {
 			if ((s_context = jf_menu_make_ui()) == NULL) {
 			fprintf(stderr, "FATAL: jf_menu_make_ui() returned NULL.\n");
