@@ -255,9 +255,17 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 			case JF_ITEM_TYPE_SERIES:
 				return jf_concat(5, "/users/", g_options.userid, "/items?parentid=",
 						item->id, "&sortby=isfolder,sortname");
+			case JF_ITEM_TYPE_COLLECTION_MUSIC:
+				return jf_concat(4, "/artists?parentid=", item->id, "&userid=", g_options.userid);
+			case JF_ITEM_TYPE_COLLECTION_SERIES:
+				return jf_concat(5, "/users/", g_options.userid, "/items?parentid=",
+						item->id, "&includeitemtypes=series&recursive=true&sortby=isfolder,sortname");
+			case JF_ITEM_TYPE_COLLECTION_MOVIES:
+				return jf_concat(5, "/users/", g_options.userid, "/items?parentid=",
+						item->id, "&includeitemtypes=Movie&recursive=true&sortby=isfolder,sortname");
 			case JF_ITEM_TYPE_ARTIST:
 				return jf_concat(5, "/users/", g_options.userid, "/items?albumartistids=",
-						item->id, "&recursive=true&includeitemtypes=musicalbum");
+						item->id, "&recursive=true&includeitemtypes=musicalbum&sortby=isfolder,sortname&sortorder=ascending");
 			// Persistent folders
 			case JF_ITEM_TYPE_MENU_FAVORITES:
 				return jf_concat(3, "/users/", g_options.userid, "/items?filters=isfavorite&recursive=true&sortby=sortname");
@@ -429,6 +437,9 @@ jf_menu_ui_status jf_menu_ui()
 				printf("\n===== DYNAMIC PROMISCUOUS FOLDER =====\n");
 				JF_MENU_UI_PRINT_FOLDER(JF_REQUEST_SAX_PROMISCUOUS);
 				break;
+			case JF_ITEM_TYPE_COLLECTION_MUSIC:
+			case JF_ITEM_TYPE_COLLECTION_SERIES:
+			case JF_ITEM_TYPE_COLLECTION_MOVIES:
 			case JF_ITEM_TYPE_ARTIST:
 			case JF_ITEM_TYPE_ALBUM:
 			case JF_ITEM_TYPE_SEASON:

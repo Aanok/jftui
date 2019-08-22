@@ -61,26 +61,27 @@ do {																				\
 ////////// SAX PARSER STATE MACHINE //////////
 typedef unsigned char jf_sax_parser_state;
 
-#define JF_SAX_NO_STATE						0
-#define JF_SAX_IDLE							1
-#define JF_SAX_IN_QUERYRESULT_MAP			2
-#define JF_SAX_IN_ITEMS_VALUE				3
-#define JF_SAX_IN_ITEMS_ARRAY				4
-#define JF_SAX_IN_ITEM_MAP					5
-#define JF_SAX_IN_ITEM_TYPE_VALUE			6
-#define JF_SAX_IN_ITEM_NAME_VALUE			7
-#define JF_SAX_IN_ITEM_ID_VALUE				8
-#define JF_SAX_IN_ITEM_ARTISTS_ARRAY		9
-#define JF_SAX_IN_ITEM_ARTISTS_VALUE		10
-#define JF_SAX_IN_ITEM_ALBUM_VALUE			11
-#define JF_SAX_IN_ITEM_SERIES_VALUE			10
-#define JF_SAX_IN_ITEM_YEAR_VALUE			11
-#define JF_SAX_IN_ITEM_INDEX_VALUE			12
-#define JF_SAX_IN_ITEM_PARENT_INDEX_VALUE	13
-#define JF_SAX_IN_USERDATA_MAP				14
-#define JF_SAX_IN_USERDATA_VALUE			15
-#define JF_SAX_IN_USERDATA_TICKS_VALUE		16
-#define JF_SAX_IGNORE						255
+#define JF_SAX_NO_STATE							0
+#define JF_SAX_IDLE								1
+#define JF_SAX_IN_QUERYRESULT_MAP				2
+#define JF_SAX_IN_ITEMS_VALUE					3
+#define JF_SAX_IN_ITEMS_ARRAY					4
+#define JF_SAX_IN_ITEM_MAP						5
+#define JF_SAX_IN_ITEM_TYPE_VALUE				6
+#define JF_SAX_IN_ITEM_COLLECTION_TYPE_VALUE	7
+#define JF_SAX_IN_ITEM_NAME_VALUE				8
+#define JF_SAX_IN_ITEM_ID_VALUE					9
+#define JF_SAX_IN_ITEM_ARTISTS_ARRAY			10
+#define JF_SAX_IN_ITEM_ARTISTS_VALUE			11
+#define JF_SAX_IN_ITEM_ALBUM_VALUE				12
+#define JF_SAX_IN_ITEM_SERIES_VALUE				13
+#define JF_SAX_IN_ITEM_YEAR_VALUE				14
+#define JF_SAX_IN_ITEM_INDEX_VALUE				15
+#define JF_SAX_IN_ITEM_PARENT_INDEX_VALUE		16
+#define JF_SAX_IN_USERDATA_MAP					17
+#define JF_SAX_IN_USERDATA_VALUE				18
+#define JF_SAX_IN_USERDATA_TICKS_VALUE			19
+#define JF_SAX_IGNORE							255
 //////////////////////////////////////////////
 
 

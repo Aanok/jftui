@@ -131,11 +131,16 @@ static int sax_items_end_map(void *ctx)
 				case JF_ITEM_TYPE_PLAYLIST:
 				case JF_ITEM_TYPE_FOLDER:
 				case JF_ITEM_TYPE_COLLECTION:
+				case JF_ITEM_TYPE_COLLECTION_MUSIC:
+				case JF_ITEM_TYPE_COLLECTION_SERIES:
+				case JF_ITEM_TYPE_COLLECTION_MOVIES:
 				case JF_ITEM_TYPE_USER_VIEW:
 					JF_SAX_PRINT_LEADER("D");
 					write(1, context->name, context->name_len);
 					write(1, "\n", 1);
 					break;
+				default:
+					printf("unknown item type %d, name: %.*s\n", context->current_item_type, context->name_len, context->name);
 			}
 
 			// SAVE ITEM ID
@@ -179,6 +184,8 @@ static int sax_items_map_key(void *ctx, const unsigned char *key, size_t key_len
 				context->parser_state = JF_SAX_IN_ITEM_NAME_VALUE;
 			} else if (JF_SAX_KEY_IS("Type")) {
 				context->parser_state = JF_SAX_IN_ITEM_TYPE_VALUE;
+			} else if (JF_SAX_KEY_IS("CollectionType")) {
+				context->parser_state = JF_SAX_IN_ITEM_COLLECTION_TYPE_VALUE;
 			} else if (JF_SAX_KEY_IS("Id")) {
 				context->parser_state = JF_SAX_IN_ITEM_ID_VALUE;
 			} else if (JF_SAX_KEY_IS("Artists")) {
@@ -259,7 +266,9 @@ static int sax_items_string(void *ctx, const unsigned char *string, size_t strin
 			context->parser_state = JF_SAX_IN_ITEM_MAP;
 			break;
 		case JF_SAX_IN_ITEM_TYPE_VALUE:
-			if (JF_SAX_STRING_IS("CollectionFolder")) {
+			if (JF_SAX_STRING_IS("CollectionFolder")
+					&& context->current_item_type == JF_ITEM_TYPE_NONE) {
+				// don't overwrite if we already got more specific information
 				context->current_item_type = JF_ITEM_TYPE_COLLECTION;
 			} else if (JF_SAX_STRING_IS("UserView")) {
 				context->current_item_type = JF_ITEM_TYPE_USER_VIEW;
@@ -269,7 +278,7 @@ static int sax_items_string(void *ctx, const unsigned char *string, size_t strin
 				context->current_item_type = JF_ITEM_TYPE_PLAYLIST;
 			} else if (JF_SAX_STRING_IS("Audio")) {
 				context->current_item_type = JF_ITEM_TYPE_AUDIO;
-			} else if (JF_SAX_STRING_IS("Artist")) {
+			} else if (JF_SAX_STRING_IS("Artist") || JF_SAX_STRING_IS("MusicArtist")) {
 				context->current_item_type = JF_ITEM_TYPE_ARTIST;
 			} else if (JF_SAX_STRING_IS("MusicAlbum")) {
 				context->current_item_type = JF_ITEM_TYPE_ALBUM;
@@ -283,6 +292,17 @@ static int sax_items_string(void *ctx, const unsigned char *string, size_t strin
 				context->current_item_type = JF_ITEM_TYPE_MOVIE;
 			} else if (JF_SAX_STRING_IS("AudioBook")) {
 				context->current_item_type = JF_ITEM_TYPE_AUDIOBOOK;
+			}
+			context->parser_state = JF_SAX_IN_ITEM_MAP;
+			break;
+		case JF_SAX_IN_ITEM_COLLECTION_TYPE_VALUE:
+			if (JF_SAX_STRING_IS("music")) {
+				context->current_item_type = JF_ITEM_TYPE_COLLECTION_MUSIC;
+			} else if (JF_SAX_STRING_IS("tvshows")) {
+				context->current_item_type = JF_ITEM_TYPE_COLLECTION_SERIES;
+			} else if (JF_SAX_STRING_IS("movies") || JF_SAX_STRING_IS("homevideos")
+					|| JF_SAX_STRING_IS("musicvideos")) {
+				context->current_item_type = JF_ITEM_TYPE_COLLECTION_MOVIES;
 			}
 			context->parser_state = JF_SAX_IN_ITEM_MAP;
 			break;
