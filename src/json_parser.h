@@ -63,24 +63,25 @@ typedef unsigned char jf_sax_parser_state;
 
 #define JF_SAX_NO_STATE							0
 #define JF_SAX_IDLE								1
-#define JF_SAX_IN_QUERYRESULT_MAP				2
-#define JF_SAX_IN_ITEMS_VALUE					3
-#define JF_SAX_IN_ITEMS_ARRAY					4
-#define JF_SAX_IN_ITEM_MAP						5
-#define JF_SAX_IN_ITEM_TYPE_VALUE				6
-#define JF_SAX_IN_ITEM_COLLECTION_TYPE_VALUE	7
-#define JF_SAX_IN_ITEM_NAME_VALUE				8
-#define JF_SAX_IN_ITEM_ID_VALUE					9
-#define JF_SAX_IN_ITEM_ARTISTS_ARRAY			10
-#define JF_SAX_IN_ITEM_ARTISTS_VALUE			11
-#define JF_SAX_IN_ITEM_ALBUM_VALUE				12
-#define JF_SAX_IN_ITEM_SERIES_VALUE				13
-#define JF_SAX_IN_ITEM_YEAR_VALUE				14
-#define JF_SAX_IN_ITEM_INDEX_VALUE				15
-#define JF_SAX_IN_ITEM_PARENT_INDEX_VALUE		16
-#define JF_SAX_IN_USERDATA_MAP					17
-#define JF_SAX_IN_USERDATA_VALUE				18
-#define JF_SAX_IN_USERDATA_TICKS_VALUE			19
+#define JF_SAX_IN_LATEST_ARRAY					2
+#define JF_SAX_IN_QUERYRESULT_MAP				3
+#define JF_SAX_IN_ITEMS_VALUE					4
+#define JF_SAX_IN_ITEMS_ARRAY					5
+#define JF_SAX_IN_ITEM_MAP						6
+#define JF_SAX_IN_ITEM_TYPE_VALUE				7
+#define JF_SAX_IN_ITEM_COLLECTION_TYPE_VALUE	8
+#define JF_SAX_IN_ITEM_NAME_VALUE				9
+#define JF_SAX_IN_ITEM_ID_VALUE					10
+#define JF_SAX_IN_ITEM_ARTISTS_ARRAY			11
+#define JF_SAX_IN_ITEM_ARTISTS_VALUE			12
+#define JF_SAX_IN_ITEM_ALBUM_VALUE				13
+#define JF_SAX_IN_ITEM_SERIES_VALUE				14
+#define JF_SAX_IN_ITEM_YEAR_VALUE				15
+#define JF_SAX_IN_ITEM_INDEX_VALUE				16
+#define JF_SAX_IN_ITEM_PARENT_INDEX_VALUE		17
+#define JF_SAX_IN_USERDATA_MAP					18
+#define JF_SAX_IN_USERDATA_VALUE				19
+#define JF_SAX_IN_USERDATA_TICKS_VALUE			20
 #define JF_SAX_IGNORE							255
 //////////////////////////////////////////////
 
@@ -93,6 +94,7 @@ typedef struct jf_sax_context {
 	jf_sax_parser_state state_to_resume;
 	size_t maps_ignoring;
 	size_t arrays_ignoring;
+	bool latest_array;
 	jf_thread_buffer *tb;
 	jf_item_type current_item_type;
 	char *copy_buffer;

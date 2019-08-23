@@ -56,6 +56,15 @@ static bool jf_menu_stack_push(jf_menu_item *menu_item);
 // 	A pointer to the item popped or NULL if the stack is empty.
 static jf_menu_item *jf_menu_stack_pop(void);
 
+// Function: jf_menu_stack_peek
+//
+// Returns a const pointer to the item on top of the stack without popping it.
+// REQUIRES: global menu stack struct initialized.
+//
+// Returns:
+// 	A const pointer to the item on top of the stack or NULL if the stack is empty.
+static const jf_menu_item *jf_menu_stack_peek(void);
+
 static jf_menu_item *jf_menu_child_get(size_t n);
 static jf_item_type jf_menu_child_get_type(size_t n);
 static bool jf_menu_read_commands(void);
@@ -192,6 +201,19 @@ static jf_menu_item *jf_menu_stack_pop()
 }
 
 
+static const jf_menu_item *jf_menu_stack_peek()
+{
+	const jf_menu_item *retval;
+
+	if (s_menu_stack.used == 0) {
+		return NULL;
+	}
+
+	retval = s_menu_stack.items[s_menu_stack.used - 1];
+	return retval;
+}
+
+
 void jf_menu_stack_clear()
 {
 	// clear non persistent items up to the root
@@ -236,6 +258,7 @@ static bool jf_menu_read_commands()
 // TODO: EXTREMELY incomplete, stub
 static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 {
+	const jf_menu_item *parent;
 	if (item != NULL) {
 		switch (item->type) {
 			// Atoms
@@ -253,8 +276,13 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 			case JF_ITEM_TYPE_ALBUM:
 			case JF_ITEM_TYPE_SEASON:
 			case JF_ITEM_TYPE_SERIES:
-				return jf_concat(5, "/users/", g_options.userid, "/items?parentid=",
-						item->id, "&sortby=isfolder,sortname");
+				if ((parent = jf_menu_stack_peek()) != NULL && parent->type == JF_ITEM_TYPE_MENU_LATEST) {
+					return jf_concat(5, "/users/", g_options.userid, "/items/latest?parentid=",
+							item->id, "&groupitems=false");
+				} else {
+					return jf_concat(5, "/users/", g_options.userid, "/items?parentid=",
+							item->id, "&sortby=isfolder,sortname");
+				}
 			case JF_ITEM_TYPE_COLLECTION_MUSIC:
 				return jf_concat(4, "/artists?parentid=", item->id, "&userid=", g_options.userid);
 			case JF_ITEM_TYPE_COLLECTION_SERIES:
@@ -274,7 +302,8 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 			case JF_ITEM_TYPE_MENU_NEXT_UP:
 				return jf_concat(3, "/shows/nextup?userid=", g_options.userid, "&limit=15");
 			case JF_ITEM_TYPE_MENU_LATEST:
-				return jf_concat(3, "/users/", g_options.userid, "/items/latest?isfolder=true&limit=50");
+				// TODO figure out what fresh insanity drives the limit amount in this case
+				return jf_concat(3, "/users/", g_options.userid, "/items/latest?limit=115");
 			case JF_ITEM_TYPE_MENU_LIBRARIES:
 				return jf_concat(3, "/users/", g_options.userid, "/views");
 			default:
@@ -465,7 +494,7 @@ jf_menu_ui_status jf_menu_ui()
 							printf("D %zu. Next Up\n", i);
 							break;
 						case JF_ITEM_TYPE_MENU_LATEST:
-							printf("D %zu. Latest Added (!!unsupported!!)\n", i);
+							printf("D %zu. Latest Added\n", i);
 							break;
 						case JF_ITEM_TYPE_MENU_LIBRARIES:
 							printf("D %zu. User Views\n", i);

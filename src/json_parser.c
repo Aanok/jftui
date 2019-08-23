@@ -48,6 +48,10 @@ static int sax_items_start_map(void *ctx)
 			jf_sax_context_current_item_clear(context);
 			context->parser_state = JF_SAX_IN_QUERYRESULT_MAP;
 			break;
+		case JF_SAX_IN_LATEST_ARRAY:
+			context->latest_array = true;
+			context->parser_state = JF_SAX_IN_ITEM_MAP;
+			break;
 		case JF_SAX_IN_ITEMS_ARRAY:
 			context->parser_state = JF_SAX_IN_ITEM_MAP;
 			break;
@@ -139,8 +143,6 @@ static int sax_items_end_map(void *ctx)
 					write(1, context->name, context->name_len);
 					write(1, "\n", 1);
 					break;
-				default:
-					printf("unknown item type %d, name: %.*s\n", context->current_item_type, context->name_len, context->name);
 			}
 
 			// SAVE ITEM ID
@@ -157,7 +159,12 @@ static int sax_items_end_map(void *ctx)
 					context->id, JF_ID_LENGTH);
 
 			jf_sax_context_current_item_clear(context);
-			context->parser_state = JF_SAX_IN_ITEMS_ARRAY;
+			if (context->latest_array) {
+				context->parser_state = JF_SAX_IN_LATEST_ARRAY;
+				context->latest_array = false;
+			} else {
+				context->parser_state = JF_SAX_IN_ITEMS_ARRAY;
+			}
 			break;
 		case JF_SAX_IGNORE:
 			context->maps_ignoring--;
@@ -216,6 +223,11 @@ static int sax_items_start_array(void *ctx)
 {
 	jf_sax_context *context = (jf_sax_context *)(ctx);
 	switch (context->parser_state) {
+		case JF_SAX_IDLE:
+			context->parser_state = JF_SAX_IN_LATEST_ARRAY;
+			context->tb->item_count = 0;
+			jf_sax_context_current_item_clear(context);
+			break;
 		case JF_SAX_IN_ITEMS_VALUE:
 			context->parser_state = JF_SAX_IN_ITEMS_ARRAY;
 			break;
@@ -239,6 +251,9 @@ static int sax_items_end_array(void *ctx)
 {
 	jf_sax_context *context = (jf_sax_context *)(ctx);
 	switch (context->parser_state) {
+		case JF_SAX_IN_LATEST_ARRAY:
+			context->parser_state = JF_SAX_IDLE;
+			break;
 		case JF_SAX_IN_ITEMS_ARRAY:
 			context->parser_state = JF_SAX_IN_QUERYRESULT_MAP;
 			break;
@@ -381,6 +396,7 @@ static void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb)
 	context->state_to_resume = JF_SAX_NO_STATE;
 	context->maps_ignoring = 0;
 	context->arrays_ignoring = 0;
+	context->latest_array = false;
 	context->tb = tb;
 	context->current_item_type = JF_ITEM_TYPE_NONE;
 	context->copy_buffer = NULL;
