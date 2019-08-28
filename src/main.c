@@ -22,7 +22,7 @@ do {																				\
 		fprintf(stderr, "FATAL: mpv API error: %s\n", mpv_error_string(status));	\
 		jf_network_cleanup();														\
 		jf_options_clear();															\
-		mpv_destroy(g_mpv_ctx);														\
+		mpv_terminate_destroy(g_mpv_ctx);														\
 		exit(EXIT_FAILURE);															\
 	}																				\
 } while (false);
@@ -76,8 +76,8 @@ int main(int argc, char *argv[])
 
 	// LIBMPV VERSION CHECK
 	// required due to the use of "set_property"
-	if (mpv_client_api_version() < MPV_MAKE_VERSION(1,26)) {
-		fprintf(stderr, "FATAL: libmpv version 1.26 or greater required.\n");
+	if (mpv_client_api_version() < MPV_MAKE_VERSION(1,23)) {
+		fprintf(stderr, "FATAL: found libmpv version %d.%d, but 1.23 or greater is required.\n", mpv_client_api_version() >> 16, mpv_client_api_version() & 0xFFFF);
 		exit(EXIT_FAILURE);
 	}
 	///////////////////////
@@ -217,7 +217,7 @@ int main(int argc, char *argv[])
 	jf_menu_stack_clear();
 	jf_network_cleanup();
 	jf_options_clear();
-	mpv_destroy(g_mpv_ctx);
+	mpv_terminate_destroy(g_mpv_ctx);
 	///////////////////
 	
 
