@@ -47,16 +47,16 @@ mpv_handle *jf_mpv_context_new()
 		fprintf(stderr, "FATAL: failed to create mpv context.\n");
 		return NULL;
 	}
-	JF_MPV_ERROR_FATAL(mpv_set_property(ctx, "config", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ERROR_FATAL(mpv_set_property(ctx, "osc", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ERROR_FATAL(mpv_set_property(ctx, "input-default-bindings", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ERROR_FATAL(mpv_set_property(ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ERROR_FATAL(mpv_set_property(ctx, "input-terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ERROR_FATAL(mpv_set_property(ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ERROR_FATAL(mpv_set_option(ctx, "config", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ERROR_FATAL(mpv_set_option(ctx, "osc", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ERROR_FATAL(mpv_set_option(ctx, "input-default-bindings", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ERROR_FATAL(mpv_set_option(ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ERROR_FATAL(mpv_set_option(ctx, "input-terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ERROR_FATAL(mpv_set_option(ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
 	if ((x_emby_token = jf_concat(2, "x-emby-token: ", g_options.token)) == NULL) {
 		fprintf(stderr, "FATAL: jf_concat for x-emby-token header field for mpv requests returned NULL.\n");
 	}
-	JF_MPV_ERROR_FATAL(mpv_set_property_string(ctx, "http-header-fields", x_emby_token));
+	JF_MPV_ERROR_FATAL(mpv_set_option_string(ctx, "http-header-fields", x_emby_token));
 	free(x_emby_token);
 
 	JF_MPV_ERROR_FATAL(mpv_initialize(ctx));
@@ -75,9 +75,9 @@ int main(int argc, char *argv[])
 	int mpv_flag_yes = 1, mpv_flag_no = 0;
 
 	// LIBMPV VERSION CHECK
-	// required due to the use of "set_property"
-	if (mpv_client_api_version() < MPV_MAKE_VERSION(1,23)) {
-		fprintf(stderr, "FATAL: found libmpv version %d.%d, but 1.23 or greater is required.\n", mpv_client_api_version() >> 16, mpv_client_api_version() & 0xFFFF);
+	// required to be able to load the standard config file
+	if (mpv_client_api_version() < MPV_MAKE_VERSION(1,15)) {
+		fprintf(stderr, "FATAL: found libmpv version %lu.%lu, but 1.15 or greater is required.\n", mpv_client_api_version() >> 16, mpv_client_api_version() & 0xFFFF);
 		exit(EXIT_FAILURE);
 	}
 	///////////////////////
