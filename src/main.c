@@ -75,9 +75,9 @@ int main(int argc, char *argv[])
 	int mpv_flag_yes = 1, mpv_flag_no = 0;
 
 	// LIBMPV VERSION CHECK
-	// required to be able to load the standard config file
-	if (mpv_client_api_version() < MPV_MAKE_VERSION(1,15)) {
-		fprintf(stderr, "FATAL: found libmpv version %lu.%lu, but 1.15 or greater is required.\n", mpv_client_api_version() >> 16, mpv_client_api_version() & 0xFFFF);
+	// required for "osc" option
+	if (mpv_client_api_version() < MPV_MAKE_VERSION(1,23)) {
+		fprintf(stderr, "FATAL: found libmpv version %lu.%lu, but 1.23 or greater is required.\n", mpv_client_api_version() >> 16, mpv_client_api_version() & 0xFFFF);
 		exit(EXIT_FAILURE);
 	}
 	///////////////////////
