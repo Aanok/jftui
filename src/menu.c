@@ -12,26 +12,44 @@ extern mpv_handle *g_mpv_ctx;
 
 
 ////////// STATIC VARIABLES //////////
+static jf_menu_item *s_root_menu = &(jf_menu_item){
+		JF_ITEM_TYPE_MENU_ROOT,
+		"",
+		(jf_menu_item *[]){
+			&(jf_menu_item){
+				JF_ITEM_TYPE_MENU_FAVORITES,
+				"",
+				NULL
+			},
+			&(jf_menu_item){
+				JF_ITEM_TYPE_MENU_CONTINUE,
+				"",
+				NULL
+			},
+			&(jf_menu_item){
+				JF_ITEM_TYPE_MENU_NEXT_UP,
+				"",
+				NULL
+			},
+			&(jf_menu_item){
+				JF_ITEM_TYPE_MENU_LATEST,
+				"",
+				NULL
+			},
+			&(jf_menu_item){
+				JF_ITEM_TYPE_MENU_LIBRARIES,
+				"",
+				NULL
+			},
+			NULL
+		}
+	};
 static jf_menu_stack s_menu_stack;
 static jf_menu_item *s_context = NULL;
 //////////////////////////////////////
 
 
 ////////// STATIC FUNCTIONS //////////
-
-// Function: jf_menu_item_conditional_free
-//
-// Deallocates a menu item and all its descendants recursively, with a switch for checking or ignoring the persistence bit.
-//
-// Parameters:
-// 	menu_item - Pointer to the struct to deallocate.
-// 	check_persistence - Boolean for checking or not the persistence bit.
-//
-// Returns:
-// 	true on success or menu_item == NULL, false otherwise
-static bool jf_menu_item_conditional_free(jf_menu_item *menu_item, const bool check_persistence);
-
-static jf_menu_item *jf_menu_make_ui(void);
 
 // Function: jf_menu_stack_push
 //
@@ -96,22 +114,16 @@ jf_menu_item *jf_menu_item_new(jf_item_type type, const char *id, jf_menu_item *
 
 bool jf_menu_item_free(jf_menu_item *menu_item)
 {
-	return jf_menu_item_conditional_free(menu_item, true);
-}
-
-
-static bool jf_menu_item_conditional_free(jf_menu_item *menu_item, const bool check_persistent)
-{
 	jf_menu_item **child;
 
 	if (menu_item == NULL) {
 		return true;
 	}
 
-	if (! (check_persistent && JF_ITEM_TYPE_IS_PERSISTENT(menu_item->type))) {
+	if (! (JF_ITEM_TYPE_IS_PERSISTENT(menu_item->type))) {
 		if ((child = menu_item->children) != NULL) {
 			while (*child != NULL) {
-				jf_menu_item_conditional_free(*child, check_persistent);
+				jf_menu_item_free(*child);
 				child++;
 			}
 			free(menu_item->children);
@@ -122,35 +134,6 @@ static bool jf_menu_item_conditional_free(jf_menu_item *menu_item, const bool ch
 
 	return false;
 }
-
-
-static jf_menu_item *jf_menu_make_ui()
-{
-	jf_menu_item *root = NULL,
-				 **root_children = NULL;
-	int i;
-
-	if ((root_children = calloc(6, sizeof(jf_menu_item *))) == NULL) {
-		return NULL;
-	}
-
-	if ((root_children[0] = jf_menu_item_new(JF_ITEM_TYPE_MENU_FAVORITES, NULL, NULL)) == NULL
-		|| (root_children[1] = jf_menu_item_new(JF_ITEM_TYPE_MENU_CONTINUE, NULL, NULL)) == NULL
-		|| (root_children[2] = jf_menu_item_new(JF_ITEM_TYPE_MENU_NEXT_UP, NULL, NULL)) == NULL
-		|| (root_children[3] = jf_menu_item_new(JF_ITEM_TYPE_MENU_LATEST, NULL, NULL)) == NULL
-		|| (root_children[4] = jf_menu_item_new(JF_ITEM_TYPE_MENU_LIBRARIES, NULL, NULL)) == NULL
-		|| (root = jf_menu_item_new(JF_ITEM_TYPE_MENU_ROOT, NULL, root_children)) == NULL) {
-		for (i = 0; i < 5; i++) {
-			jf_menu_item_conditional_free(root_children[i], false);
-		}
-		free(root_children);
-		free(root);
-		return NULL;
-	}
-
-	return root;
-}
-
 //////////////////////////////////
 
 
@@ -216,13 +199,9 @@ static const jf_menu_item *jf_menu_stack_peek()
 
 void jf_menu_stack_clear()
 {
-	// clear non persistent items up to the root
-	while (s_menu_stack.used > 1) {
-		jf_menu_item_conditional_free(jf_menu_stack_pop(), true);
+	while (s_menu_stack.used > 0) {
+		jf_menu_item_free(jf_menu_stack_pop());
 	}
-	// persistent item deletion must cascade from the root because persistent
-	// children popped from the stack would get free'd twice otherwise
-	jf_menu_item_conditional_free(jf_menu_stack_pop(), false);
 }
 ///////////////////////////////////
 
@@ -425,15 +404,10 @@ jf_menu_ui_status jf_menu_ui()
 	size_t i;
 
 	// ACQUIRE ITEM CONTEXT
-	// if menu_stack is empty, assume first time run
-	// in case of error it's not an unreasonable fallback (though it might cause memory leaks depending on what happened)
 	if ((s_context = jf_menu_stack_pop()) == NULL) {
-			if ((s_context = jf_menu_make_ui()) == NULL) {
-			fprintf(stderr, "FATAL: jf_menu_make_ui() returned NULL.\n");
-			return JF_MENU_UI_STATUS_ERROR;
-		}
-		jf_menu_stack_push(s_context);
-		return JF_MENU_UI_STATUS_GO_ON;
+		// expected on first run
+		// in case of error it's a solid fallback
+		s_context = s_root_menu;
 	}
 
 	do {
