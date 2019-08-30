@@ -270,9 +270,7 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 				return jf_concat(4, "/users/", g_options.userid, "/items/", item->id);
 			// Folders
 			case JF_ITEM_TYPE_COLLECTION:
-			case JF_ITEM_TYPE_USER_VIEW:
 			case JF_ITEM_TYPE_FOLDER:
-			case JF_ITEM_TYPE_PLAYLIST:
 			case JF_ITEM_TYPE_ALBUM:
 			case JF_ITEM_TYPE_SEASON:
 			case JF_ITEM_TYPE_SERIES:
@@ -284,7 +282,13 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 							item->id, "&sortby=isfolder,sortname");
 				}
 			case JF_ITEM_TYPE_COLLECTION_MUSIC:
-				return jf_concat(4, "/artists?parentid=", item->id, "&userid=", g_options.userid);
+				if ((parent = jf_menu_stack_peek()) != NULL && parent->type == JF_ITEM_TYPE_FOLDER) {
+					// we are inside a "by folders" view
+					return jf_concat(5, "/users/", g_options.userid, "/items?parentid=",
+							item->id, "&sortby=isfolder,sortname");
+				} else {
+					return jf_concat(4, "/artists?parentid=", item->id, "&userid=", g_options.userid);
+				}
 			case JF_ITEM_TYPE_COLLECTION_SERIES:
 				return jf_concat(5, "/users/", g_options.userid, "/items?parentid=",
 						item->id, "&includeitemtypes=series&recursive=true&sortby=isfolder,sortname");

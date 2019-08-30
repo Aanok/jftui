@@ -285,12 +285,9 @@ static int sax_items_string(void *ctx, const unsigned char *string, size_t strin
 					&& context->current_item_type == JF_ITEM_TYPE_NONE) {
 				// don't overwrite if we already got more specific information
 				context->current_item_type = JF_ITEM_TYPE_COLLECTION;
-			} else if (JF_SAX_STRING_IS("UserView")) {
-				context->current_item_type = JF_ITEM_TYPE_USER_VIEW;
-			} else if (JF_SAX_STRING_IS("Folder")) {
+			} else if (JF_SAX_STRING_IS("Folder") || JF_SAX_STRING_IS("UserView")
+					|| JF_SAX_STRING_IS("Playlist") || JF_SAX_STRING_IS("PlaylistsFolder")) {
 				context->current_item_type = JF_ITEM_TYPE_FOLDER;
-			} else if (JF_SAX_STRING_IS("Playlist")) {
-				context->current_item_type = JF_ITEM_TYPE_PLAYLIST;
 			} else if (JF_SAX_STRING_IS("Audio")) {
 				context->current_item_type = JF_ITEM_TYPE_AUDIO;
 			} else if (JF_SAX_STRING_IS("Artist") || JF_SAX_STRING_IS("MusicArtist")) {
@@ -318,6 +315,8 @@ static int sax_items_string(void *ctx, const unsigned char *string, size_t strin
 			} else if (JF_SAX_STRING_IS("movies") || JF_SAX_STRING_IS("homevideos")
 					|| JF_SAX_STRING_IS("musicvideos")) {
 				context->current_item_type = JF_ITEM_TYPE_COLLECTION_MOVIES;
+			} else if (JF_SAX_STRING_IS("folders")) {
+				context->current_item_type = JF_ITEM_TYPE_FOLDER;
 			}
 			context->parser_state = JF_SAX_IN_ITEM_MAP;
 			break;
