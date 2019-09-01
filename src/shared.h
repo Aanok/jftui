@@ -16,7 +16,12 @@
 #define JF_STATIC_PRINT(str)					\
 	do {										\
 		write(1, str, JF_STATIC_STRLEN(str));	\
-	} while(false)
+	} while (false)
+
+#define JF_STATIC_PRINT_ERROR(str)				\
+	do {										\
+		write(2, str, JF_STATIC_STRLEN(str));	\
+	} while (false)
 
 #define JF_VERSION "prealpha"
 

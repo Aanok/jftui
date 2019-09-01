@@ -133,27 +133,10 @@ void jf_menu_stack_clear(void);
 
 ////////// USER INTERFACE LOOP //////////
 
-// Function: jf_menu_child_is_folder
-//
-// Checks if the n-th child of the current open menu context is a folder type or not.
-// This function exists for the sake of the command parser.
-//
-// Parameters:
-// 	n - 1-indexed identifier of the child whose item_type to check.
-//
-// Returns:
-//  true if there is a context to check, the child exists and it is a folder; false otherwise.
-bool jf_menu_child_is_folder(const size_t n);
+jf_item_type jf_menu_child_get_type(size_t n);
 
 
-// Procedure: jf_menu_child_push
-//
-// Pushes the n-th child of the current open menu context onto the menu_stack.
-// This function exists for the sake of the command parser.
-//
-// Parameters:
-// 	n - 1-indexed identifier of the child to push on the menu_stack.
-void jf_menu_child_push(const size_t n);
+void jf_menu_child_dispatch(const size_t n);
 
 
 size_t jf_menu_child_count(void);

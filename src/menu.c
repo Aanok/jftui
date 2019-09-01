@@ -84,7 +84,6 @@ static jf_menu_item *jf_menu_stack_pop(void);
 static const jf_menu_item *jf_menu_stack_peek(void);
 
 static jf_menu_item *jf_menu_child_get(size_t n);
-static jf_item_type jf_menu_child_get_type(size_t n);
 static bool jf_menu_read_commands(void);
 static char *jf_menu_item_get_request_url(const jf_menu_item *item);
 //////////////////////////////////////
@@ -215,19 +214,23 @@ static bool jf_menu_read_commands()
 		printf("> ");
 		yyparse(&yy);
 		yyrelease(&yy);
-		switch (yy_zu_stack_get_state(&yy)) {
-			case JF_ZU_STACK_SUCCESS:
+		switch (yy_command_parser_get_state(&yy)) {
+			case JF_CMD_VALIDATE_OK:
+				JF_STATIC_PRINT("DEBUG: VALIDATE_OK.\n");
 				return true;
-			case JF_ZU_STACK_FAIL_FOLDER:
-				fprintf(stderr, "ERROR: cannot target many folders or both folders and items with non-recursive command.\n");
+			case JF_CMD_SUCCESS:
+				JF_STATIC_PRINT("DEBUG: CMD_SUCCESS.\n");
+				return true;
+			case JF_CMD_FAIL_FOLDER:
+				fprintf(stderr, "ERROR: cannot open many folders or both folders and items with non-recursive command.\n");
 				JF_CLEAR_STDIN();
 				break;
-			case JF_ZU_STACK_FAIL_MATCH:
-				fprintf(stderr, "ERROR: malformed command.\n");
+			case JF_CMD_FAIL_SYNTAX:
+				JF_STATIC_PRINT_ERROR("ERROR: malformed command.\n");
 				JF_CLEAR_STDIN();
 				break;
 			default:
-				fprintf(stderr, "ERROR: command parser ended in unexpected state. This is a bug.\n");
+				JF_STATIC_PRINT_ERROR("ERROR: command parser ended in unexpected state. This is a bug.\n");
 				return false;
 		}
 	}
@@ -319,7 +322,7 @@ static jf_menu_item *jf_menu_child_get(size_t n)
 }
 
 
-static jf_item_type jf_menu_child_get_type(size_t n)
+jf_item_type jf_menu_child_get_type(size_t n)
 {
 	jf_menu_item **child;
 
@@ -340,19 +343,10 @@ static jf_item_type jf_menu_child_get_type(size_t n)
 }
 
 
-bool jf_menu_child_is_folder(const size_t n)
-{
-	if (s_context == NULL) {
-		return false;
-	}
-	return JF_ITEM_TYPE_IS_FOLDER(jf_menu_child_get_type(n));
-}
-
-
-void jf_menu_child_push(const size_t n)
+void jf_menu_child_dispatch(const size_t n)
 {
 	jf_menu_item *child = jf_menu_child_get(n);
-	jf_menu_stack_push(child);
+	JF_STATIC_PRINT("DEBUG: dispatching atom.\n");
 }
 
 
