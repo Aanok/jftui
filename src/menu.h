@@ -81,34 +81,6 @@ typedef unsigned char jf_menu_ui_status;
 ///////////////////////////////////////
 
 
-////////// JF_MENU_ITEM //////////
-
-// Function: jf_menu_item_new
-//
-// Allocates a jf_menu_item struct in dynamic memory.
-//
-// Parameters:
-// 	- type: the jf_item_type of the menu item being represented.
-// 	- id: the string marking the id of the item. It will be copied to an internal buffer and must have JF_ID_LENGTH size but does not need to be \0-terminated. May be NULL for persistent menu items, in which case the internal buffer will contain a \0-terminated empty string.
-// 	- children: a NULL-terminated array of pointers to jf_menu_item's that descend from the current one in the UI/library hierarchy.
-//
-// Returns:
-//  A pointer to the newly allocated struct on success or NULL on failure.
-jf_menu_item *jf_menu_item_new(jf_item_type type, const char *id, jf_menu_item **children);
-
-// Function jf_menu_item_free
-//
-// Deallocates a jf_menu_item and all its descendants recursively, unless they are marked as persistent (as per JF_ITEM_TYPE_IS_PERSISTENT).
-//
-// Parameters:
-// 	- menu_item: a pointer to the struct to deallocate. It may be NULL, in which case the function will no-op.
-//
-// Returns:
-//  true if the item was deallocated or NULL was passed, false otherwise.
-bool jf_menu_item_free(jf_menu_item *menu_item);
-//////////////////////////////////
-
-
 ////////// JF_MENU_STACK //////////
 typedef struct jf_menu_stack {
 	jf_menu_item **items;

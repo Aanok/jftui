@@ -3,6 +3,9 @@
 	#include <stdlib.h>
 	#include <stdbool.h>
 
+	#include "shared.h"
+	#include "menu.h"
+
 	////////// STATE MACHINE //////////
 	typedef char jf_command_parser_state;
 

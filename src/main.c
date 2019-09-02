@@ -117,8 +117,6 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-		printf("DEBUG: config_path %s\n", config_path);
-
 	// check config file exists
 	errno = 0;
 	if (access(config_path, F_OK) == 0) {

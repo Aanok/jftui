@@ -10,6 +10,9 @@
 	#include <stdlib.h>
 	#include <stdbool.h>
 
+	#include "shared.h"
+	#include "menu.h"
+
 	////////// STATE MACHINE //////////
 	typedef char jf_command_parser_state;
 
@@ -349,7 +352,7 @@ YY_ACTION(void) yy_1_num(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_num\n"));
   {
-#line 76
+#line 79
    __ = strtoul(yytext, NULL, 10); ;
   }
 #undef yythunkpos
@@ -366,7 +369,7 @@ YY_ACTION(void) yy_2_Atom(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_2_Atom\n"));
   {
-#line 75
+#line 78
    yy_cmd_digest(yy, n); ;
   }
 #undef yythunkpos
@@ -386,7 +389,7 @@ YY_ACTION(void) yy_1_Atom(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_Atom\n"));
   {
-#line 74
+#line 77
    yy_cmd_digest_range(yy, l, r); ;
   }
 #undef yythunkpos
@@ -403,7 +406,7 @@ YY_ACTION(void) yy_1_Selector(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_Selector\n"));
   {
-#line 70
+#line 73
    yy_cmd_digest_range(yy, 1, jf_menu_child_count()); ;
   }
 #undef yythunkpos
@@ -417,7 +420,7 @@ YY_ACTION(void) yy_3_Start(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_3_Start\n"));
   {
-#line 69
+#line 72
    yy_cmd_finalize(yy, true); ;
   }
 #undef yythunkpos
@@ -431,7 +434,7 @@ YY_ACTION(void) yy_2_Start(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_2_Start\n"));
   {
-#line 67
+#line 70
    yy->state = JF_CMD_SPECIAL; jf_menu_quit(); ;
   }
 #undef yythunkpos
@@ -445,7 +448,7 @@ YY_ACTION(void) yy_1_Start(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_Start\n"));
   {
-#line 64
+#line 67
    yy->state = JF_CMD_SPECIAL; jf_menu_dotdot(); ;
   }
 #undef yythunkpos
@@ -655,7 +658,7 @@ YY_PARSE(yycontext *) YYRELEASE(yycontext *yyctx)
 }
 
 #endif
-#line 82 "src/command_grammar.leg"
+#line 85 "src/command_grammar.leg"
 
 	jf_command_parser_state yy_command_parser_get_state(const yycontext *ctx)
 	{
