@@ -40,7 +40,6 @@ typedef struct jf_options {
 	char *device;
 	char deviceid[JF_CONFIG_DEVICEID_MAX_LEN];
 	char *version;
-	char *error;
 } jf_options;
 
 
@@ -50,7 +49,7 @@ void jf_options_clear(void);
 
 
 ////////// USER CONFIGURATION //////////
-char *jf_config_get_path(void);
+char *jf_config_get_default_dir(void);
 bool jf_config_read(const char *config_path);
 bool jf_config_write(const char *config_path);
 bool jf_user_config(void);

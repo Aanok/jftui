@@ -73,14 +73,49 @@ typedef char jf_item_type;
 #define JF_ITEM_TYPE_IS_PERSISTENT(t)			((t) < 0)
 #define JF_ITEM_TYPE_IS_FOLDER(t)				((t) < 0 || (t) >= 20)
 #define JF_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(t)	((t) < -1 || (t) >= 20)
-//////////////////////////////////////////////////////////
 
 
 typedef struct jf_menu_item {
 	jf_item_type type;
 	char id[JF_ID_LENGTH +1];
 	struct jf_menu_item **children; // NULL-terminated
+	char *name;
 } jf_menu_item;
+
+
+// Function: jf_menu_item_new
+//
+// Allocates a jf_menu_item struct in dynamic memory.
+//
+// Parameters:
+// 	- type: the jf_item_type of the menu item being represented.
+// 	- id: the string marking the id of the item. It will be copied to an internal buffer and must have JF_ID_LENGTH size but does not need to be \0-terminated. May be NULL for persistent menu items, in which case the internal buffer will contain a \0-terminated empty string.
+// 	- children: a NULL-terminated array of pointers to jf_menu_item's that descend from the current one in the UI/library hierarchy.
+//
+// Returns:
+//  A pointer to the newly allocated struct on success or NULL on failure.
+jf_menu_item *jf_menu_item_new(jf_item_type type, const char *id, jf_menu_item **children);
+
+// Function jf_menu_item_free
+//
+// Deallocates a jf_menu_item and all its descendants recursively, unless they are marked as persistent (as per JF_ITEM_TYPE_IS_PERSISTENT).
+//
+// Parameters:
+// 	- menu_item: a pointer to the struct to deallocate. It may be NULL, in which case the function will no-op.
+//
+// Returns:
+//  true if the item was deallocated or NULL was passed, false otherwise.
+bool jf_menu_item_free(jf_menu_item *menu_item);
+//////////////////////////////////////////////////////////
+
+
+////////// GLOBAL APPLICATION STATE //////////
+typedef struct jf_global_state {
+	const char *config_dir;
+	const char *runtime_dir;
+	const char *session_id;
+} jf_global_state;
+//////////////////////////////////////////////
 
 
 ////////// THREAD_BUFFER //////////
@@ -111,20 +146,6 @@ bool jf_thread_buffer_init(jf_thread_buffer *tb);
 ///////////////////////////////////
 
 
-
-
-// UNUSED FOR NOW
-// typedef struct jf_synced_queue {
-// 	const void **slots;
-// 	size_t slot_count;
-// 	size_t current;
-// 	size_t next;
-// 	pthread_mutex_t mut;
-// 	pthread_cond_t cv_is_empty;
-// 	pthread_cond_t cv_is_full;
-// } jf_synced_queue;
-
-
 // returns a NULL-terminated, malloc'd string result of the concatenation of its (expected char *) arguments past the first
 // the first argument is the number of following arguments
 char *jf_concat(const size_t n, ...);
@@ -143,6 +164,16 @@ void jf_print_zu(size_t n);
 
 
 // UNUSED FOR NOW
+// typedef struct jf_synced_queue {
+// 	const void **slots;
+// 	size_t slot_count;
+// 	size_t current;
+// 	size_t next;
+// 	pthread_mutex_t mut;
+// 	pthread_cond_t cv_is_empty;
+// 	pthread_cond_t cv_is_full;
+// } jf_synced_queue;
+//
 // jf_synced_queue *jf_synced_queue_new(const size_t slot_count);
 // void jf_synced_queue_free(jf_synced_queue *q); // NB will NOT deallocate the contents of the queue! make sure it's empty beforehand to avoid leaks
 // void jf_synced_queue_enqueue(jf_synced_queue *q, const void *payload);

@@ -30,7 +30,8 @@ do {																				\
 
 ////////// GLOBALS //////////
 jf_options g_options;
-mpv_handle *g_mpv_ctx;
+jf_global_state g_state = (jf_global_state){ 0 };
+mpv_handle *g_mpv_ctx = NULL;
 /////////////////////////////
 
 
@@ -102,26 +103,30 @@ int main(int argc, char *argv[])
 	
 
 	// READ AND PARSE CONFIGURATION FILE
-	if ((config_path = jf_config_get_path()) == NULL) {
-		fprintf(stderr, "FATAL: could not acquire configuration file location. $HOME could not be read and --config was not passed.\n");
+	// apply config directory location default unless there was user override
+	if (g_state.config_dir == NULL) {
+		if ((g_state.config_dir = jf_config_get_default_dir()) == NULL) {
+			JF_STATIC_PRINT_ERROR("FATAL: could not acquire configuration directory location. $HOME could not be read and --config-dir was not passed.\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	// get location of config file
+	if ((config_path = jf_concat(2, g_state.config_dir, "/options")) == NULL) {
+		JF_STATIC_PRINT_ERROR("FATAL: could not compute config_path.\n");
 		exit(EXIT_FAILURE);
 	}
+
+		printf("DEBUG: config_path %s\n", config_path);
 
 	// check config file exists
 	errno = 0;
 	if (access(config_path, F_OK) == 0) {
-		// it's there
+		// it's there: read it
 		if (! jf_config_read(config_path)) {
-			fprintf(stderr, "FATAL: error during config parse.\n");
-			exit(EXIT_FAILURE);
-		}
-		if (g_options.error != NULL) {
-			fprintf(stderr, "%s\n", g_options.error);
 			free(config_path);
-			jf_options_clear();
 			exit(EXIT_FAILURE);
 		}
-
 		// if server, userid or token are missing (may happen if the config file was edited badly)
 		if (g_options.server == NULL || g_options.userid == NULL || g_options.token == NULL) {
 			jf_user_config();
@@ -130,7 +135,11 @@ int main(int argc, char *argv[])
 		// it's not there
 		jf_user_config();
 	} else {
-		fprintf(stderr, "FATAL: access for config file at location %s: %s\n", config_path, strerror(errno));
+		int access_errno = errno;
+		JF_STATIC_PRINT_ERROR("FATAL access for config file at location ");
+		write(2, config_path, strlen(config_path));
+		JF_STATIC_PRINT_ERROR(": ");
+		write(2, strerror(access_errno), strlen(strerror(access_errno)));
 		free(config_path);
 		exit(EXIT_FAILURE);
 	}

@@ -49,7 +49,6 @@ void jf_options_clear()
 	free(g_options.client);
 	free(g_options.device);
 	free(g_options.version);
-	free(g_options.error);
 }
 ////////////////////////////////
 
@@ -57,7 +56,7 @@ void jf_options_clear()
 ////////// CONFIGURATION FILE //////////
 // NB return value will need to be free'd
 // returns NULL if $HOME not set
-char *jf_config_get_path(void)
+char *jf_config_get_default_dir(void)
 {
 	char *str;
 	if ((str = getenv("XDG_CONFIG_HOME")) == NULL) {
@@ -83,26 +82,39 @@ bool jf_config_read(const char *config_path)
 	size_t value_len;
 
 	if (config_path == NULL) {
+		JF_STATIC_PRINT_ERROR("FATAL: tried to open config file with NULL path.\n");
 		return false;
 	}
 
 	if ((line = malloc(line_size)) == NULL) {
+		JF_STATIC_PRINT_ERROR("FATAL: couldn't allocate getline buffer\n");
 		return false;
 	}
 
 	errno = 0;
 	if ((config_file = fopen(config_path, "r")) == NULL) {
-		g_options.error = jf_concat(4, "FATAL: fopen for config file at location ", config_path, ": ", strerror(errno));
-		free(line);
+		int fopen_errno = errno;
+		JF_STATIC_PRINT_ERROR("FATAL: fopen for config file at location ");
+		write(2, config_path, strlen(config_path));
+		JF_STATIC_PRINT_ERROR(": ");
+		write(2, strerror(fopen_errno), strlen(strerror(fopen_errno)));
+		JF_STATIC_PRINT_ERROR("\n");
+		return false;
 	}
 
 	// read from file
 	while (getline(&line, &line_size, config_file) != -1) {
+		if (line == NULL) {
+			JF_STATIC_PRINT_ERROR("FATAL: couldn't resize getline buffer.\n");
+			return false;
+		}
 		// allow comments
 		if (line[0] == '#') continue;
 		if ((value = strchr(line, '=')) == NULL) {
-			// the line is malformed; issue a warning but go no further
-			fprintf(stderr, "WARNING: malformed config file line: %s\n", line);
+			// the line is malformed; issue a warning and skip it
+			JF_STATIC_PRINT_ERROR("WARNING: skipping malformed config file line: ");
+			write(2, line, strlen(line));
+			JF_STATIC_PRINT_ERROR("\n");
 			continue;
 		}
 		value += 1; // digest '='
@@ -130,8 +142,10 @@ bool jf_config_read(const char *config_path)
 		} else if JF_CONFIG_KEY_IS("version") {
 			JF_CONFIG_FILL_VALUE(version);
 		} else {
-			// option key was not recognized; print a warning but do no more
-			fprintf(stderr, "WARNING: unrecognized option key in config file line: %s\n", line);
+			// option key was not recognized; print a warning and go on
+			JF_STATIC_PRINT_ERROR("WARNING: unrecognized option key in config file line: ");
+			write(2, line, strlen(line));
+			JF_STATIC_PRINT("\n");
 		}
 	}
 
