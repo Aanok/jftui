@@ -4,7 +4,7 @@ WFLAGS=-Wall -Wpedantic -Wextra -Wconversion -Wstrict-prototypes -Werror=implici
 CFLAGS=`pkg-config --cflags --libs libcurl yajl mpv` -pthread
 DFLAGS=-g -O1 -fno-omit-frame-pointer -fno-optimize-sibling-calls -fsanitize=address -fsanitize=undefined
 
-SOURCES=src/shared.c src/config.c src/json_parser.c src/menu.c src/network.c src/main.c
+SOURCES=src/linenoise.c src/shared.c src/config.c src/json_parser.c src/menu.c src/network.c src/main.c
 
 
 jftui: $(SOURCES) src/command_parser.c

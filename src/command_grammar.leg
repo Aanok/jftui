@@ -27,8 +27,27 @@
 
 	#define YY_CTX_LOCAL
 	#define YY_CTX_MEMBERS				\
-		jf_command_parser_state state;
+		jf_command_parser_state state;	\
+		char *input;					\
+		size_t read_input;
 	////////////////////////////
+
+
+	////////// INPUT PROCESSING //////////
+	#define YY_INPUT(ctx, buf, result, max_size)						\
+		{																\
+			size_t to_read = 0;											\
+			while (to_read < max_size) {								\
+				if (ctx->input[ctx->read_input + to_read] == '\0') {	\
+					break;												\
+				}														\
+				to_read++;												\
+			}															\
+			memcpy(buf, ctx->input + ctx->read_input, to_read);			\
+			ctx->read_input += to_read;									\
+			result = to_read;											\
+		}
+	//////////////////////////////////////
 
 
 	////////// FUNCTION PROTOTYPES //////////
@@ -47,7 +66,7 @@ Start = ws*						#@{ yy_zu_stack_init(yy); } # runs every match: that means once
 #	| "s" ws+ < string >		{ printf("DEBUG: search \"%s\"\n", yytext); }
 	| 'q' ws*					{ yy->state = JF_CMD_SPECIAL; jf_menu_quit(); }
 	| Selector ws*
-	) ~ { yy_cmd_finalize(yy, false); } { yy_cmd_finalize(yy, true); } eol
+	) ~ { yy_cmd_finalize(yy, false); } { yy_cmd_finalize(yy, true); } #eol
 Selector = '*'					{ yy_cmd_digest_range(yy, 1, jf_menu_child_count()); }
 	| Items
 Items = Atom ws* ',' ws* Items
@@ -127,12 +146,12 @@ eol = '\n' | '\r\n' | '\r'
 			switch (ctx->state) {
 				case JF_CMD_VALIDATE_ATOMS:
 				case JF_CMD_VALIDATE_FOLDER:
+					ctx->read_input = 0;
 					ctx->state = JF_CMD_VALIDATE_OK;
 					break;
 				case JF_CMD_VALIDATE_OK:
-					ctx->state = JF_CMD_SUCCESS;
-					break;
 				case JF_CMD_SPECIAL:
+				case JF_CMD_VALIDATE_START: // all items out of bounds
 					ctx->state = JF_CMD_SUCCESS;
 					break;
 				case JF_CMD_FAIL_FOLDER:

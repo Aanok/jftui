@@ -7,6 +7,8 @@
 #include <fcntl.h>
 #include <mpv/client.h>
 
+#include "linenoise.h"
+
 #include "shared.h"
 #include "config.h"
 #include "network.h"
