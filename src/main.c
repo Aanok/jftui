@@ -129,7 +129,7 @@ int main(int argc, char *argv[])
 		if (g_options.server == NULL || g_options.userid == NULL || g_options.token == NULL) {
 			jf_user_config();
 		}
-	} else if (errno == ENOENT) {
+	} else if (errno == ENOENT || errno == ENOTDIR) {
 		// it's not there
 		jf_user_config();
 	} else {
@@ -138,6 +138,7 @@ int main(int argc, char *argv[])
 		write(2, config_path, strlen(config_path));
 		JF_STATIC_PRINT_ERROR(": ");
 		write(2, strerror(access_errno), strlen(strerror(access_errno)));
+		JF_STATIC_PRINT_ERROR("\n");
 		free(config_path);
 		exit(EXIT_FAILURE);
 	}
