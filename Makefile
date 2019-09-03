@@ -11,8 +11,8 @@ OBJECTS=build/linenoise.o build/menu.o build/shared.o build/config.o build/disk_
 
 
 
-jftui: build src/command_parser.c $(SOURCES)
-	$(CC) $(CFLAGS) $(LFLAGS) $(OFLAGS) $(SOURCES) -o build/$@
+all: build src/command_parser.c $(SOURCES)
+	$(CC) $(CFLAGS) $(LFLAGS) $(OFLAGS) $(SOURCES) -g -o build/$@
 
 debug: build $(OBJECTS) $(SOURCES)
 	$(CC) $(WFLAGS) $(LFLAGS) $(DFLAGS) $(OBJECTS) -o build/jftui_debug
@@ -60,4 +60,4 @@ uninstall:
 	rm $(DESTDIR)/usr/bin/jftui
 
 clean:
-	rm -f build/*
+	rm -rf build
