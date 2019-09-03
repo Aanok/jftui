@@ -77,8 +77,8 @@ typedef char jf_item_type;
 
 typedef struct jf_menu_item {
 	jf_item_type type;
-	char id[JF_ID_LENGTH +1];
 	struct jf_menu_item **children; // NULL-terminated
+	char id[JF_ID_LENGTH +1];
 	char *name;
 } jf_menu_item;
 
@@ -89,12 +89,13 @@ typedef struct jf_menu_item {
 //
 // Parameters:
 // 	- type: the jf_item_type of the menu item being represented.
-// 	- id: the string marking the id of the item. It will be copied to an internal buffer and must have JF_ID_LENGTH size but does not need to be \0-terminated. May be NULL for persistent menu items, in which case the internal buffer will contain a \0-terminated empty string.
 // 	- children: a NULL-terminated array of pointers to jf_menu_item's that descend from the current one in the UI/library hierarchy.
+// 	- id: the string marking the id of the item. It will be copied to an internal buffer and must have JF_ID_LENGTH size but does not need to be \0-terminated. May be NULL for persistent menu items, in which case the internal buffer will contain a \0-terminated empty string.
+// 	- name: the string marking the display name of the item. It must be \0-terminated. It will be copied by means of strdup. May be NULL, in which case the corresponding field of the jf_menu_item will be NULL.
 //
 // Returns:
 //  A pointer to the newly allocated struct on success or NULL on failure.
-jf_menu_item *jf_menu_item_new(jf_item_type type, const char *id, jf_menu_item **children);
+jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children, const char *id, const char *name);
 
 // Function jf_menu_item_free
 //
@@ -114,6 +115,7 @@ typedef struct jf_global_state {
 	const char *config_dir;
 	const char *runtime_dir;
 	const char *session_id;
+	const char *server_name;
 } jf_global_state;
 //////////////////////////////////////////////
 

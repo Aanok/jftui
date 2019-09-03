@@ -14,6 +14,7 @@
 #include "network.h"
 
 
+////////// CODE MACROS //////////
 #define JF_CLEAR_STDIN()									\
 	do {													\
 		fcntl(0, F_SETFL, fcntl(0, F_GETFL)|O_NONBLOCK);	\
@@ -60,6 +61,20 @@
 		}																		\
 	} while (false)
 
+#define JF_MENU_UI_PRINT_LEADER(tag, index)	\
+	do {									\
+		JF_STATIC_PRINT(tag " ");			\
+		jf_print_zu(index);					\
+		JF_STATIC_PRINT(". ");				\
+	} while (false)
+
+#define JF_MENU_UI_PRINT_FOLDER_TITLE()						\
+	do {													\
+		JF_STATIC_PRINT("\n===== ");						\
+		write(1, s_context->name, strlen(s_context->name));	\
+		JF_STATIC_PRINT(" =====\n");						\
+	} while (false)
+
 #define JF_MENU_UI_PRINT_FOLDER(request_type)			\
 	do {												\
 			JF_MENU_UI_GET_REQUEST_URL_FATAL();			\
@@ -69,7 +84,8 @@
 			jf_reply_free(reply);						\
 			jf_menu_stack_push(s_context);				\
 	} while (false)
-
+/////////////////////////////////
+		
 
 ////////// JF_MENU_UI_STATUS //////////
 typedef unsigned char jf_menu_ui_status;

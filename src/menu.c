@@ -7,6 +7,7 @@
 
 ////////// GLOBAL VARIABLES //////////
 extern jf_options g_options;
+extern jf_global_state g_state;
 extern mpv_handle *g_mpv_ctx;
 //////////////////////////////////////
 
@@ -14,35 +15,41 @@ extern mpv_handle *g_mpv_ctx;
 ////////// STATIC VARIABLES //////////
 static jf_menu_item *s_root_menu = &(jf_menu_item){
 		JF_ITEM_TYPE_MENU_ROOT,
-		"",
 		(jf_menu_item *[]){
 			&(jf_menu_item){
 				JF_ITEM_TYPE_MENU_FAVORITES,
+				NULL,
 				"",
-				NULL
+				"Favorites"
 			},
 			&(jf_menu_item){
 				JF_ITEM_TYPE_MENU_CONTINUE,
+				NULL,
 				"",
-				NULL
+				"Continue Watching"
 			},
 			&(jf_menu_item){
 				JF_ITEM_TYPE_MENU_NEXT_UP,
+				NULL,
 				"",
-				NULL
+				"Next Up"
 			},
 			&(jf_menu_item){
 				JF_ITEM_TYPE_MENU_LATEST,
+				NULL,
 				"",
-				NULL
+				"Latest Added"
 			},
 			&(jf_menu_item){
 				JF_ITEM_TYPE_MENU_LIBRARIES,
+				NULL,
 				"",
-				NULL
+				"User Views"
 			},
 			NULL
-		}
+		},
+		"",
+		"Server Root"
 	};
 static jf_menu_stack s_menu_stack;
 static jf_menu_item *s_context = NULL;
@@ -89,51 +96,6 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item);
 //////////////////////////////////////
 
 
-////////// JF_MENU_ITEM //////////
-jf_menu_item *jf_menu_item_new(jf_item_type type, const char *id, jf_menu_item **children)
-{
-	jf_menu_item *menu_item;
-
-	if ((menu_item = malloc(sizeof(jf_menu_item))) == NULL) {
-		return NULL;
-	}
-
-	menu_item->type = type;
-	if (id == NULL) {
-		menu_item->id[0] = '\0';
-	} else {
-		strncpy(menu_item->id, id, JF_ID_LENGTH);
-		menu_item->id[JF_ID_LENGTH] = '\0';
-	}
-	menu_item->children = children;
-	
-	return menu_item;
-}
-
-
-bool jf_menu_item_free(jf_menu_item *menu_item)
-{
-	jf_menu_item **child;
-
-	if (menu_item == NULL) {
-		return true;
-	}
-
-	if (! (JF_ITEM_TYPE_IS_PERSISTENT(menu_item->type))) {
-		if ((child = menu_item->children) != NULL) {
-			while (*child != NULL) {
-				jf_menu_item_free(*child);
-				child++;
-			}
-			free(menu_item->children);
-		}
-		free(menu_item);
-		return true;
-	}
-
-	return false;
-}
-//////////////////////////////////
 
 
 ////////// JF_MENU_STACK //////////
@@ -405,7 +367,7 @@ void jf_menu_dotdot()
 
 void jf_menu_quit()
 {
-	jf_menu_stack_push(jf_menu_item_new(JF_ITEM_TYPE_COMMAND_QUIT, NULL, NULL));
+	jf_menu_stack_push(jf_menu_item_new(JF_ITEM_TYPE_COMMAND_QUIT, NULL, NULL, NULL));
 }
 
 
@@ -453,8 +415,7 @@ jf_menu_ui_status jf_menu_ui()
 			case JF_ITEM_TYPE_MENU_NEXT_UP:
 			case JF_ITEM_TYPE_MENU_LATEST:
 			case JF_ITEM_TYPE_MENU_LIBRARIES:
-				// TODO print title
-				printf("\n===== DYNAMIC PROMISCUOUS FOLDER =====\n");
+				JF_MENU_UI_PRINT_FOLDER_TITLE();
 				JF_MENU_UI_PRINT_FOLDER(JF_REQUEST_SAX_PROMISCUOUS);
 				break;
 			case JF_ITEM_TYPE_COLLECTION_MUSIC:
@@ -464,36 +425,18 @@ jf_menu_ui_status jf_menu_ui()
 			case JF_ITEM_TYPE_ALBUM:
 			case JF_ITEM_TYPE_SEASON:
 			case JF_ITEM_TYPE_SERIES:
-				// TODO print title
-				printf("\n===== DYNAMIC FOLDER =====\n");
+				JF_MENU_UI_PRINT_FOLDER_TITLE();
 				JF_MENU_UI_PRINT_FOLDER(JF_REQUEST_SAX);
 				break;
 			// PERSISTENT FOLDERS
 			case JF_ITEM_TYPE_MENU_ROOT:
-				printf("\n===== Server Root =====\n");
+				JF_MENU_UI_PRINT_FOLDER_TITLE();
 				child = s_context->children;
 				i = 1;
 				while (*child) {
-					switch ((*child)->type) {
-						case JF_ITEM_TYPE_MENU_FAVORITES:
-							printf("D %zu. Favorites\n", i);
-							break;
-						case JF_ITEM_TYPE_MENU_CONTINUE:
-							printf("D %zu. Continue Watching\n", i);
-							break;
-						case JF_ITEM_TYPE_MENU_NEXT_UP:
-							printf("D %zu. Next Up\n", i);
-							break;
-						case JF_ITEM_TYPE_MENU_LATEST:
-							printf("D %zu. Latest Added\n", i);
-							break;
-						case JF_ITEM_TYPE_MENU_LIBRARIES:
-							printf("D %zu. User Views\n", i);
-							break;
-						default:
-							printf("[!!!] %zu. WARNING: unrecognized menu item. Undefined behaviour if chosen. This is a bug.\n", i);
-							break;
-					}
+					JF_MENU_UI_PRINT_LEADER("D", i);
+					write(1, (*child)->name, strlen((*child)->name));
+					JF_STATIC_PRINT("\n");
 					child++;
 					i++;
 				}
@@ -504,7 +447,7 @@ jf_menu_ui_status jf_menu_ui()
 				jf_menu_item_free(s_context);
 				return JF_MENU_UI_STATUS_QUIT;
 			default:
-				fprintf(stderr, "ERROR: jf_menu_ui unsupported menu item type. This is a bug.\n");
+				JF_STATIC_PRINT_ERROR("ERROR: jf_menu_ui unsupported menu item type. This is a bug.\n");
 				jf_menu_item_free(s_context);
 				break;
 		}

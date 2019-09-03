@@ -149,7 +149,8 @@ int main(int argc, char *argv[])
 		free(config_path);
 		exit(EXIT_FAILURE);
 	}
-	// TODO ping server
+	// TODO ping server (and get name)
+	g_state.server_name = "TEST SERVER"; // placeholder; we will somehow need to send it to the menu TU
 	// TODO check token still valid, prompt relogin otherwise
 	
 	// COMMIT CONFIG TO DISK

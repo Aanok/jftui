@@ -1,6 +1,59 @@
 #include "shared.h"
 
 
+////////// JF_MENU_ITEM //////////
+jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children, const char *id, const char *name)
+{
+	jf_menu_item *menu_item;
+
+	if ((menu_item = malloc(sizeof(jf_menu_item))) == NULL) {
+		return NULL;
+	}
+
+	menu_item->type = type;
+	menu_item->children = children;
+	if (id == NULL) {
+		menu_item->id[0] = '\0';
+	} else {
+		strncpy(menu_item->id, id, JF_ID_LENGTH);
+		menu_item->id[JF_ID_LENGTH] = '\0';
+	}
+	if (name == NULL) {
+		menu_item->name = NULL;
+	} else {
+		strcpy(menu_item->name, name);
+	}
+	
+	return menu_item;
+}
+
+
+bool jf_menu_item_free(jf_menu_item *menu_item)
+{
+	jf_menu_item **child;
+
+	if (menu_item == NULL) {
+		return true;
+	}
+
+	if (! (JF_ITEM_TYPE_IS_PERSISTENT(menu_item->type))) {
+		if ((child = menu_item->children) != NULL) {
+			while (*child != NULL) {
+				jf_menu_item_free(*child);
+				child++;
+			}
+			free(menu_item->children);
+		}
+		free(menu_item->name);
+		free(menu_item);
+		return true;
+	}
+
+	return false;
+}
+//////////////////////////////////
+
+
 char *jf_concat(size_t n, ...)
 {
 	char *buf;
