@@ -45,7 +45,7 @@ do {																				\
 		JF_STATIC_PRINT(tag " ");				\
 		jf_print_zu(context->tb->item_count);	\
 		JF_STATIC_PRINT(". ");					\
-	} while (false);							\
+	} while (false)							\
 
 #define JF_SAX_TRY_PRINT(prefix, field, suffix)					\
 	do {														\
