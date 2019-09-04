@@ -23,7 +23,7 @@
 			return false;															\
 		}																			\
 		free(tmp);																	\
-	} while (false);
+	} while (false)
 
 #define JF_DISK_CLOSE_DELETE_FILE(suffix)											\
 	do {																			\
@@ -41,10 +41,11 @@
 		free(tmp);																	\
 	} while (false)
 
+#define JF_DISK_BUFFER_SIZE 1024
+
 bool jf_disk_refresh(void);
 void jf_disk_clear(void);
 
-bool jf_disk_item_store(const jf_menu_item *item);
-jf_menu_item *jf_disk_item_load(size_t n);
-
+bool jf_disk_playlist_add(const jf_menu_item *item);
+jf_menu_item *jf_disk_playlist_get(size_t n);
 #endif

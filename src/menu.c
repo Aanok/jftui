@@ -326,7 +326,8 @@ jf_item_type jf_menu_child_get_type(size_t n)
 
 void jf_menu_child_dispatch(const size_t n)
 {
-// 	jf_menu_item *child = jf_menu_child_get(n);
+//  	jf_menu_item *child = jf_menu_child_get(n);
+
 	JF_STATIC_PRINT("DEBUG: dispatching atom.\n");
 }
 
