@@ -9,55 +9,60 @@ SOURCES=src/linenoise.c src/shared.c src/config.c src/disk_io.c src/json_parser.
 
 OBJECTS=build/linenoise.o build/menu.o build/shared.o build/config.o build/disk_io.o build/json_parser.o build/network.o build/main.o
 
+BUILD_DIR := build
 
-
-all: build src/command_parser.c $(SOURCES)
-	$(CC) $(CFLAGS) $(LFLAGS) $(OFLAGS) $(SOURCES) -g -o build/$@
-
-debug: build $(OBJECTS) $(SOURCES)
-	$(CC) $(WFLAGS) $(LFLAGS) $(DFLAGS) $(OBJECTS) -o build/jftui_debug
+.PHONY: all debug install uninstall clean
 
 
 
-build:
-	mkdir -p build
 
-src/command_parser.c: src/command_grammar.leg
-	leg -o $@ $^
+all: ${BUILD_DIR}/jftui
 
-build/linenoise.o: src/linenoise.c
-	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
-
-build/menu.o: src/menu.c
-	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
-
-build/shared.o: src/shared.c
-	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
-
-build/config.o: src/config.c
-	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
-
-build/disk_io.o: src/disk_io.c
-	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
-
-build/json_parser.o: src/json_parser.c
-	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
-
-build/network.o: src/network.c
-	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
-
-build/main.o: src/main.c
-	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
-
-
-
-.PHONY: install uninstall clean
+debug: ${BUILD_DIR}/jftui_debug
 
 install: jftui
-	install -Dm555 build/$^ $(DESTDIR)/usr/bin/$^
+	install -Dm555 ${BUILD_DIR}/$^ $(DESTDIR)/usr/bin/$^
 
 uninstall:
 	rm $(DESTDIR)/usr/bin/jftui
 
 clean:
-	rm -rf build
+	rm -rf ${BUILD_DIR}
+
+
+
+${BUILD_DIR}:
+	mkdir -p ${BUILD_DIR}
+
+${BUILD_DIR}/jftui: ${BUILD_DIR} $(SOURCES)
+	$(CC) $(CFLAGS) $(LFLAGS) $(OFLAGS) $(SOURCES) -g -o $@
+
+${BUILD_DIR}/jftui_debug: ${BUILD_DIR} $(OBJECTS) $(SOURCES)
+	$(CC) $(WFLAGS) $(LFLAGS) $(DFLAGS) $(OBJECTS) -o $@
+
+src/command_parser.c: src/command_grammar.leg
+	leg -o $@ $^
+
+${BUILD_DIR}/linenoise.o: src/linenoise.c
+	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
+
+${BUILD_DIR}/menu.o: src/menu.c src/command_parser.c
+	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ src/menu.c
+
+${BUILD_DIR}/shared.o: src/shared.c
+	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
+
+${BUILD_DIR}/config.o: src/config.c
+	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
+
+${BUILD_DIR}/disk_io.o: src/disk_io.c
+	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
+
+${BUILD_DIR}/json_parser.o: src/json_parser.c
+	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
+
+${BUILD_DIR}/network.o: src/network.c
+	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
+
+${BUILD_DIR}/main.o: src/main.c
+	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
