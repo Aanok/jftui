@@ -10,6 +10,9 @@
 #include <pthread.h>
 #include <unistd.h>
 
+#include <mpv/client.h>
+
+
 // for hardcoded strings
 #define JF_STATIC_STRLEN(str) (sizeof(str) - 1)
 
@@ -112,11 +115,23 @@ bool jf_menu_item_free(jf_menu_item *menu_item);
 
 ////////// GLOBAL APPLICATION STATE //////////
 typedef struct jf_global_state {
-	const char *config_dir;
-	const char *runtime_dir;
-	const char *session_id;
-	const char *server_name;
+	char *config_dir;
+	char *runtime_dir;
+	char *session_id;
+	char *server_name;
 } jf_global_state;
+
+
+// Function jf_global_state_init
+//
+// Performs early initialization of global application state.
+// Computes and assigns fields runtime_dir and session_id of application-wide jf_global_state struct.
+//
+// Returns:
+// 	true on success, false on failure.
+bool jf_global_state_init(void);
+
+void jf_global_state_clear(void);
 //////////////////////////////////////////////
 
 
@@ -148,6 +163,9 @@ bool jf_thread_buffer_init(jf_thread_buffer *tb);
 ///////////////////////////////////
 
 
+void jf_mpv_clear(void);
+
+
 // returns a NULL-terminated, malloc'd string result of the concatenation of its (expected char *) arguments past the first
 // the first argument is the number of following arguments
 char *jf_concat(const size_t n, ...);
@@ -163,6 +181,18 @@ char *jf_concat(const size_t n, ...);
 // 	- n: The number to print. It is always treated as unsigned and base-10. Regardless of the system's
 // 		 implementation of size_t, it must fit into 64 bits for the internal buffer not to overflow.
 void jf_print_zu(size_t n);
+
+
+// Function jf_generate_random_id
+//
+// Generates malloc'd string of random digits of arbitrary length.
+//
+// Parameters:
+// 	- len: length of the random string. If 0, a default of 10 will be applied.
+//
+// Returns:
+// 	Pointer to the string. It will need be free'd.
+char *jf_generate_random_id(size_t length);
 
 
 // UNUSED FOR NOW

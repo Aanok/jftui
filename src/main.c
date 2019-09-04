@@ -14,15 +14,14 @@
 #include "network.h"
 #include "json_parser.h"
 #include "config.h"
+#include "disk_io.h"
 
 
 #define JF_MPV_ERROR_FATAL(status)													\
 do {																				\
 	if (status < 0) {																\
 		fprintf(stderr, "FATAL: mpv API error: %s\n", mpv_error_string(status));	\
-		jf_network_cleanup();														\
-		jf_options_clear();															\
-		mpv_terminate_destroy(g_mpv_ctx);														\
+		mpv_terminate_destroy(g_mpv_ctx);											\
 		exit(EXIT_FAILURE);															\
 	}																				\
 } while (false);
@@ -86,7 +85,15 @@ int main(int argc, char *argv[])
 
 	// VARIABLES INIT
 	jf_options_init();
+	atexit(jf_options_clear);
 	jf_menu_stack_init();
+	atexit(jf_menu_stack_clear);
+	if (! jf_global_state_init()) {
+		exit(EXIT_FAILURE);
+	}
+	jf_disk_refresh();
+	atexit(jf_global_state_clear);
+	atexit(jf_disk_clear);
 	/////////////////
 	
 	
@@ -99,6 +106,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "FATAL: could not initialize network context.\n");
 		exit(EXIT_FAILURE);
 	}
+	atexit(jf_network_clear);
 	////////////////
 	
 
@@ -145,12 +153,12 @@ int main(int argc, char *argv[])
 	////////////////////////////////////
 	
 	// DOUBLE CHECK AND FINALIZE NETWORK CONFIG
-	if (! jf_network_refresh_config()) {
+	if (! jf_network_refresh()) {
 		free(config_path);
 		exit(EXIT_FAILURE);
 	}
 	// TODO ping server (and get name)
-	g_state.server_name = "TEST SERVER"; // placeholder; we will somehow need to send it to the menu TU
+	g_state.server_name = strdup("TEST SERVER"); // placeholder; we will somehow need to send it to the menu TU
 	// TODO check token still valid, prompt relogin otherwise
 	
 	// COMMIT CONFIG TO DISK
@@ -165,10 +173,9 @@ int main(int argc, char *argv[])
 	}
 
 	if ((g_mpv_ctx = jf_mpv_context_new()) == NULL) {
-		jf_network_cleanup();
-		jf_options_clear();
 		exit(EXIT_FAILURE);
 	}
+	atexit(jf_mpv_clear);
 	////////////
 
 //  	mpv_command_string(g_mpv_ctx, "loadfile /home/fabrizio/Music/future_people.opus append");
@@ -208,9 +215,6 @@ int main(int argc, char *argv[])
 				// is to comply and create a new context
 				mpv_terminate_destroy(g_mpv_ctx);
 				if ((g_mpv_ctx = jf_mpv_context_new()) == NULL) {
-					jf_menu_stack_clear();
-					jf_network_cleanup();
-					jf_options_clear();
 					exit(EXIT_FAILURE);
 				}
 				break;
@@ -221,14 +225,6 @@ int main(int argc, char *argv[])
 	}
 	////////////
 
-
-	// CLEANUP FOR EXIT
-	jf_menu_stack_clear();
-	jf_network_cleanup();
-	jf_options_clear();
-	mpv_terminate_destroy(g_mpv_ctx);
-	///////////////////
-	
 
 	exit(EXIT_SUCCESS);
 }

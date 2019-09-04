@@ -161,7 +161,7 @@ jf_menu_item *jf_thread_buffer_get_parsed_item(const size_t n)
 		offset = (n - 1) * (1 + JF_ID_LENGTH);
 		item_type = *(jf_item_type *)(s_tb.parsed_ids + offset);
 		item_id = (const char *)s_tb.parsed_ids + offset + 1;
-		return jf_menu_item_new(item_type, item_id, NULL);
+		return jf_menu_item_new(item_type, NULL, item_id, NULL);
 	} else {
 		return NULL;
 	}
@@ -257,7 +257,7 @@ static bool jf_network_make_headers()
 }
 
 
-bool jf_network_refresh_config()
+bool jf_network_refresh()
 {
 	// security bypass stuff
 	if (! g_options.ssl_verifyhost) {
@@ -272,7 +272,7 @@ bool jf_network_refresh_config()
 }
 
 
-void jf_network_cleanup()
+void jf_network_clear()
 {
 	curl_slist_free_all(s_headers_POST);
 	curl_easy_cleanup(s_handle);

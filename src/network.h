@@ -56,8 +56,8 @@ size_t jf_thread_buffer_item_count(void);
 void jf_thread_buffer_clear_error(void);
 
 bool jf_network_pre_init(void);
-bool jf_network_refresh_config(void);
-void jf_network_cleanup(void);
+bool jf_network_refresh(void);
+void jf_network_clear(void);
 
 
 ////////// NETWORKING //////////

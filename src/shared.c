@@ -1,6 +1,12 @@
 #include "shared.h"
 
 
+////////// GLOBALS //////////
+extern jf_global_state g_state;
+extern mpv_handle *g_mpv_ctx;
+/////////////////////////////
+
+
 ////////// JF_MENU_ITEM //////////
 jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children, const char *id, const char *name)
 {
@@ -52,6 +58,64 @@ bool jf_menu_item_free(jf_menu_item *menu_item)
 	return false;
 }
 //////////////////////////////////
+
+
+////////// GLOBAL APPLICATION STATE //////////
+bool jf_global_state_init(void)
+{
+	// runtime_dir
+	if ((g_state.runtime_dir = getenv("XDG_DATA_HOME")) == NULL) {
+		if ((g_state.runtime_dir = getenv("HOME")) == NULL) {
+			return false;
+		} else {
+			g_state.runtime_dir = jf_concat(2, getenv("HOME"), "/.local/share/jftui");
+		}
+	} else {
+		g_state.runtime_dir = jf_concat(2, g_state.runtime_dir, "/jftui");
+	}
+
+	// session_id
+	if ((g_state.session_id = jf_generate_random_id(0)) == NULL) {
+		return false;
+	}
+
+	return true;
+}
+
+
+void jf_global_state_clear()
+{
+	free(g_state.config_dir);
+	free(g_state.runtime_dir);
+	free(g_state.session_id);
+	free(g_state.server_name);
+}
+//////////////////////////////////////////////
+
+
+void jf_mpv_clear()
+{
+	mpv_terminate_destroy(g_mpv_ctx);
+}
+
+
+char *jf_generate_random_id(size_t len)
+{
+	char *rand_id;
+
+	// default length
+	len = len > 0 ? len : 10;
+
+	if ((rand_id = malloc(len + 1)) != NULL) {
+		rand_id[len] = '\0';
+		srand(time(NULL));
+		for (; len > 0; len--) {
+			rand_id[len - 1] = '0' + rand() % 10;
+		}
+	}
+
+	return rand_id;
+}
 
 
 char *jf_concat(size_t n, ...)
