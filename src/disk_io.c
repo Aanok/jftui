@@ -40,5 +40,10 @@ bool jf_disk_refresh()
 
 void jf_disk_clear()
 {
-	//TODO
+	char *tmp;
+
+	JF_DISK_CLOSE_DELETE_FILE(_payload_header);
+	JF_DISK_CLOSE_DELETE_FILE(_payload_body);
+	JF_DISK_CLOSE_DELETE_FILE(_playlist_header);
+	JF_DISK_CLOSE_DELETE_FILE(_playlist_body);
 }
