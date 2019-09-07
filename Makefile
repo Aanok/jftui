@@ -20,8 +20,8 @@ all: ${BUILD_DIR}/jftui
 
 debug: ${BUILD_DIR}/jftui_debug
 
-install: jftui
-	install -Dm555 ${BUILD_DIR}/$^ $(DESTDIR)/usr/bin/$^
+install: all
+	install -Dm555 ${BUILD_DIR}/jftui $(DESTDIR)/usr/bin/jftui
 
 uninstall:
 	rm $(DESTDIR)/usr/bin/jftui

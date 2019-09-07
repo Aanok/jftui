@@ -40,7 +40,7 @@ static mpv_handle *jf_mpv_context_new(void);
 mpv_handle *jf_mpv_context_new()
 {
 	mpv_handle *ctx;
-	int mpv_flag_yes = 1, mpv_flag_no = 0;
+	int mpv_flag_yes = 1;
 	char *x_emby_token;
 
 	if ((ctx = mpv_create()) == NULL) {
@@ -188,14 +188,21 @@ int main(int argc, char *argv[])
 				break;
 			default:
 				// read and process events
+// 				printf("DEBUG: waitin'.\n");
 				event = mpv_wait_event(g_mpv_ctx, -1);
-				printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
+// 				printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
 				switch (event->event_id) {
+					case MPV_EVENT_CLIENT_MESSAGE:
+						// playlist controls
+						if (((mpv_event_client_message *)event->data)->num_args > 0) {
+							if (strcmp(((mpv_event_client_message *)event->data)->args[0], "jftui-playlist-next") == 0) {
+								jf_menu_playlist_forward();
+							} else if (strcmp(((mpv_event_client_message *)event->data)->args[0], "jftui-playlist-prev") == 0) {
+								jf_menu_playlist_backward();
+							}
+						}
+						break;
 					case MPV_EVENT_END_FILE:
-						// reason MPV_END_FILE_REASON_STOP (2) is next/prev on playlist and we should ignore it
-						// reason MPV_END_FILE_REASON_EOF (0) is triggered BOTH mid-playlist AND at the end of a playlist :/
-						// reason MPV_END_FILE_REASON_QUIT (3) is when the user presses q mid-playback
-						printf("reason: %d\n", ((mpv_event_end_file *)event->data)->reason);
 						if (((mpv_event_end_file *)event->data)->reason == MPV_END_FILE_REASON_EOF) {
 							if (jf_menu_playlist_forward()) {
 								g_state.state = JF_STATE_PLAYBACK_SEEKING;
