@@ -12,6 +12,7 @@
 #include "shared.h"
 #include "config.h"
 #include "network.h"
+#include "disk_io.h"
 
 
 ////////// CODE MACROS //////////
@@ -22,80 +23,66 @@
 		fcntl(0, F_SETFL, fcntl(0, F_GETFL)& ~O_NONBLOCK);	\
 	} while (false)
 
-#define JF_MENU_UI_GET_REQUEST_URL_FATAL()												\
-	do {																				\
-		if ((request_url = jf_menu_item_get_request_url(s_context)) == NULL) {			\
-			fprintf(stderr, "FATAL: could not get request url for menu s_context.\n");	\
-			jf_menu_item_free(s_context);												\
-			s_context = NULL;															\
-			return JF_MENU_UI_STATUS_ERROR;												\
-		}																				\
-		printf("DEBUG: request_url = %s\n", request_url);								\
+#define JF_MENU_GET_REQUEST_URL_FATAL(item, url)											\
+	do {																					\
+		if ((url = jf_menu_item_get_request_url(item)) == NULL) {							\
+			fprintf(stderr, "FATAL: could not get request url for item %s.\n", item->name);	\
+			jf_menu_item_free(item);														\
+			item = NULL;																	\
+			g_state.state = JF_STATE_FAIL;													\
+			return false;																	\
+		}																					\
+		printf("DEBUG: request_url = %s\n", url);											\
 	} while (false)
 
-#define JF_MENU_UI_DO_REQUEST_FATAL(request_type)								\
+#define JF_MENU_DO_REQUEST_FATAL(item, url, request_type)						\
 	do {																		\
-		if ((reply = jf_request(request_url, request_type, NULL)) == NULL) {	\
+		if ((reply = jf_request(url, request_type, NULL)) == NULL) {			\
 			fprintf(stderr, "FATAL: could not allocate jf_reply.\n");			\
-			jf_menu_item_free(s_context);										\
-			s_context = NULL;													\
+			jf_menu_item_free(item);											\
+			item = NULL;														\
 			free(request_url);													\
-			return JF_MENU_UI_STATUS_ERROR;										\
+			g_state.state = JF_STATE_FAIL;										\
+			return false;														\
 		}																		\
 	} while (false)
 
-#define JF_MENU_UI_FOLDER_CHECK_REPLY_FATAL()									\
+#define JF_MENU_FOLDER_CHECK_REPLY_FATAL(item, reply)							\
 	do {																		\
 		if (JF_REPLY_PTR_HAS_ERROR(reply)) {									\
-			jf_menu_item_free(s_context);										\
+			jf_menu_item_free(item);											\
 			if (JF_REPLY_PTR_ERROR_IS(reply, JF_REPLY_ERROR_PARSER_DEAD)) {		\
 				fprintf(stderr, "FATAL: %s\n", jf_reply_error_string(reply));	\
 				jf_reply_free(reply);											\
-				return JF_MENU_UI_STATUS_ERROR;									\
+				g_state.state = JF_STATE_FAIL;									\
+				return false;													\
 			} else {															\
 				fprintf(stderr, "ERROR: %s.\n", jf_reply_error_string(reply));	\
 				jf_reply_free(reply);											\
 				jf_thread_buffer_clear_error();									\
-				return JF_MENU_UI_STATUS_GO_ON;									\
+				return false;													\
 			}																	\
 		}																		\
 	} while (false)
 
-#define JF_MENU_UI_PRINT_LEADER(tag, index)	\
-	do {									\
-		JF_STATIC_PRINT(tag " ");			\
-		jf_print_zu(index);					\
-		JF_STATIC_PRINT(". ");				\
+#define JF_MENU_PRINT_TITLE(title)				\
+	do {										\
+		printf("\n===== %s =====\n", title);	\
 	} while (false)
 
-#define JF_MENU_UI_PRINT_FOLDER_TITLE()						\
-	do {													\
-		JF_STATIC_PRINT("\n===== ");						\
-		write(1, s_context->name, strlen(s_context->name));	\
-		JF_STATIC_PRINT(" =====\n");						\
-	} while (false)
-
-#define JF_MENU_UI_PRINT_FOLDER(request_type)			\
-	do {												\
-			JF_MENU_UI_GET_REQUEST_URL_FATAL();			\
-			JF_MENU_UI_DO_REQUEST_FATAL(request_type);	\
-			free(request_url);							\
-			JF_MENU_UI_FOLDER_CHECK_REPLY_FATAL();		\
-			jf_reply_free(reply);						\
-			jf_menu_stack_push(s_context);				\
+#define JF_MENU_PRINT_FOLDER_FATAL(item, request_type)				\
+	do {															\
+		char *request_url;											\
+		jf_reply *reply;											\
+		JF_MENU_GET_REQUEST_URL_FATAL(item, request_url);			\
+		JF_MENU_DO_REQUEST_FATAL(item, request_url, request_type);	\
+		free(request_url);											\
+		JF_MENU_FOLDER_CHECK_REPLY_FATAL(item, reply);				\
+		jf_reply_free(reply);										\
+		jf_menu_stack_push(item);									\
 	} while (false)
 /////////////////////////////////
 		
-
-////////// JF_MENU_UI_STATUS //////////
-typedef unsigned char jf_menu_ui_status;
-
-#define JF_MENU_UI_STATUS_GO_ON		0
-#define JF_MENU_UI_STATUS_PLAYBACK	1
-#define JF_MENU_UI_STATUS_ERROR		2
-#define JF_MENU_UI_STATUS_QUIT		3
-///////////////////////////////////////
-
 
 ////////// JF_MENU_STACK //////////
 typedef struct jf_menu_stack {
@@ -103,6 +90,7 @@ typedef struct jf_menu_stack {
 	size_t size;
 	size_t used;
 } jf_menu_stack;
+
 
 // Procedure: jf_menu_stack_init
 //
@@ -126,10 +114,11 @@ void jf_menu_stack_clear(void);
 jf_item_type jf_menu_child_get_type(size_t n);
 
 
-void jf_menu_child_dispatch(const size_t n);
-
-
 size_t jf_menu_child_count(void);
+
+
+// false on error
+bool jf_menu_child_dispatch(const size_t n);
 
 
 void jf_menu_dotdot(void);
@@ -138,16 +127,13 @@ void jf_menu_dotdot(void);
 void jf_menu_quit(void);
 
 
+bool jf_menu_playlist_forward(void);
+bool jf_menu_playlist_backward(void);
+
 // Function: jf_menu_ui
 //
 // Runs the user interface loop until switching context to mpv or exiting.
-//
-// Returns:
-// 	- JF_MENU_UI_STATUS_GO_ON if the UI loop should iterate again;
-// 	- JF_MENU_UI_STATUS_PLAYBACK if the context should switch to mpv playback;
-// 	- JF_MENU_UI_STATUS_ERROR on an error state;
-// 	- JF_MENU_UI_STATUS_QUIT if the user requested the application to exit.
-jf_menu_ui_status jf_menu_ui(void);
+void jf_menu_ui(void);
 /////////////////////////////////////////
 
 

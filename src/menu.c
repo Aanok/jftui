@@ -53,6 +53,7 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
 	};
 static jf_menu_stack s_menu_stack;
 static jf_menu_item *s_context = NULL;
+static size_t s_playlist_current = 0;
 //////////////////////////////////////
 
 
@@ -91,8 +92,10 @@ static jf_menu_item *jf_menu_stack_pop(void);
 static const jf_menu_item *jf_menu_stack_peek(void);
 
 static jf_menu_item *jf_menu_child_get(size_t n);
-static bool jf_menu_read_commands(void);
 static char *jf_menu_item_get_request_url(const jf_menu_item *item);
+static bool jf_menu_print_context(void);
+static void jf_menu_play_item(const jf_menu_item *item);
+static void jf_menu_try_play(void);
 //////////////////////////////////////
 
 
@@ -170,53 +173,6 @@ void jf_menu_stack_clear()
 
 
 ////////// USER INTERFACE LOOP //////////
-static bool jf_menu_read_commands()
-{
-	yycontext yy;
-	char *line = NULL;
-	memset(&yy, 0, sizeof(yycontext));
-	while (true) {
-		switch (yy_command_parser_get_state(&yy)) {
-			case JF_CMD_VALIDATE_START:
-				// read input and do first pass (validation)
-				line = linenoise("> ");
-				yy.input = line;
-				yyparse(&yy);
-				break;
-			case JF_CMD_VALIDATE_OK:
-				// reset parser but preserve state and input for second pass (dispatch)
-				yyrelease(&yy);
-				memset(&yy, 0, sizeof(yycontext));
-				yy.state = JF_CMD_VALIDATE_OK;
-				yy.input = line;
-				yyparse(&yy);
-				break;
-			case JF_CMD_SUCCESS:
-				linenoiseHistoryAdd(line);
-				free(line);
-				yyrelease(&yy);
-				return true;
-			case JF_CMD_FAIL_FOLDER:
-				fprintf(stderr, "ERROR: cannot open many folders or both folders and items with non-recursive command.\n");
-				free(line);
-				yyrelease(&yy);
-				memset(&yy, 0, sizeof(yycontext));
-				break;
-			case JF_CMD_FAIL_SYNTAX:
-				JF_STATIC_PRINT_ERROR("ERROR: malformed command.\n");
-				free(line);
-				yyrelease(&yy);
-				memset(&yy, 0, sizeof(yycontext));
-				break;
-			default:
-				JF_STATIC_PRINT_ERROR("ERROR: command parser ended in unexpected state. This is a bug.\n");
-				free(line);
-				yyrelease(&yy);
-				return false;
-		}
-	}
-}
-
 
 // TODO: EXTREMELY incomplete, stub
 static char *jf_menu_item_get_request_url(const jf_menu_item *item)
@@ -303,6 +259,118 @@ static jf_menu_item *jf_menu_child_get(size_t n)
 }
 
 
+static bool jf_menu_print_context()
+{
+	jf_menu_item **child;
+	size_t i;
+
+	if (s_context == NULL) {
+		fprintf(stderr, "ERROR: jf_menu_print_context found NULL menu context. This is a bug.\n");
+		return false;
+	}
+
+	if (! JF_ITEM_TYPE_IS_FOLDER(s_context->type)) {
+		fprintf(stderr, "ERROR: jf_menu_print_context found non-folder menu context. This is a bug.\n");
+		return false;
+	}
+
+	switch (s_context->type) {
+		// DYNAMIC FOLDERS: fetch children, parser prints entries
+		case JF_ITEM_TYPE_COLLECTION:
+		case JF_ITEM_TYPE_USER_VIEW:
+		case JF_ITEM_TYPE_FOLDER:
+		case JF_ITEM_TYPE_PLAYLIST:
+		case JF_ITEM_TYPE_MENU_FAVORITES:
+		case JF_ITEM_TYPE_MENU_CONTINUE:
+		case JF_ITEM_TYPE_MENU_NEXT_UP:
+		case JF_ITEM_TYPE_MENU_LATEST:
+		case JF_ITEM_TYPE_MENU_LIBRARIES:
+			JF_MENU_PRINT_TITLE(s_context->name);
+			JF_MENU_PRINT_FOLDER_FATAL(s_context, JF_REQUEST_SAX_PROMISCUOUS);
+			break;
+		case JF_ITEM_TYPE_COLLECTION_MUSIC:
+		case JF_ITEM_TYPE_COLLECTION_SERIES:
+		case JF_ITEM_TYPE_COLLECTION_MOVIES:
+		case JF_ITEM_TYPE_ARTIST:
+		case JF_ITEM_TYPE_ALBUM:
+		case JF_ITEM_TYPE_SEASON:
+		case JF_ITEM_TYPE_SERIES:
+			JF_MENU_PRINT_TITLE(s_context->name);
+			JF_MENU_PRINT_FOLDER_FATAL(s_context, JF_REQUEST_SAX);
+			break;
+		// PERSISTENT FOLDERS
+		case JF_ITEM_TYPE_MENU_ROOT:
+			JF_MENU_PRINT_TITLE(s_context->name);
+			child = s_context->children;
+			i = 1;
+			while (*child) {
+				printf("D %zu. %s\n", i, (*child)->name);
+				child++;
+				i++;
+			}
+			// push on stack to allow backtracking
+			jf_menu_stack_push(s_context);
+			break;
+		default:
+			fprintf(stderr, "ERROR: jf_menu_dispatch_context unsupported menu item type. This is a bug.\n");
+			jf_menu_item_free(s_context);
+			return false;
+	}
+
+	return true;
+}
+
+
+static void jf_menu_play_item(const jf_menu_item *item)
+{
+	char *request_url;
+
+	if (item == NULL) {
+		return;
+	}
+
+	if (JF_ITEM_TYPE_IS_FOLDER(item->type)) {
+		fprintf(stderr, "ERROR: jf_menu_play_item invoked on folder item type. This is a bug.\n");
+		return;
+	}
+
+	switch (item->type) {
+		case JF_ITEM_TYPE_AUDIO:
+		case JF_ITEM_TYPE_AUDIOBOOK:
+			if ((request_url = jf_menu_item_get_request_url(item)) == NULL) {
+				fprintf(stderr, "ERROR: jf_menu_play_item could not get request url for item %s\n", item->name);
+				return;
+			}
+			const char *mpv_args[] = { "loadfile", request_url, NULL };
+			mpv_command(g_mpv_ctx, mpv_args); 
+			free(request_url);
+			break;
+		case JF_ITEM_TYPE_EPISODE:
+		case JF_ITEM_TYPE_MOVIE:
+			printf("DEBUG: jf_menu_play_item video types not yet supported.\n");
+			break;
+		default:
+			fprintf(stderr, "ERROR: jf_menu_play_item unsupported item type (%d). This is a bug.\n",
+					item->type);
+			break;
+	}
+}
+
+
+static void jf_menu_try_play()
+{
+	jf_menu_item *item;
+
+	if (jf_disk_playlist_count() > 0) {
+		g_state.state = JF_STATE_PLAYBACK;
+		s_playlist_current = 1;
+		item = jf_disk_playlist_get(1);
+		jf_menu_play_item(item);
+		jf_menu_item_free(item);
+	}
+}
+
+
 jf_item_type jf_menu_child_get_type(size_t n)
 {
 	jf_menu_item **child;
@@ -324,11 +392,49 @@ jf_item_type jf_menu_child_get_type(size_t n)
 }
 
 
-void jf_menu_child_dispatch(const size_t n)
+bool jf_menu_child_dispatch(size_t n)
 {
-//  	jf_menu_item *child = jf_menu_child_get(n);
+	jf_menu_item *child = jf_menu_child_get(n);
 
-	JF_STATIC_PRINT("DEBUG: dispatching atom.\n");
+	if (child == NULL) {
+		return true;
+	}
+
+	switch (child->type) {
+		// ATOMS: add to playlist
+		case JF_ITEM_TYPE_AUDIO:
+		case JF_ITEM_TYPE_AUDIOBOOK:
+		case JF_ITEM_TYPE_EPISODE:
+		case JF_ITEM_TYPE_MOVIE:
+			jf_disk_playlist_add(child);
+			jf_menu_item_free(child);
+			break;
+		// FOLDERS: push on stack
+		case JF_ITEM_TYPE_COLLECTION:
+		case JF_ITEM_TYPE_USER_VIEW:
+		case JF_ITEM_TYPE_FOLDER:
+		case JF_ITEM_TYPE_PLAYLIST:
+		case JF_ITEM_TYPE_MENU_FAVORITES:
+		case JF_ITEM_TYPE_MENU_CONTINUE:
+		case JF_ITEM_TYPE_MENU_NEXT_UP:
+		case JF_ITEM_TYPE_MENU_LATEST:
+		case JF_ITEM_TYPE_MENU_LIBRARIES:
+		case JF_ITEM_TYPE_COLLECTION_MUSIC:
+		case JF_ITEM_TYPE_COLLECTION_SERIES:
+		case JF_ITEM_TYPE_COLLECTION_MOVIES:
+		case JF_ITEM_TYPE_ARTIST:
+		case JF_ITEM_TYPE_ALBUM:
+		case JF_ITEM_TYPE_SEASON:
+		case JF_ITEM_TYPE_SERIES:
+			jf_menu_stack_push(child);
+			break;
+		default:
+			fprintf(stderr, "ERROR: jf_menu_child_dispatch unsupported menu item type. This is a bug.\n");
+			jf_menu_item_free(child);
+			break;
+	}
+
+	return true;
 }
 
 
@@ -368,16 +474,44 @@ void jf_menu_dotdot()
 
 void jf_menu_quit()
 {
-	jf_menu_stack_push(jf_menu_item_new(JF_ITEM_TYPE_COMMAND_QUIT, NULL, NULL, NULL));
+	g_state.state = JF_STATE_USER_QUIT;
 }
 
 
-jf_menu_ui_status jf_menu_ui()
+bool jf_menu_playlist_forward()
 {
-	jf_menu_item **child;
-	jf_reply *reply;
-	char *request_url;
-	size_t i;
+	jf_menu_item *item;
+
+	if (s_playlist_current < jf_disk_playlist_count()) {
+		item = jf_disk_playlist_get(++s_playlist_current);
+		jf_menu_play_item(item);
+		jf_menu_item_free(item);
+		return true;
+	} else {
+		return false;
+	}
+}
+
+
+bool jf_menu_playlist_backward()
+{
+	jf_menu_item *item;
+
+	if (s_playlist_current > 1) {
+		item = jf_disk_playlist_get(--s_playlist_current);
+		jf_menu_play_item(item);
+		jf_menu_item_free(item);
+		return true;
+	} else {
+		return false;
+	}
+}
+
+
+void jf_menu_ui()
+{
+	yycontext yy;
+	char *line = NULL;
 
 	// ACQUIRE ITEM CONTEXT
 	if ((s_context = jf_menu_stack_pop()) == NULL) {
@@ -386,74 +520,60 @@ jf_menu_ui_status jf_menu_ui()
 		s_context = s_root_menu;
 	}
 
-	do {
-		// dispatch; download more info if necessary
-		switch (s_context->type) {
-			// AUDIO ATOMS
-			case JF_ITEM_TYPE_AUDIO:
-			case JF_ITEM_TYPE_AUDIOBOOK:
-				JF_MENU_UI_GET_REQUEST_URL_FATAL();
-				const char *mpv_command_args[3] = { "loadfile", request_url, NULL };
-				mpv_command(g_mpv_ctx, mpv_command_args);
-				free(request_url);
-				jf_menu_item_free(s_context);
-				return JF_MENU_UI_STATUS_PLAYBACK;
-			// VIDEO ATOMS
-			case JF_ITEM_TYPE_EPISODE:
-			case JF_ITEM_TYPE_MOVIE:
-				JF_MENU_UI_GET_REQUEST_URL_FATAL();
-				JF_MENU_UI_DO_REQUEST_FATAL(JF_REQUEST_IN_MEMORY);
-				free(request_url);
-				jf_menu_item_free(s_context);
-				break;
-			// DYNAMIC FOLDERS: fetch children, parser prints entries
-			case JF_ITEM_TYPE_COLLECTION:
-			case JF_ITEM_TYPE_USER_VIEW:
-			case JF_ITEM_TYPE_FOLDER:
-			case JF_ITEM_TYPE_PLAYLIST:
-			case JF_ITEM_TYPE_MENU_FAVORITES:
-			case JF_ITEM_TYPE_MENU_CONTINUE:
-			case JF_ITEM_TYPE_MENU_NEXT_UP:
-			case JF_ITEM_TYPE_MENU_LATEST:
-			case JF_ITEM_TYPE_MENU_LIBRARIES:
-				JF_MENU_UI_PRINT_FOLDER_TITLE();
-				JF_MENU_UI_PRINT_FOLDER(JF_REQUEST_SAX_PROMISCUOUS);
-				break;
-			case JF_ITEM_TYPE_COLLECTION_MUSIC:
-			case JF_ITEM_TYPE_COLLECTION_SERIES:
-			case JF_ITEM_TYPE_COLLECTION_MOVIES:
-			case JF_ITEM_TYPE_ARTIST:
-			case JF_ITEM_TYPE_ALBUM:
-			case JF_ITEM_TYPE_SEASON:
-			case JF_ITEM_TYPE_SERIES:
-				JF_MENU_UI_PRINT_FOLDER_TITLE();
-				JF_MENU_UI_PRINT_FOLDER(JF_REQUEST_SAX);
-				break;
-			// PERSISTENT FOLDERS
-			case JF_ITEM_TYPE_MENU_ROOT:
-				JF_MENU_UI_PRINT_FOLDER_TITLE();
-				child = s_context->children;
-				i = 1;
-				while (*child) {
-					JF_MENU_UI_PRINT_LEADER("D", i);
-					write(1, (*child)->name, strlen((*child)->name));
-					JF_STATIC_PRINT("\n");
-					child++;
-					i++;
-				}
-				// push back on stack to allow backtracking
-				jf_menu_stack_push(s_context);
-				break;
-			case JF_ITEM_TYPE_COMMAND_QUIT:
-				jf_menu_item_free(s_context);
-				return JF_MENU_UI_STATUS_QUIT;
-			default:
-				JF_STATIC_PRINT_ERROR("ERROR: jf_menu_ui unsupported menu item type. This is a bug.\n");
-				jf_menu_item_free(s_context);
-				break;
+	while (true) {
+		// PRINT MENU
+		if (! jf_menu_print_context()) {
+			return;
 		}
-	} while (jf_menu_read_commands() == false);
-
-	return JF_MENU_UI_STATUS_GO_ON;
+		// READ AND PROCESS USER COMMAND
+		memset(&yy, 0, sizeof(yycontext));
+		while (true) {
+			switch (yy_command_parser_get_state(&yy)) {
+				case JF_CMD_VALIDATE_START:
+					// read input and do first pass (validation)
+					line = linenoise("> ");
+					yy.input = line;
+					yyparse(&yy);
+					break;
+				case JF_CMD_VALIDATE_OK:
+					// reset parser but preserve state and input for second pass (dispatch)
+					yyrelease(&yy);
+					memset(&yy, 0, sizeof(yycontext));
+					yy.state = JF_CMD_VALIDATE_OK;
+					yy.input = line;
+					yyparse(&yy);
+					break;
+				case JF_CMD_SUCCESS:
+					linenoiseHistoryAdd(line);
+					free(line);
+					yyrelease(&yy);
+					jf_menu_try_play();
+					return;
+				case JF_CMD_FAIL_FOLDER:
+					fprintf(stderr, "ERROR: cannot open many folders or both folders and items with non-recursive command.\n");
+					free(line);
+					yyrelease(&yy);
+					memset(&yy, 0, sizeof(yycontext));
+					break;
+				case JF_CMD_FAIL_SYNTAX:
+					fprintf(stderr, "ERROR: malformed command.\n");
+					free(line);
+					yyrelease(&yy);
+					memset(&yy, 0, sizeof(yycontext));
+					break;
+				case JF_CMD_FAIL_DISPATCH:
+					// exit silently
+					free(line);
+					yyrelease(&yy);
+					return;
+				default:
+					fprintf(stderr, "ERROR: command parser ended in unexpected state. This is a bug.\n");
+					free(line);
+					yyrelease(&yy);
+					memset(&yy, 0, sizeof(yycontext));
+					break;
+			}
+		}
+	}
 }
 /////////////////////////////////////////

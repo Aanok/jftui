@@ -8,17 +8,15 @@
 
 #include "shared.h"
 
+////////// CODE MACROS //////////
 #define JF_DISK_OPEN_FILE_FATAL(suffix)												\
 	do {																			\
 		tmp = jf_concat(4, g_state.runtime_dir, "/", g_state.session_id, #suffix);	\
 		errno = 0;																	\
 		if ((s ## suffix = fopen(tmp, "w+")) == NULL) {								\
 			int fopen_errno = errno;												\
-			JF_STATIC_PRINT_ERROR("FATAL: could not open file ");				 	\
-			write(2, tmp, strlen(tmp));												\
-			JF_STATIC_PRINT_ERROR(": ");											\
-			write(2, strerror(fopen_errno), strlen(strerror(fopen_errno)));			\
-			JF_STATIC_PRINT_ERROR(".\n");											\
+			fprintf(stderr, "FATAL: could not open file %s: %s.\n",					\
+					tmp, strerror(fopen_errno));									\
 			free(tmp);																\
 			return false;															\
 		}																			\
@@ -32,20 +30,30 @@
 		errno = 0;																	\
 		if (unlink(tmp) != 0) {														\
 			int unlink_errno = errno;												\
-			JF_STATIC_PRINT_ERROR("WARNING: could not delete file ");				\
-			write(2, tmp, strlen(tmp));												\
-			JF_STATIC_PRINT_ERROR(": ");											\
-			write(2, strerror(unlink_errno), strlen(strerror(unlink_errno)));		\
-			JF_STATIC_PRINT_ERROR(".\n");											\
+			fprintf(stderr, "WARNING: could not delete file %s: %s.\n",				\
+					tmp, strerror(unlink_errno));									\
 		}																			\
 		free(tmp);																	\
 	} while (false)
+/////////////////////////////////
 
+
+////////// CONSTANTS //////////
 #define JF_DISK_BUFFER_SIZE 1024
+///////////////////////////////
 
+
+////////// FUNCTION STUBS //////////
 bool jf_disk_refresh(void);
+
 void jf_disk_clear(void);
 
+
 bool jf_disk_playlist_add(const jf_menu_item *item);
+
+// 1-indexed
 jf_menu_item *jf_disk_playlist_get(size_t n);
+
+size_t jf_disk_playlist_count(void);
+////////////////////////////////////
 #endif

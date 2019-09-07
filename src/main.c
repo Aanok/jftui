@@ -70,8 +70,6 @@ int main(int argc, char *argv[])
 	// VARIABLES
 	char *config_path;
 	mpv_event *event;
-	bool run_ok = true;
-	jf_menu_ui_status ui_status;
 	int mpv_flag_yes = 1, mpv_flag_no = 0;
 
 	// LIBMPV VERSION CHECK
@@ -178,53 +176,63 @@ int main(int argc, char *argv[])
 	atexit(jf_mpv_clear);
 	////////////
 
-//  	mpv_command_string(g_mpv_ctx, "loadfile /home/fabrizio/Music/future_people.opus append");
-	// NB there is now way to prebuild a playlist and pass it to mpv once
-	// you need to "loadfile file1" then "loadfile file2 append"
 
-	// MAIN LOOP
-	while (run_ok) {
-		event = mpv_wait_event(g_mpv_ctx, -1);
-		printf("event: %s\n", mpv_event_name(event->event_id)); //debug
-		switch (event->event_id) {
-			case MPV_EVENT_END_FILE:
-				// reason MPV_END_FILE_REASON_STOP (2) is next/prev on playlist and we should ignore it
-				// reason MPV_END_FILE_REASON_EOF (0) is triggered BOTH mid-playlist AND at the end of a playlist :/
-				// reason MPV_END_FILE_REASON_QUIT (3) is when the user presses q mid-playback
-				printf("\treason: %d\n", ((mpv_event_end_file *)event->data)->reason);
+	////////// MAIN LOOP //////////
+	while (true) {
+		switch (g_state.state) {
+			case JF_STATE_USER_QUIT:
+				exit(EXIT_SUCCESS);
 				break;
-			case MPV_EVENT_IDLE:
-				// go into UI mode
-				JF_MPV_ERROR_FATAL(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_no));
-				while ((ui_status = jf_menu_ui()) == JF_MENU_UI_STATUS_GO_ON) ;
-				switch (ui_status) {
-					case JF_MENU_UI_STATUS_ERROR:
-					case JF_MENU_UI_STATUS_QUIT:
-						run_ok = false;
-						break;
-					default:
-						// GO_ON (which never happens) and PLAYBACK
-						// TODO: double check that we don't have something to do for PLAYBACK
-						break;
-				}
-				JF_MPV_ERROR_FATAL(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
-				break;
-			case MPV_EVENT_SHUTDOWN:
-				// it is unfortunate, but the cleanest way to handle this case
-				// (which is when mpv receives a "quit" command)
-				// is to comply and create a new context
-				mpv_terminate_destroy(g_mpv_ctx);
-				if ((g_mpv_ctx = jf_mpv_context_new()) == NULL) {
-					exit(EXIT_FAILURE);
-				}
+			case JF_STATE_FAIL:
+				exit(EXIT_FAILURE);
 				break;
 			default:
-				// no-op on everything else
-				break;
+				// read and process events
+				event = mpv_wait_event(g_mpv_ctx, -1);
+				printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
+				switch (event->event_id) {
+					case MPV_EVENT_END_FILE:
+						// reason MPV_END_FILE_REASON_STOP (2) is next/prev on playlist and we should ignore it
+						// reason MPV_END_FILE_REASON_EOF (0) is triggered BOTH mid-playlist AND at the end of a playlist :/
+						// reason MPV_END_FILE_REASON_QUIT (3) is when the user presses q mid-playback
+						printf("reason: %d\n", ((mpv_event_end_file *)event->data)->reason);
+						if (((mpv_event_end_file *)event->data)->reason == MPV_END_FILE_REASON_EOF) {
+							if (jf_menu_playlist_forward()) {
+								g_state.state = JF_STATE_PLAYBACK_SEEKING;
+							}
+						}
+						break;
+					case MPV_EVENT_IDLE:
+						if (g_state.state == JF_STATE_PLAYBACK_SEEKING) {
+							// digest idle event while we move to the next track
+							g_state.state = JF_STATE_PLAYBACK;
+						} else {
+							// go into UI mode
+							g_state.state = JF_STATE_MENU_UI;
+							jf_disk_refresh();
+							JF_MPV_ERROR_FATAL(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_no));
+							while (g_state.state == JF_STATE_MENU_UI) jf_menu_ui();
+							JF_MPV_ERROR_FATAL(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+						}
+						break;
+					case MPV_EVENT_SHUTDOWN:
+						// it is unfortunate, but the cleanest way to handle this case
+						// (which is when mpv receives a "quit" command)
+						// is to comply and create a new context
+						mpv_terminate_destroy(g_mpv_ctx);
+						if ((g_mpv_ctx = jf_mpv_context_new()) == NULL) {
+							exit(EXIT_FAILURE);
+						}
+						break;
+					default:
+						// no-op on everything else
+						break;
+				}
 		}
 	}
-	////////////
+	///////////////////////////////
 
 
+	// never reached
 	exit(EXIT_SUCCESS);
 }

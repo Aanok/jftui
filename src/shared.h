@@ -13,19 +13,23 @@
 #include <mpv/client.h>
 
 
+////////// CODE MACROS //////////
 // for hardcoded strings
 #define JF_STATIC_STRLEN(str) (sizeof(str) - 1)
 
-#define JF_STATIC_PRINT(str)					\
-	do {										\
-		write(1, str, JF_STATIC_STRLEN(str));	\
+#define JF_STATIC_PRINT(str)								\
+	do {													\
+		fwrite(&(str), 1, JF_STATIC_STRLEN(str), stdout);	\
 	} while (false)
 
-#define JF_STATIC_PRINT_ERROR(str)				\
-	do {										\
-		write(2, str, JF_STATIC_STRLEN(str));	\
+#define JF_STATIC_PRINT_ERROR(str)							\
+	do {													\
+		fwrite(&(str), 1, JF_STATIC_STRLEN(str), stderr);	\
 	} while (false)
+/////////////////////////////////
 
+
+////////// CONSTANTS //////////
 #define JF_VERSION "prealpha"
 
 #define JF_THREAD_BUFFER_DATA_SIZE (CURL_MAX_WRITE_SIZE +1)
@@ -33,6 +37,7 @@
 #define JF_ID_LENGTH 32
 
 #define JF_CONFIG_DEVICEID_MAX_LEN 32
+///////////////////////////////
 
 
 ////////// GENERIC JELLYFIN ITEM REPRESENTATION //////////
@@ -46,9 +51,6 @@ typedef char jf_item_type;
 #define JF_ITEM_TYPE_EPISODE		2
 #define JF_ITEM_TYPE_MOVIE			3
 #define JF_ITEM_TYPE_AUDIOBOOK		4
-
-// Special menu commands
-#define JF_ITEM_TYPE_COMMAND_QUIT	10
 
 // Folders
 #define JF_ITEM_TYPE_COLLECTION			20
@@ -114,11 +116,23 @@ bool jf_menu_item_free(jf_menu_item *menu_item);
 
 
 ////////// GLOBAL APPLICATION STATE //////////
+typedef char jf_application_state;
+
+#define JF_STATE_STARTING			0
+#define JF_STATE_MENU_UI			1
+#define JF_STATE_PLAYBACK			2
+#define JF_STATE_PLAYBACK_SEEKING	3
+
+#define JF_STATE_USER_QUIT	-1
+#define JF_STATE_FAIL		-2
+
+
 typedef struct jf_global_state {
 	char *config_dir;
 	char *runtime_dir;
 	char *session_id;
 	char *server_name;
+	jf_application_state state;
 } jf_global_state;
 
 

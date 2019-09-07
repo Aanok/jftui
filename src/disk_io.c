@@ -23,11 +23,8 @@ bool jf_disk_refresh()
 		errno = 0;
 		if (mkdir(g_state.runtime_dir, S_IRWXU) == -1) {
 			int mkdir_errno = errno;
-			JF_STATIC_PRINT("FATAL: could not create runtime directory ");
-			write(2, g_state.runtime_dir, strlen(g_state.runtime_dir));
-			JF_STATIC_PRINT(": ");
-			write(2, strerror(mkdir_errno), strlen(strerror(mkdir_errno)));
-			JF_STATIC_PRINT("\n");
+			fprintf(stderr, "FATAL: could not create runtime directory %s: %s.\n",
+					g_state.runtime_dir, strerror(mkdir_errno));
 			return false;
 		}
 	}
@@ -54,9 +51,9 @@ void jf_disk_clear()
 }
 
 
-bool jf_playlist_add(jf_menu_item *item)
+bool jf_disk_playlist_add(const jf_menu_item *item)
 {
-	int starting_body_offset;
+	long starting_body_offset;
 
 	if (item == NULL) {
 		return false;
@@ -68,8 +65,9 @@ bool jf_playlist_add(jf_menu_item *item)
 
 	// TODO error check!
 	fseek(s_playlist_header, 0, SEEK_END);
-	starting_body_offset = fseek(s_playlist_body, 0, SEEK_END);
-	fwrite(&starting_body_offset, sizeof(int), 1, s_playlist_header);
+	fseek(s_playlist_body, 0, SEEK_END);
+	starting_body_offset = ftell(s_playlist_body);
+	fwrite(&starting_body_offset, sizeof(long), 1, s_playlist_header);
 
 	fwrite(&(item->type), sizeof(jf_item_type), 1, s_playlist_body);
 	fwrite(item->id, 1, sizeof(item->id), s_playlist_body);
@@ -99,8 +97,8 @@ jf_menu_item *jf_disk_playlist_get(size_t n)
 
 	// TODO error check!
 	n--; // 0-indexed
-	fseek(s_playlist_header, (long)(n * sizeof(int)), SEEK_SET);
-	fread(&body_offset, sizeof(int), 1, s_playlist_header);
+	fseek(s_playlist_header, (long)(n * sizeof(long)), SEEK_SET);
+	fread(&body_offset, sizeof(long), 1, s_playlist_header);
 	fseek(s_playlist_body, body_offset, SEEK_SET);
 
 	fread(&(item->type), sizeof(jf_item_type), 1, s_playlist_body);
@@ -120,4 +118,10 @@ jf_menu_item *jf_disk_playlist_get(size_t n)
 	}
 
 	return item;
+}
+
+
+size_t jf_disk_playlist_count()
+{
+	return s_playlist_count;
 }
