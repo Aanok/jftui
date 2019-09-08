@@ -513,6 +513,9 @@ void jf_menu_ui()
 	yycontext yy;
 	char *line = NULL;
 
+	// CLEAR DISK CACHE
+	jf_disk_refresh();
+
 	// ACQUIRE ITEM CONTEXT
 	if ((s_context = jf_menu_stack_pop()) == NULL) {
 		// expected on first run

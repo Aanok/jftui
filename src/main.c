@@ -216,7 +216,6 @@ int main(int argc, char *argv[])
 						} else {
 							// go into UI mode
 							g_state.state = JF_STATE_MENU_UI;
-							jf_disk_refresh();
 							JF_MPV_ERROR_FATAL(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_no));
 							while (g_state.state == JF_STATE_MENU_UI) jf_menu_ui();
 							JF_MPV_ERROR_FATAL(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
