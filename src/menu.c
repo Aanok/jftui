@@ -20,36 +20,42 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
 				JF_ITEM_TYPE_MENU_FAVORITES,
 				NULL,
 				"",
-				"Favorites"
+				"Favorites",
+				0
 			},
 			&(jf_menu_item){
 				JF_ITEM_TYPE_MENU_CONTINUE,
 				NULL,
 				"",
-				"Continue Watching"
+				"Continue Watching",
+				0
 			},
 			&(jf_menu_item){
 				JF_ITEM_TYPE_MENU_NEXT_UP,
 				NULL,
 				"",
-				"Next Up"
+				"Next Up",
+				0
 			},
 			&(jf_menu_item){
 				JF_ITEM_TYPE_MENU_LATEST,
 				NULL,
 				"",
-				"Latest Added"
+				"Latest Added",
+				0
 			},
 			&(jf_menu_item){
 				JF_ITEM_TYPE_MENU_LIBRARIES,
 				NULL,
 				"",
-				"User Views"
+				"User Views",
+				0
 			},
 			NULL
 		},
 		"",
-		"Server Root"
+		"Server Root",
+		0
 	};
 static jf_menu_stack s_menu_stack;
 static jf_menu_item *s_context = NULL;
@@ -341,8 +347,8 @@ static void jf_menu_play_item(const jf_menu_item *item)
 				fprintf(stderr, "ERROR: jf_menu_play_item could not get request url for item %s\n", item->name);
 				return;
 			}
-			const char *mpv_args[] = { "loadfile", request_url, NULL };
-			mpv_command(g_mpv_ctx, mpv_args); 
+			const char *loadfile[] = { "loadfile", request_url, NULL };
+			mpv_command(g_mpv_ctx, loadfile); 
 			free(request_url);
 			break;
 		case JF_ITEM_TYPE_EPISODE:
@@ -513,9 +519,6 @@ void jf_menu_ui()
 	yycontext yy;
 	char *line = NULL;
 
-	// CLEAR DISK CACHE
-	jf_disk_refresh();
-
 	// ACQUIRE ITEM CONTEXT
 	if ((s_context = jf_menu_stack_pop()) == NULL) {
 		// expected on first run
@@ -524,6 +527,9 @@ void jf_menu_ui()
 	}
 
 	while (true) {
+		// CLEAR DISK CACHE
+		jf_disk_refresh();
+
 		// PRINT MENU
 		if (! jf_menu_print_context()) {
 			return;

@@ -8,7 +8,8 @@ extern mpv_handle *g_mpv_ctx;
 
 
 ////////// JF_MENU_ITEM //////////
-jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children, const char *id, const char *name)
+jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children,
+		const char *id, const char *name, long long ticks)
 {
 	jf_menu_item *menu_item;
 
@@ -29,17 +30,18 @@ jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children, const
 	} else {
 		menu_item->name = strdup(name);
 	}
+	menu_item->ticks = ticks;
 	
 	return menu_item;
 }
 
 
-bool jf_menu_item_free(jf_menu_item *menu_item)
+void jf_menu_item_free(jf_menu_item *menu_item)
 {
 	jf_menu_item **child;
 
 	if (menu_item == NULL) {
-		return true;
+		return;
 	}
 
 	if (! (JF_ITEM_TYPE_IS_PERSISTENT(menu_item->type))) {
@@ -52,10 +54,7 @@ bool jf_menu_item_free(jf_menu_item *menu_item)
 		}
 		free(menu_item->name);
 		free(menu_item);
-		return true;
 	}
-
-	return false;
 }
 //////////////////////////////////
 

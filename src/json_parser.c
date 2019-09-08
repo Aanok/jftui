@@ -46,6 +46,7 @@ static int sax_items_start_map(void *ctx)
 		case JF_SAX_IDLE:
 			context->tb->item_count = 0;
 			jf_sax_context_current_item_clear(context);
+			jf_disk_refresh();
 			context->parser_state = JF_SAX_IN_QUERYRESULT_MAP;
 			break;
 		case JF_SAX_IN_LATEST_ARRAY:
@@ -152,7 +153,8 @@ static int sax_items_end_map(void *ctx)
 
 			// SAVE AND CLEAR ITEM
 			jf_menu_item *item = jf_menu_item_new(context->current_item_type, NULL,
-					(const char*)context->id, context->current_item_display_name->buf);
+					(const char*)context->id, context->current_item_display_name->buf,
+					context->ticks);
 			jf_disk_payload_add_item(item);
 			jf_menu_item_free(item);
 			jf_sax_context_current_item_clear(context);

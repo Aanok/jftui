@@ -23,16 +23,33 @@ static bool jf_disk_add_item(jf_file_cache *cache, const jf_menu_item *item)
 {
 	long starting_body_offset;
 
-	// TODO error check!
-	fseek(cache->header, 0, SEEK_END);
-	fseek(cache->body, 0, SEEK_END);
-	starting_body_offset = ftell(cache->body);
-	fwrite(&starting_body_offset, sizeof(long), 1, cache->header);
+	// header and alignment
+	JF_DISK_OP_SIMPLE_FATAL(fseek(cache->header, 0, SEEK_END), 0, false,
+			"could not seek to end of cache header");
+	JF_DISK_OP_SIMPLE_FATAL(fseek(cache->body, 0, SEEK_END), 0, false,
+			"could not seek to end of cache body");
+	if ((starting_body_offset = ftell(cache->body)) == -1) {
+		int backup_errno = errno;
+		fprintf(stderr, "FATAL: could not ftell cache body: %s.\n", strerror(backup_errno));
+		return false;
+	}
+	JF_DISK_OP_SIMPLE_FATAL(fwrite(&starting_body_offset, sizeof(long), 1, cache->header),
+			1, false, "could not write offset in cache header");
 
-	fwrite(&(item->type), sizeof(jf_item_type), 1, cache->body);
-	fwrite(item->id, 1, sizeof(item->id), cache->body);
-	fwrite(item->name, 1, item->name == NULL ? 0 : strlen(item->name), cache->body);
-	fwrite(&("\0"), 1, 1, cache->body);
+	// body
+	JF_DISK_OP_SIMPLE_FATAL(fwrite(&(item->type), sizeof(jf_item_type), 1, cache->body),
+			1, false, "could not write item type in cache body");
+	JF_DISK_OP_SIMPLE_FATAL(fwrite(item->id, 1, sizeof(item->id), cache->body),
+			sizeof(item->id), false, "could not write item id in cache body");
+	if (item->name != NULL) {
+		size_t len = strlen(item->name);
+		JF_DISK_OP_SIMPLE_FATAL(fwrite(item->name, 1, len, cache->body), len,
+			false, "could not write item name in cache body");
+	}
+	JF_DISK_OP_SIMPLE_FATAL(fwrite(&("\0"), 1, 1, cache->body), 1, false,
+			"could not NULL-terminate item name in cache body");
+	JF_DISK_OP_SIMPLE_FATAL(fwrite(&(item->ticks), sizeof(long long), 1, cache->body),
+			1, false, "could not write item ticks in cache body");
 
 	cache->count++;
 
@@ -49,31 +66,34 @@ static jf_menu_item *jf_disk_get_item(jf_file_cache *cache, size_t n)
 		return NULL;
 	}
 
-	if ((item = jf_menu_item_new(JF_ITEM_TYPE_NONE, NULL, NULL, NULL)) == NULL) {
+	if ((item = malloc(sizeof(jf_menu_item))) == NULL) {
 		return NULL;
 	}
 
-	// TODO error check!
-	JF_DISK_ALIGN_TO(cache, n);
-
-	fread(&(item->type), sizeof(jf_item_type), 1, cache->body);
-	fread(item->id, 1, sizeof(item->id), cache->body);
+	JF_DISK_ALIGN_TO_FATAL(cache, n);
+	JF_DISK_OP_FATAL(fread(&(item->type), sizeof(jf_item_type), 1, cache->body), 1,
+			NULL, "could not read type for item %zu in a cache body", n);
+	JF_DISK_OP_FATAL(fread(item->id, 1, sizeof(item->id), cache->body), sizeof(item->id),
+			NULL, "could not read id for item %zu in a cache body", n);
+	item->children = NULL;
 	jf_growing_buffer_empty(s_buffer);
 	while (true) {
-		fread(tmp, 1, 1, cache->body);
+		JF_DISK_OP_FATAL(fread(tmp, 1, 1, cache->body), 1,
+				NULL, "could not read name for item %zu in a cache body", n);
 		jf_growing_buffer_append(s_buffer, tmp, 1);
 		if (tmp[0] == '\0') {
 			item->name = strdup(s_buffer->buf);
 			break;
 		}
 	}
-	printf("DEBUG: got item, type: %d, id: %s, name %s\n", item->type, item->id, item->name);
+	JF_DISK_OP_FATAL(fread(&(item->ticks), sizeof(long long), 1, cache->body), 1,
+			NULL, "could not read ticks for item %zu in a cache body", n);
 
 	return item;
 }
 
 
-bool jf_disk_refresh()
+bool jf_disk_init()
 {
 	if (access(g_state.runtime_dir, F_OK) != 0) {
 		errno = 0;
@@ -99,6 +119,18 @@ bool jf_disk_refresh()
 	JF_DISK_OPEN_FILE_FATAL(s_playlist, body);
 	s_playlist.count = 0;
 
+	return true;
+}
+
+
+bool jf_disk_refresh()
+{
+	JF_DISK_REOPEN_FILE_FATAL(s_payload, header);
+	JF_DISK_REOPEN_FILE_FATAL(s_payload, body);
+	s_payload.count = 0;
+	JF_DISK_REOPEN_FILE_FATAL(s_playlist, header);
+	JF_DISK_REOPEN_FILE_FATAL(s_playlist, body);
+	s_playlist.count = 0;
 	return true;
 }
 
@@ -134,10 +166,10 @@ jf_item_type jf_disk_payload_get_type(const size_t n)
 	if (n == 0 || n > s_payload.count) {
 		return JF_ITEM_TYPE_NONE;
 	}
-	// TODO error check!
-	JF_DISK_ALIGN_TO(&s_payload, n);
 
-	fread(&(item_type), sizeof(jf_item_type), 1, s_payload.body);
+	JF_DISK_ALIGN_TO_FATAL(&s_payload, n);
+	JF_DISK_OP_FATAL(fread(&(item_type), sizeof(jf_item_type), 1, s_payload.body),
+			1, JF_ITEM_TYPE_NONE, "could not read type for item %zu in s_payload.body", n);
 
 	return item_type;
 }
@@ -158,7 +190,6 @@ bool jf_disk_playlist_add_item(const jf_menu_item *item)
 }
 
 
-// 1-indexed
 jf_menu_item *jf_disk_playlist_get_item(const size_t n)
 {
 	return jf_disk_get_item(&s_playlist, n);

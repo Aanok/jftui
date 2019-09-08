@@ -85,6 +85,7 @@ typedef struct jf_menu_item {
 	struct jf_menu_item **children; // NULL-terminated
 	char id[JF_ID_LENGTH +1];
 	char *name;
+	long long ticks;
 } jf_menu_item;
 
 
@@ -100,7 +101,7 @@ typedef struct jf_menu_item {
 //
 // Returns:
 //  A pointer to the newly allocated struct on success or NULL on failure.
-jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children, const char *id, const char *name);
+jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children, const char *id, const char *name, long long ticks);
 
 // Function jf_menu_item_free
 //
@@ -108,10 +109,7 @@ jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children, const
 //
 // Parameters:
 // 	- menu_item: a pointer to the struct to deallocate. It may be NULL, in which case the function will no-op.
-//
-// Returns:
-//  true if the item was deallocated or NULL was passed, false otherwise.
-bool jf_menu_item_free(jf_menu_item *menu_item);
+void jf_menu_item_free(jf_menu_item *menu_item);
 //////////////////////////////////////////////////////////
 
 

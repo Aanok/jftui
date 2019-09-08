@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
 	if (! jf_global_state_init()) {
 		exit(EXIT_FAILURE);
 	}
-	jf_disk_refresh();
+	jf_disk_init();
 	atexit(jf_global_state_clear);
 	atexit(jf_disk_clear);
 	/////////////////
