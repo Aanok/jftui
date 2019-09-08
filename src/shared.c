@@ -27,7 +27,7 @@ jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children, const
 	if (name == NULL) {
 		menu_item->name = NULL;
 	} else {
-		strcpy(menu_item->name, name);
+		menu_item->name = strdup(name);
 	}
 	
 	return menu_item;
@@ -93,28 +93,90 @@ void jf_global_state_clear()
 //////////////////////////////////////////////
 
 
-void jf_mpv_clear()
+////////// THREAD BUFFER //////////
+bool jf_thread_buffer_init(jf_thread_buffer *tb)
 {
-	mpv_terminate_destroy(g_mpv_ctx);
+	tb->used = 0;
+	tb->promiscuous_context = false;
+	tb->state = JF_THREAD_BUFFER_STATE_CLEAR;
+	tb->item_count = 0;
+	pthread_mutex_init(&tb->mut, NULL);
+	pthread_cond_init(&tb->cv_no_data, NULL);
+	pthread_cond_init(&tb->cv_has_data, NULL);
+	return true;
+}
+///////////////////////////////////
+
+
+////////// GROWING BUFFER //////////
+jf_growing_buffer *jf_growing_buffer_new(const size_t size)
+{
+	jf_growing_buffer *buffer;
+
+	if ((buffer = malloc(sizeof(jf_growing_buffer))) == NULL) {
+		return NULL;
+	}
+
+	if ((buffer->buf = malloc(size > 0 ? size : 1024)) == NULL) {
+		free(buffer);
+		return NULL;
+	}
+	buffer->size = size > 0 ? size : 1024;
+	buffer->used = 0;
+
+	return buffer;
 }
 
 
-char *jf_generate_random_id(size_t len)
+bool jf_growing_buffer_append(jf_growing_buffer *buffer, const void *data, const size_t length)
 {
-	char *rand_id;
-
-	// default length
-	len = len > 0 ? len : 10;
-
-	if ((rand_id = malloc(len + 1)) != NULL) {
-		rand_id[len] = '\0';
-		srand(time(NULL));
-		for (; len > 0; len--) {
-			rand_id[len - 1] = '0' + rand() % 10;
-		}
+	if (buffer == NULL) {
+		return false;
 	}
 
-	return rand_id;
+	if (buffer->used + length > buffer->size) {
+		size_t new_size = 1.5 * (buffer->used + length);
+		new_size = new_size >= buffer->size * 2 ? new_size : buffer->size * 2;
+		void *tmp = realloc(buffer->buf, new_size);
+		if (tmp == NULL) {
+			return false;
+		}
+		buffer->buf = tmp;
+		buffer->size = new_size;
+	}
+	memcpy(buffer->buf + buffer->used, data, length);
+	buffer->used += length;
+	return true;
+}
+
+
+bool jf_growing_buffer_empty(jf_growing_buffer *buffer)
+{
+	if (buffer == NULL) {
+		return false;
+	}
+	
+	buffer->used = 0;
+	return true;
+}
+
+
+void jf_growing_buffer_clear(jf_growing_buffer *buffer)
+{
+	if (buffer == NULL) {
+		return;
+	}
+
+	free(buffer->buf);
+	free(buffer);
+}
+////////////////////////////////////
+
+
+////////// MISCELLANEOUS GARBAGE //////////
+void jf_mpv_clear()
+{
+	mpv_terminate_destroy(g_mpv_ctx);
 }
 
 
@@ -167,20 +229,24 @@ void jf_print_zu(size_t n)
 }
 
 
-bool jf_thread_buffer_init(jf_thread_buffer *tb)
+char *jf_generate_random_id(size_t len)
 {
-	tb->state = JF_THREAD_BUFFER_STATE_CLEAR;
-	tb->used = 0;
-	tb->promiscuous_context = false;
-	pthread_mutex_init(&tb->mut, NULL);
-	pthread_cond_init(&tb->cv_no_data, NULL);
-	pthread_cond_init(&tb->cv_has_data, NULL);
-	tb->parsed_ids_size = 512 * (1 + JF_ID_LENGTH);
-	if ((tb->parsed_ids = malloc(tb->parsed_ids_size)) == NULL) {
-		return false;
+	char *rand_id;
+
+	// default length
+	len = len > 0 ? len : 10;
+
+	if ((rand_id = malloc(len + 1)) != NULL) {
+		rand_id[len] = '\0';
+		srand(time(NULL));
+		for (; len > 0; len--) {
+			rand_id[len - 1] = '0' + rand() % 10;
+		}
 	}
-	return true;
+
+	return rand_id;
 }
+///////////////////////////////////////////
 
 
 // jf_synced_queue *jf_synced_queue_new(const size_t slots)

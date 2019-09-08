@@ -86,49 +86,50 @@ static int sax_items_end_map(void *ctx)
 			break;
 		case JF_SAX_IN_ITEM_MAP:
 			context->tb->item_count++;
+			jf_growing_buffer_empty(context->current_item_display_name);
 			switch (context->current_item_type) {
 				case JF_ITEM_TYPE_AUDIO:
 				case JF_ITEM_TYPE_AUDIOBOOK:
 					JF_SAX_PRINT_LEADER("T");
 					if (context->tb->promiscuous_context) {
-						JF_SAX_TRY_PRINT("", artist, " - ");
-						JF_SAX_TRY_PRINT("", album, " - ");
+						JF_SAX_TRY_APPEND_NAME("", artist, " - ");
+						JF_SAX_TRY_APPEND_NAME("", album, " - ");
 					}
-					write(1, context->name, context->name_len);
-					write(1, "\n", 1);
+					jf_growing_buffer_append(context->current_item_display_name,
+							context->name, context->name_len);
 					break;
 				case JF_ITEM_TYPE_ALBUM:
 					JF_SAX_PRINT_LEADER("D");
 					if (context->tb->promiscuous_context) {
-						JF_SAX_TRY_PRINT("", artist, " - ");
+						JF_SAX_TRY_APPEND_NAME("", artist, " - ");
 					}
-					write(1, context->name, context->name_len);
-					JF_SAX_TRY_PRINT(" (", year, ")");
-					write(1, "\n", 1);
+					jf_growing_buffer_append(context->current_item_display_name,
+							context->name, context->name_len);
+					JF_SAX_TRY_APPEND_NAME(" (", year, ")");
 					break;
 				case JF_ITEM_TYPE_EPISODE:
 					JF_SAX_PRINT_LEADER("V");
 					if (context->tb->promiscuous_context) {
-						JF_SAX_TRY_PRINT("", series, " - ");
-						JF_SAX_TRY_PRINT("S", parent_index, "");
-						JF_SAX_TRY_PRINT("E", index, " ");
+						JF_SAX_TRY_APPEND_NAME("", series, " - ");
+						JF_SAX_TRY_APPEND_NAME("S", parent_index, "");
+						JF_SAX_TRY_APPEND_NAME("E", index, " ");
 					}
-					write(1, context->name, context->name_len);
-					write(1, "\n", 1);
+					jf_growing_buffer_append(context->current_item_display_name,
+							context->name, context->name_len);
 					break;
 				case JF_ITEM_TYPE_SEASON:
 					JF_SAX_PRINT_LEADER("D");
 					if (context->tb->promiscuous_context) {
-						JF_SAX_TRY_PRINT("", series, " - ");
+						JF_SAX_TRY_APPEND_NAME("", series, " - ");
 					}
-					write(1, context->name, context->name_len);
-					write(1, "\n", 1);
+					jf_growing_buffer_append(context->current_item_display_name,
+							context->name, context->name_len);
 					break;
 				case JF_ITEM_TYPE_MOVIE:
 					JF_SAX_PRINT_LEADER("V");
-					write(1, context->name, context->name_len);
-					JF_SAX_TRY_PRINT(" (", year, ")");
-					write(1, "\n", 1);
+					jf_growing_buffer_append(context->current_item_display_name,
+							context->name, context->name_len);
+					JF_SAX_TRY_APPEND_NAME(" (", year, ")");
 					break;
 				case JF_ITEM_TYPE_ARTIST:
 				case JF_ITEM_TYPE_SERIES:
@@ -140,25 +141,22 @@ static int sax_items_end_map(void *ctx)
 				case JF_ITEM_TYPE_COLLECTION_MOVIES:
 				case JF_ITEM_TYPE_USER_VIEW:
 					JF_SAX_PRINT_LEADER("D");
-					write(1, context->name, context->name_len);
-					write(1, "\n", 1);
+					jf_growing_buffer_append(context->current_item_display_name,
+							context->name, context->name_len);
 					break;
 			}
 
-			// SAVE ITEM ID
-			if ((context->tb->item_count) * (1 + JF_ID_LENGTH) >= context->tb->parsed_ids_size) {
-				// reallocate. this array only ever grows
-				context->tb->parsed_ids_size = context->tb->parsed_ids_size * 2;
-				if ((context->tb->parsed_ids = realloc(context->tb->parsed_ids, context->tb->parsed_ids_size)) == NULL) {
-					return 0;
-				}
-			}
-			memcpy((context->tb->parsed_ids) + ((1 + JF_ID_LENGTH)*(context->tb->item_count -1)),
-					&(context->current_item_type), 1);
-			memcpy((context->tb->parsed_ids) + (1 + JF_ID_LENGTH)*(context->tb->item_count -1) + 1,
-					context->id, JF_ID_LENGTH);
+			// FINALIZE PRINT
+			jf_growing_buffer_append(context->current_item_display_name, "", 1);
+			printf("%s\n", context->current_item_display_name->buf);
 
+			// SAVE AND CLEAR ITEM
+			jf_menu_item *item = jf_menu_item_new(context->current_item_type, NULL,
+					(const char*)context->id, context->current_item_display_name->buf);
+			jf_disk_payload_add_item(item);
+			jf_menu_item_free(item);
 			jf_sax_context_current_item_clear(context);
+
 			if (context->latest_array) {
 				context->parser_state = JF_SAX_IN_LATEST_ARRAY;
 				context->latest_array = false;
@@ -399,6 +397,7 @@ static void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb)
 	context->tb = tb;
 	context->current_item_type = JF_ITEM_TYPE_NONE;
 	context->copy_buffer = NULL;
+	context->current_item_display_name = jf_growing_buffer_new(0);
 	context->name = context->id = context->artist = context->album = NULL;
 	context->series = context->year = context->index = context->parent_index = NULL;
 	context->name_len = context->id_len = context->artist_len = 0;

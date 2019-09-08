@@ -12,6 +12,7 @@
 
 #include "shared.h"
 #include "config.h"
+#include "disk_io.h"
 
 
 // CODE MACROS
@@ -40,12 +41,10 @@ do {																				\
 
 #define JF_SAX_STRING_IS(name) (strncmp((const char *)string, name, sizeof(name) > string_len ? string_len : sizeof(name)) == 0)
 
-#define JF_SAX_PRINT_LEADER(tag)				\
-	do {										\
-		JF_STATIC_PRINT(tag " ");				\
-		jf_print_zu(context->tb->item_count);	\
-		JF_STATIC_PRINT(". ");					\
-	} while (false)							\
+#define JF_SAX_PRINT_LEADER(tag)						\
+	do {												\
+		printf(tag " %zu. ", context->tb->item_count);	\
+	} while (false)
 
 #define JF_SAX_TRY_PRINT(prefix, field, suffix)					\
 	do {														\
@@ -56,6 +55,18 @@ do {																				\
 		}														\
 	} while (false)
 
+// NB THIS WILL NOT BE NULL-TERMINATED ON ITS OWN!!!
+#define JF_SAX_TRY_APPEND_NAME(prefix, field, suffix)						\
+	do {																	\
+		if (context->field ## _len > 0) {									\
+			jf_growing_buffer_append(context->current_item_display_name,	\
+					prefix, JF_STATIC_STRLEN(prefix));						\
+			jf_growing_buffer_append(context->current_item_display_name,	\
+					context->field, context->field ## _len);				\
+			jf_growing_buffer_append(context->current_item_display_name,	\
+					suffix, JF_STATIC_STRLEN(suffix));						\
+		}																	\
+	} while (false)
 
 
 ////////// SAX PARSER STATE MACHINE //////////
@@ -98,6 +109,7 @@ typedef struct jf_sax_context {
 	jf_thread_buffer *tb;
 	jf_item_type current_item_type;
 	char *copy_buffer;
+	jf_growing_buffer *current_item_display_name;
 	const unsigned char *name;			size_t name_len;
 	const unsigned char *id;			size_t id_len;
 	const unsigned char *artist;		size_t artist_len;

@@ -164,8 +164,6 @@ typedef struct jf_thread_buffer {
 	size_t used;
 	bool promiscuous_context;
 	jf_thread_buffer_state state;
-	unsigned char *parsed_ids;
-	size_t parsed_ids_size;
 	size_t item_count;
 	pthread_mutex_t mut;
 	pthread_cond_t cv_no_data;
@@ -177,6 +175,22 @@ bool jf_thread_buffer_init(jf_thread_buffer *tb);
 ///////////////////////////////////
 
 
+////////// GROWING BUFFER //////////
+typedef struct jf_growing_buffer {
+	char *buf;
+	size_t size;
+	size_t used;
+} jf_growing_buffer;
+
+
+jf_growing_buffer *jf_growing_buffer_new(const size_t size);
+bool jf_growing_buffer_append(jf_growing_buffer *buffer, const void *data, const size_t length);
+bool jf_growing_buffer_empty(jf_growing_buffer *buffer);
+void jf_growing_buffer_clear(jf_growing_buffer *buffer);
+////////////////////////////////////
+
+
+////////// MISCELLANEOUS GARBAGE //////////
 void jf_mpv_clear(void);
 
 
@@ -207,6 +221,7 @@ void jf_print_zu(size_t n);
 // Returns:
 // 	Pointer to the string. It will need be free'd.
 char *jf_generate_random_id(size_t length);
+///////////////////////////////////////////
 
 
 // UNUSED FOR NOW

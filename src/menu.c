@@ -246,7 +246,7 @@ static jf_menu_item *jf_menu_child_get(size_t n)
 		return NULL;
 	}
 	if (JF_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(s_context->type)) {
-		return jf_thread_buffer_get_parsed_item(n);
+		return jf_disk_payload_get_item(n);
 	} else {
 		child = s_context->children;
 		while (--n > 0) {
@@ -361,10 +361,10 @@ static void jf_menu_try_play()
 {
 	jf_menu_item *item;
 
-	if (jf_disk_playlist_count() > 0) {
+	if (jf_disk_playlist_item_count() > 0) {
 		g_state.state = JF_STATE_PLAYBACK;
 		s_playlist_current = 1;
-		item = jf_disk_playlist_get(1);
+		item = jf_disk_playlist_get_item(1);
 		jf_menu_play_item(item);
 		jf_menu_item_free(item);
 	}
@@ -379,7 +379,7 @@ jf_item_type jf_menu_child_get_type(size_t n)
 		return JF_ITEM_TYPE_NONE;
 	}
 	if (JF_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(s_context->type)) {
-		return jf_thread_buffer_get_parsed_item_type(n);
+		return jf_disk_payload_get_type(n);
 	} else {
 		child = s_context->children;
 		while (--n > 0) {
@@ -406,7 +406,7 @@ bool jf_menu_child_dispatch(size_t n)
 		case JF_ITEM_TYPE_AUDIOBOOK:
 		case JF_ITEM_TYPE_EPISODE:
 		case JF_ITEM_TYPE_MOVIE:
-			jf_disk_playlist_add(child);
+			jf_disk_playlist_add_item(child);
 			jf_menu_item_free(child);
 			break;
 		// FOLDERS: push on stack
@@ -447,7 +447,7 @@ size_t jf_menu_child_count()
 		return 0;
 	}
 	if (JF_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(s_context->type)) {
-		return jf_thread_buffer_item_count();
+		return jf_disk_payload_item_count();
 	} else {
 		child = s_context->children;
 		while (*(child++) != NULL) {
@@ -482,8 +482,8 @@ bool jf_menu_playlist_forward()
 {
 	jf_menu_item *item;
 
-	if (s_playlist_current < jf_disk_playlist_count()) {
-		item = jf_disk_playlist_get(++s_playlist_current);
+	if (s_playlist_current < jf_disk_playlist_item_count()) {
+		item = jf_disk_playlist_get_item(++s_playlist_current);
 		jf_menu_play_item(item);
 		jf_menu_item_free(item);
 		return true;
@@ -498,7 +498,7 @@ bool jf_menu_playlist_backward()
 	jf_menu_item *item;
 
 	if (s_playlist_current > 1) {
-		item = jf_disk_playlist_get(--s_playlist_current);
+		item = jf_disk_playlist_get_item(--s_playlist_current);
 		jf_menu_play_item(item);
 		jf_menu_item_free(item);
 		return true;
