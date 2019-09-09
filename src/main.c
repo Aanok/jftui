@@ -84,8 +84,8 @@ int main(int argc, char *argv[])
 	// VARIABLES INIT
 	jf_options_init();
 	atexit(jf_options_clear);
-	jf_menu_stack_init();
-	atexit(jf_menu_stack_clear);
+	jf_menu_init();
+	atexit(jf_menu_clear);
 	if (! jf_global_state_init()) {
 		exit(EXIT_FAILURE);
 	}

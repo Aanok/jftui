@@ -64,7 +64,6 @@ static size_t s_playlist_current = 0;
 
 
 ////////// STATIC FUNCTIONS //////////
-
 // Function: jf_menu_stack_push
 //
 // Pushes a jf_menu_item on the global menu stack. No-op if NULL is passed.
@@ -105,23 +104,7 @@ static void jf_menu_try_play(void);
 //////////////////////////////////////
 
 
-
-
 ////////// JF_MENU_STACK //////////
-bool jf_menu_stack_init()
-{
-	linenoiseHistorySetMaxLen(10); // TODO move to better place
-	
-	if ((s_menu_stack.items = malloc(10 * sizeof(jf_menu_item *))) == NULL) {
-		return false;
-	}
-	s_menu_stack.size = 10;
-	s_menu_stack.used = 0;
-
-	return true;
-}
-
-
 static bool jf_menu_stack_push(jf_menu_item *menu_item)
 {
 	if (menu_item == NULL) {
@@ -167,15 +150,33 @@ static const jf_menu_item *jf_menu_stack_peek()
 	retval = s_menu_stack.items[s_menu_stack.used - 1];
 	return retval;
 }
+///////////////////////////////////
 
 
-void jf_menu_stack_clear()
+////////// TU SETUP //////////
+bool jf_menu_init()
 {
+	linenoiseHistorySetMaxLen(10);
+
+	// init menu stack
+	if ((s_menu_stack.items = malloc(10 * sizeof(jf_menu_item *))) == NULL) {
+		return false;
+	}
+	s_menu_stack.size = 10;
+	s_menu_stack.used = 0;
+
+	return true;
+}
+
+
+void jf_menu_clear()
+{
+	// clear menu stack
 	while (s_menu_stack.used > 0) {
 		jf_menu_item_free(jf_menu_stack_pop());
 	}
 }
-///////////////////////////////////
+//////////////////////////////
 
 
 ////////// USER INTERFACE LOOP //////////

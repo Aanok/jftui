@@ -92,47 +92,37 @@ typedef struct jf_menu_stack {
 } jf_menu_stack;
 
 
-// Procedure: jf_menu_stack_init
-//
-// Initializes the global menu stack struct.
-//
-// Returns:
-// 	true on success, false on failure.
-bool jf_menu_stack_init(void);
-
-
-// Procedure: jf_menu_stack_clear
-//
-// Clears the contents of the global menu stack, forcibly deallocating all items
-// regardless of their persistency bit.
-void jf_menu_stack_clear(void);
 ///////////////////////////////////
 
 
 ////////// USER INTERFACE LOOP //////////
 
+// Procedure: jf_menu_init
+//
+// Initializes linenoise history and the static menu stack struct.
+//
+// Returns:
+// 	true on success, false on failure.
+bool jf_menu_init(void);
+
+
+// Procedure: jf_menu_clear
+//
+// Clears the contents of the static menu stack, forcibly deallocating all items
+// regardless of their persistency bit.
+void jf_menu_clear(void);
+
+
 jf_item_type jf_menu_child_get_type(size_t n);
-
-
 size_t jf_menu_child_count(void);
-
-
-// false on error
 bool jf_menu_child_dispatch(const size_t n);
 
-
 void jf_menu_dotdot(void);
-
-
 void jf_menu_quit(void);
-
 
 bool jf_menu_playlist_forward(void);
 bool jf_menu_playlist_backward(void);
 
-// Function: jf_menu_ui
-//
-// Runs the user interface loop until switching context to mpv or exiting.
 void jf_menu_ui(void);
 /////////////////////////////////////////
 
