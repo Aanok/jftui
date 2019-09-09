@@ -90,27 +90,11 @@ typedef struct jf_menu_stack {
 	size_t size;
 	size_t used;
 } jf_menu_stack;
-
-
 ///////////////////////////////////
 
 
 ////////// USER INTERFACE LOOP //////////
 
-// Procedure: jf_menu_init
-//
-// Initializes linenoise history and the static menu stack struct.
-//
-// Returns:
-// 	true on success, false on failure.
-bool jf_menu_init(void);
-
-
-// Procedure: jf_menu_clear
-//
-// Clears the contents of the static menu stack, forcibly deallocating all items
-// regardless of their persistency bit.
-void jf_menu_clear(void);
 
 
 jf_item_type jf_menu_child_get_type(size_t n);
@@ -126,5 +110,24 @@ bool jf_menu_playlist_backward(void);
 void jf_menu_ui(void);
 /////////////////////////////////////////
 
+
+////////// MISCELLANEOUS //////////
+// Procedure: jf_menu_init
+//
+// Initializes linenoise history and the static menu stack struct.
+//
+// Returns:
+// 	true on success, false on failure.
+bool jf_menu_init(void);
+
+
+// Procedure: jf_menu_clear
+//
+// Clears the contents of the static menu stack, forcibly deallocating all items
+// regardless of their persistency bit.
+void jf_menu_clear(void);
+
+bool jf_menu_user_ask_yn(const char *question);
+///////////////////////////////////
 
 #endif

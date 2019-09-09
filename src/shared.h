@@ -120,6 +120,7 @@ typedef char jf_application_state;
 #define JF_STATE_MENU_UI			1
 #define JF_STATE_PLAYBACK			2
 #define JF_STATE_PLAYBACK_SEEKING	3
+#define JF_STATE_PLAYBACK_STARTING	4
 
 #define JF_STATE_USER_QUIT	-1
 #define JF_STATE_FAIL		-2
@@ -219,6 +220,9 @@ void jf_print_zu(size_t n);
 // Returns:
 // 	Pointer to the string. It will need be free'd.
 char *jf_generate_random_id(size_t length);
+
+
+char *jf_make_timestamp(const long long ticks);
 ///////////////////////////////////////////
 
 

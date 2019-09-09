@@ -153,32 +153,6 @@ static const jf_menu_item *jf_menu_stack_peek()
 ///////////////////////////////////
 
 
-////////// TU SETUP //////////
-bool jf_menu_init()
-{
-	linenoiseHistorySetMaxLen(10);
-
-	// init menu stack
-	if ((s_menu_stack.items = malloc(10 * sizeof(jf_menu_item *))) == NULL) {
-		return false;
-	}
-	s_menu_stack.size = 10;
-	s_menu_stack.used = 0;
-
-	return true;
-}
-
-
-void jf_menu_clear()
-{
-	// clear menu stack
-	while (s_menu_stack.used > 0) {
-		jf_menu_item_free(jf_menu_stack_pop());
-	}
-}
-//////////////////////////////
-
-
 ////////// USER INTERFACE LOOP //////////
 
 // TODO: EXTREMELY incomplete, stub
@@ -348,8 +322,36 @@ static void jf_menu_play_item(const jf_menu_item *item)
 				fprintf(stderr, "ERROR: jf_menu_play_item could not get request url for item %s\n", item->name);
 				return;
 			}
+			if (item->ticks != 0) {
+				char *question, *timestamp;
+				if ((timestamp = jf_make_timestamp(item->ticks)) == NULL) {
+					fprintf(stderr, "ERROR: %s resume jf_make_timestamp failure.\n", item->name);
+					free(request_url);
+					return;
+				}
+				if ((question = jf_concat(5, "Would you like to resume ",
+								item->name, " at the ", timestamp, " mark?")) == NULL) {
+					fprintf(stderr, "ERROR: %s resume jf_concat allocation failure.\n", item->name);
+					free(request_url);
+					free(timestamp);
+					return;
+				}
+				if (jf_menu_user_ask_yn(question)) {
+					printf("DEBUG: affirmative!\n");
+					const char *start[] = { "start", timestamp, NULL };
+					mpv_command(g_mpv_ctx, start);
+					g_state.state = JF_STATE_PLAYBACK_STARTING;
+				}
+				free(timestamp);
+				free(question);
+			}
 			const char *loadfile[] = { "loadfile", request_url, NULL };
 			mpv_command(g_mpv_ctx, loadfile); 
+			if (g_state.state == JF_STATE_PLAYBACK_STARTING) {
+				const char *start_reset[] = { "start", "none", NULL };
+				mpv_command(g_mpv_ctx, start_reset);
+				g_state.state = JF_STATE_PLAYBACK;
+			}
 			free(request_url);
 			break;
 		case JF_ITEM_TYPE_EPISODE:
@@ -587,3 +589,43 @@ void jf_menu_ui()
 	}
 }
 /////////////////////////////////////////
+
+
+////////// MISCELLANEOUS //////////
+bool jf_menu_init()
+{
+	linenoiseHistorySetMaxLen(10);
+
+	// init menu stack
+	if ((s_menu_stack.items = malloc(10 * sizeof(jf_menu_item *))) == NULL) {
+		return false;
+	}
+	s_menu_stack.size = 10;
+	s_menu_stack.used = 0;
+
+	return true;
+}
+
+
+void jf_menu_clear()
+{
+	// clear menu stack
+	while (s_menu_stack.used > 0) {
+		jf_menu_item_free(jf_menu_stack_pop());
+	}
+}
+
+
+bool jf_menu_user_ask_yn(const char *question)
+{
+	char reply = '\0';
+	while (reply != 'y' && reply != 'Y'
+			&& reply != 'n' && reply != 'N') {
+		printf("%s [y/n]\n", question);
+		reply = fgetc(stdin);
+	}
+	JF_CLEAR_STDIN();	
+
+	return reply == 'y' || reply == 'Y';
+}
+///////////////////////////////////

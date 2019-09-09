@@ -245,6 +245,23 @@ char *jf_generate_random_id(size_t len)
 
 	return rand_id;
 }
+
+
+char *jf_make_timestamp(const long long ticks)
+{
+	char *str;
+	unsigned char seconds, minutes, hours;
+	seconds = (ticks / 10000000) % 60;
+	minutes = (seconds / 60) % 60;
+	hours = minutes / 60;
+
+	// allocate with overestimate. we shan't cry
+	if ((str = malloc(sizeof("xxx:xx:xx"))) == NULL) {
+		return NULL;
+	}
+	snprintf(str, sizeof("xxx:xx:xx"), "%02u:%02u:%02u", hours, minutes, seconds);
+	return str;
+}
 ///////////////////////////////////////////
 
 
