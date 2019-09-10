@@ -155,6 +155,7 @@ size_t jf_thread_buffer_item_count()
 	return s_tb.item_count;
 }
 
+
 void jf_thread_buffer_clear_error()
 {
 	pthread_mutex_lock(&s_tb.mut);
@@ -342,6 +343,10 @@ jf_reply *jf_login_request(const char *POST_payload)
 {
 	char *tmp;
 
+	if (! jf_network_make_headers()) {
+		return NULL;
+	}
+
 	// add x-emby-authorization header
 	if ((tmp = jf_concat(9,
 			"x-emby-authorization: mediabrowser client=\"", g_options.client,
@@ -363,6 +368,28 @@ jf_reply *jf_login_request(const char *POST_payload)
 	free(tmp);
 
 	// send request
-	return jf_request("/users/authenticatebyname", 0, POST_payload);
+	return jf_request("/emby/Users/authenticatebyname", 0, POST_payload);
 }
 ////////////////////////////////
+
+
+////////// MISCELLANEOUS GARBAGE ///////////
+bool jf_network_url_is_valid(const char *url)
+{
+	CURLU *curlu;
+
+	if ((curlu = curl_url()) == NULL) {
+		fprintf(stderr, "Error: curlu curl_url returned NULL.\n");
+		curl_url_cleanup(curlu);
+		return false;
+	}
+	
+	if (curl_url_set(curlu, CURLUPART_URL, url, 0) == CURLUE_OK) {
+		curl_url_cleanup(curlu);
+		return true;
+	} else {
+		curl_url_cleanup(curlu);
+		return false;
+	}
+}
+////////////////////////////////////////////

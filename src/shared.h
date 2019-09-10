@@ -17,14 +17,14 @@
 // for hardcoded strings
 #define JF_STATIC_STRLEN(str) (sizeof(str) - 1)
 
-#define JF_STATIC_PRINT(str)					\
+#define JF_STATIC_WRITE(str)					\
 	do {										\
 		write(1, str, JF_STATIC_STRLEN(str));	\
 	} while (false)
 
-#define JF_STATIC_PRINT_ERROR(str)				\
+#define JF_STATIC_WRITE_ERROR(str)				\
 	do {										\
-		write(1, str, JF_STATIC_STRLEN(str));	\
+		write(2, str, JF_STATIC_STRLEN(str));	\
 	} while (false)
 /////////////////////////////////
 

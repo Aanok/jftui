@@ -28,16 +28,16 @@ void jf_options_init()
 // Will provide defaults for fields: client, device, deviceid, version
 static void jf_options_complete_with_defaults()
 {
-	g_options.client = g_options.client != NULL ? g_options.client : JF_CONFIG_CLIENT_DEFAULT;
-	g_options.device = g_options.device != NULL ? g_options.device : JF_CONFIG_DEVICE_DEFAULT;
+	g_options.client = g_options.client != NULL ? g_options.client : strdup(JF_CONFIG_CLIENT_DEFAULT);
+	g_options.device = g_options.device != NULL ? g_options.device : strdup(JF_CONFIG_DEVICE_DEFAULT);
 	if (g_options.deviceid[0] == '\0') {
 		if (gethostname(g_options.deviceid, JF_CONFIG_DEVICEID_MAX_LEN - 1) == 0) {
 			g_options.deviceid[JF_CONFIG_DEVICEID_MAX_LEN - 1] = '\0';
 		} else {
-			strncpy(g_options.deviceid, JF_CONFIG_DEVICEID_DEFAULT, JF_STATIC_STRLEN(JF_CONFIG_DEVICEID_DEFAULT));
+			strcpy(g_options.deviceid, JF_CONFIG_DEVICEID_DEFAULT);
 		}
 	}
-	g_options.version = g_options.version != NULL ? g_options.version : JF_CONFIG_VERSION_DEFAULT;
+	g_options.version = g_options.version != NULL ? g_options.version : strdup(JF_CONFIG_VERSION_DEFAULT);
 }
 
 
@@ -82,39 +82,34 @@ bool jf_config_read(const char *config_path)
 	size_t value_len;
 
 	if (config_path == NULL) {
-		JF_STATIC_PRINT_ERROR("FATAL: tried to open config file with NULL path.\n");
+		fprintf(stderr, "FATAL: tried to open settings file with NULL path.\n");
 		return false;
 	}
 
 	if ((line = malloc(line_size)) == NULL) {
-		JF_STATIC_PRINT_ERROR("FATAL: couldn't allocate getline buffer\n");
+		fprintf(stderr, "FATAL: couldn't allocate getline buffer.\n");
 		return false;
 	}
 
 	errno = 0;
 	if ((config_file = fopen(config_path, "r")) == NULL) {
 		int fopen_errno = errno;
-		JF_STATIC_PRINT_ERROR("FATAL: fopen for config file at location ");
-		write(2, config_path, strlen(config_path));
-		JF_STATIC_PRINT_ERROR(": ");
-		write(2, strerror(fopen_errno), strlen(strerror(fopen_errno)));
-		JF_STATIC_PRINT_ERROR("\n");
+		fprintf(stderr, "FATAL: fopen for settings file at location %s: %s.\n",
+				config_path, strerror(fopen_errno));
 		return false;
 	}
 
 	// read from file
 	while (getline(&line, &line_size, config_file) != -1) {
 		if (line == NULL) {
-			JF_STATIC_PRINT_ERROR("FATAL: couldn't resize getline buffer.\n");
+			fprintf(stderr, "FATAL: couldn't resize getline buffer.\n");
 			return false;
 		}
 		// allow comments
 		if (line[0] == '#') continue;
 		if ((value = strchr(line, '=')) == NULL) {
 			// the line is malformed; issue a warning and skip it
-			JF_STATIC_PRINT_ERROR("WARNING: skipping malformed config file line: ");
-			write(2, line, strlen(line));
-			JF_STATIC_PRINT_ERROR("\n");
+			fprintf(stderr, "Warning: skipping malformed settings file line: %s.\n", line);
 			continue;
 		}
 		value += 1; // digest '='
@@ -143,9 +138,7 @@ bool jf_config_read(const char *config_path)
 			JF_CONFIG_FILL_VALUE(version);
 		} else {
 			// option key was not recognized; print a warning and go on
-			JF_STATIC_PRINT_ERROR("WARNING: unrecognized option key in config file line: ");
-			write(2, line, strlen(line));
-			JF_STATIC_PRINT("\n");
+			fprintf(stderr, "WARNING: unrecognized option key in settings file line: %s.\n", line);
 		}
 	}
 
@@ -187,6 +180,71 @@ bool jf_config_write(const char *config_path)
 // TODO: this is a stub
 bool jf_user_config()
 {
-	printf("FUNCTION STUB: jf_user_config\n");
-	exit(EXIT_SUCCESS);
+	struct termios old, new;
+	char *username, *login_post;
+	int c;
+	jf_growing_buffer *password;
+	jf_reply *login_reply;
+
+	// setup
+	if ((password = jf_growing_buffer_new(128)) == NULL) {
+		fprintf(stderr, "FATAL: password jf_growing_buffer_new returned NULL.\n");
+		return false;
+	}
+	jf_options_complete_with_defaults();
+
+	// login user input
+	printf("Please enter the URL of your Jellyfin server. Example: http://foo.bar:8096/jf\n(note: unless specified, ports will be the protocol's defaults, i.e. 80 for HTTP and 443 for HTTPS)\n");
+	while (true) {
+		g_options.server = linenoise("> ");
+		if (jf_network_url_is_valid(g_options.server)) {
+			g_options.server_len = strlen(g_options.server);
+			break;
+		} else {
+			fprintf(stderr, "Error: malformed URL. Please try again.\n");
+		}
+	}
+	printf("Please enter your username.\n");
+	username = linenoise("> ");
+	printf("Please enter your password.\n> ");
+	tcgetattr(STDIN_FILENO, &old);
+	new = old;
+	new.c_lflag &= (unsigned int)~ECHO;
+	tcsetattr(STDIN_FILENO, TCSANOW, &new);
+	while ((c = getchar()) != '\n' && c != EOF) {
+		jf_growing_buffer_append(password, &c, 1);
+	}
+	jf_growing_buffer_append(password, "", 1);
+	tcsetattr(STDIN_FILENO, TCSANOW, &old);
+	putchar('\n');
+
+	// misc config user input
+	if (jf_menu_user_ask_yn("Do you need jftui to ignore hostname validation (required e.g. if you're using Jellyfin's built-in SSL certificate)?")) {
+		g_options.ssl_verifyhost = false;
+	}
+
+	// login request
+	login_post = jf_json_make_login_request(username, password->buf);
+	free(username);
+	jf_growing_buffer_clear(password);
+	login_reply = jf_login_request(login_post);
+	free(login_post);
+	if (login_reply == NULL) {
+		fprintf(stderr, "FATAL: jf_login_request returned NULL.\n");
+		return false;
+	}
+	if (JF_REPLY_PTR_HAS_ERROR(login_reply)) {
+		fprintf(stderr, "FATAL: jf_login_request: %s.\n", jf_reply_error_string(login_reply));
+		jf_reply_free(login_reply);
+		return false;
+	}
+	if (! jf_json_parse_login_response(login_reply->payload)) {
+		fprintf(stderr, "FATAL: could not parse login response.\n");
+		jf_reply_free(login_reply);
+		return false;
+	}
+	jf_reply_free(login_reply);
+
+	printf("Configuration and login successful.\n");
+	return true;
 }

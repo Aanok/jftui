@@ -79,4 +79,9 @@ jf_reply *jf_request(const char *resource, jf_request_type request_type, const c
 jf_reply *jf_login_request(const char *POST_payload);
 ////////////////////////////////
 
+
+////////// MISCELLANEOUS GARBAGE ///////////
+bool jf_network_url_is_valid(const char *url);
+////////////////////////////////////////////
+
 #endif

@@ -522,13 +522,13 @@ void *jf_sax_parser_thread(void *arg)
 }
 
 
-char *jf_parser_error_string(void)
+char *jf_json_error_string()
 {
 	return s_error_buffer;
 }
 
 
-bool jf_parse_login_reply(const char *payload)
+bool jf_json_parse_login_response(const char *payload)
 {
 	yajl_val parsed;
 	const char *userid_selector[3] = { "User", "Id", NULL };
@@ -558,7 +558,7 @@ bool jf_parse_login_reply(const char *payload)
 }
 
 
-char *jf_generate_login_request(const char *username, const char *password)
+char *jf_json_make_login_request(const char *username, const char *password)
 {
 	yajl_gen gen;
 	char *json = NULL;
@@ -568,7 +568,7 @@ char *jf_generate_login_request(const char *username, const char *password)
 	JF_GEN_BAD_JUMP_OUT(yajl_gen_map_open(gen));
 	JF_GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)"Username", JF_STATIC_STRLEN("Username")));
 	JF_GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)username, strlen(username)));
-	JF_GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)"pw", JF_STATIC_STRLEN("pw")));
+	JF_GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)"Pw", JF_STATIC_STRLEN("Pw")));
 	JF_GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)password, strlen(password)));
 	JF_GEN_BAD_JUMP_OUT(yajl_gen_map_close(gen));
 	JF_GEN_BAD_JUMP_OUT(yajl_gen_get_buf(gen, (const unsigned char **)&json, &json_len));

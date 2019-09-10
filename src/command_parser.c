@@ -690,7 +690,7 @@ YY_PARSE(yycontext *) YYRELEASE(yycontext *yyctx)
 				}
 				break;
 			default:
-				fprintf(stderr, "ERROR: yy_cmd_digest encountered unexpected state transition. This is a bug.\n");	
+				fprintf(stderr, "Error: yy_cmd_digest encountered unexpected state transition. This is a bug.\n");	
 				break;
 		}
 	}
@@ -726,7 +726,7 @@ YY_PARSE(yycontext *) YYRELEASE(yycontext *yyctx)
 				case JF_CMD_FAIL_FOLDER:
 					break;
 				default:
-					JF_STATIC_PRINT_ERROR("ERROR: yy_cmd_finalize encountered unexpected state transition. This is a bug.\n");	
+					fprintf(stderr, "Error: yy_cmd_finalize encountered unexpected state transition. This is a bug.\n");	
 			}
 		}
 	}

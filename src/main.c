@@ -112,39 +112,48 @@ int main(int argc, char *argv[])
 	// apply config directory location default unless there was user override
 	if (g_state.config_dir == NULL) {
 		if ((g_state.config_dir = jf_config_get_default_dir()) == NULL) {
-			JF_STATIC_PRINT_ERROR("FATAL: could not acquire configuration directory location. $HOME could not be read and --config-dir was not passed.\n");
+			fprintf(stderr, "FATAL: could not acquire configuration directory location. $HOME could not be read and --config-dir was not passed.\n");
 			exit(EXIT_FAILURE);
 		}
 	}
-
-	// get location of config file
-	if ((config_path = jf_concat(2, g_state.config_dir, "/options")) == NULL) {
-		JF_STATIC_PRINT_ERROR("FATAL: could not compute config_path.\n");
+	// get expected location of config file
+	if ((config_path = jf_concat(2, g_state.config_dir, "/settings")) == NULL) {
+		fprintf(stderr, "FATAL: config path jf_concat returned NULL.\n");
 		exit(EXIT_FAILURE);
 	}
 
 	// check config file exists
-	errno = 0;
 	if (access(config_path, F_OK) == 0) {
 		// it's there: read it
 		if (! jf_config_read(config_path)) {
 			free(config_path);
 			exit(EXIT_FAILURE);
 		}
-		// if server, userid or token are missing (may happen if the config file was edited badly)
-		if (g_options.server == NULL || g_options.userid == NULL || g_options.token == NULL) {
-			jf_user_config();
+		// if fundamental fields are missing (may happen if the config file was edited badly)
+		if (JF_OPTIONS_IS_INCOMPLETE()) {
+			if (! jf_menu_user_ask_yn("Error: settings file missing fundamental fields. Would you like to go through manual configuration?")) {
+				free(config_path);
+				exit(EXIT_SUCCESS);
+			}
+			if (! jf_user_config()) {
+				free(config_path);
+				exit(EXIT_FAILURE);
+			}
 		}
 	} else if (errno == ENOENT || errno == ENOTDIR) {
 		// it's not there
-		jf_user_config();
+		if (! jf_menu_user_ask_yn("Settings file not found. Would you like to configure jftui?")) {
+			free(config_path);
+			exit(EXIT_SUCCESS);
+		}
+		if (! jf_user_config()) {
+			free(config_path);
+			exit(EXIT_FAILURE);
+		}
 	} else {
 		int access_errno = errno;
-		JF_STATIC_PRINT_ERROR("FATAL access for config file at location ");
-		write(2, config_path, strlen(config_path));
-		JF_STATIC_PRINT_ERROR(": ");
-		write(2, strerror(access_errno), strlen(strerror(access_errno)));
-		JF_STATIC_PRINT_ERROR("\n");
+		fprintf(stderr, "FATAL: access for settings file at location %s: %s.\n",
+			config_path, strerror(access_errno));
 		free(config_path);
 		exit(EXIT_FAILURE);
 	}
@@ -167,7 +176,7 @@ int main(int argc, char *argv[])
 
 	// SETUP MPV
 	if (setlocale(LC_NUMERIC, "C") == NULL) {
-		fprintf(stderr, "WARNING: could not set numeric locale to sane standard. mpv might refuse to work.\n");
+		fprintf(stderr, "Warning: could not set numeric locale to sane standard. mpv might refuse to work.\n");
 	}
 
 	if ((g_mpv_ctx = jf_mpv_context_new()) == NULL) {

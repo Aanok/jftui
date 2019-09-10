@@ -5,10 +5,16 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <termios.h>
+#include <unistd.h>
+
+#include "linenoise.h"
 
 #include "shared.h"
+#include "network.h"
 
 
+////////// CODE MACROS //////////
 #define JF_CONFIG_KEY_IS(key) (strncmp(line, key, JF_STATIC_STRLEN(key)) == 0)
 
 #define JF_CONFIG_FILL_VALUE(key)					\
@@ -19,6 +25,7 @@ do {												\
 } while (false)
 
 #define JF_CONFIG_WRITE_VALUE(key) fprintf(config_file, #key "=%s\n", g_options.key)
+/////////////////////////////////
 
 
 ////////// JF_OPTIONS //////////
@@ -29,6 +36,7 @@ do {												\
 #define JF_CONFIG_DEVICEID_DEFAULT			"Linux"
 #define JF_CONFIG_VERSION_DEFAULT			JF_VERSION
 
+#define JF_OPTIONS_IS_INCOMPLETE() (g_options.server == NULL || g_options.userid == NULL || g_options.token == NULL)
 
 typedef struct jf_options {
 	char *server;

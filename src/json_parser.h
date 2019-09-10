@@ -124,8 +124,8 @@ typedef struct jf_sax_context {
 
 void *jf_sax_parser_thread(void *arg);
 
-char *jf_parser_error_string(void);
-bool jf_parse_login_reply(const char *payload);
-char *jf_generate_login_request(const char *username, const char *password);
+char *jf_json_error_string(void);
+bool jf_json_parse_login_response(const char *payload);
+char *jf_json_make_login_request(const char *username, const char *password);
 
 #endif
