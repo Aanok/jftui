@@ -21,41 +21,41 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
 				NULL,
 				"",
 				"Favorites",
-				0
+				0, 0
 			},
 			&(jf_menu_item){
 				JF_ITEM_TYPE_MENU_CONTINUE,
 				NULL,
 				"",
 				"Continue Watching",
-				0
+				0, 0
 			},
 			&(jf_menu_item){
 				JF_ITEM_TYPE_MENU_NEXT_UP,
 				NULL,
 				"",
 				"Next Up",
-				0
+				0, 0
 			},
 			&(jf_menu_item){
 				JF_ITEM_TYPE_MENU_LATEST,
 				NULL,
 				"",
 				"Latest Added",
-				0
+				0, 0
 			},
 			&(jf_menu_item){
 				JF_ITEM_TYPE_MENU_LIBRARIES,
 				NULL,
 				"",
 				"User Views",
-				0
+				0, 0
 			},
 			NULL
 		},
 		"",
 		"Server Root",
-		0
+		0, 0
 	};
 static jf_menu_stack s_menu_stack;
 static jf_menu_item *s_context = NULL;
@@ -322,9 +322,9 @@ static void jf_menu_play_item(const jf_menu_item *item)
 				fprintf(stderr, "ERROR: jf_menu_play_item could not get request url for item %s\n", item->name);
 				return;
 			}
-			if (item->ticks != 0) {
+			if (item->playback_ticks != 0) {
 				char *question, *timestamp;
-				if ((timestamp = jf_make_timestamp(item->ticks)) == NULL) {
+				if ((timestamp = jf_make_timestamp(item->playback_ticks)) == NULL) {
 					fprintf(stderr, "ERROR: %s resume jf_make_timestamp failure.\n", item->name);
 					free(request_url);
 					return;
@@ -337,26 +337,20 @@ static void jf_menu_play_item(const jf_menu_item *item)
 					return;
 				}
 				if (jf_menu_user_ask_yn(question)) {
-					printf("DEBUG: affirmative!\n");
-					const char *start[] = { "start", timestamp, NULL };
-					mpv_command(g_mpv_ctx, start);
-					g_state.state = JF_STATE_PLAYBACK_STARTING;
+					mpv_set_property_string(g_mpv_ctx, "start", timestamp);
+					g_state.state = JF_STATE_PLAYBACK_START_MARK;
 				}
 				free(timestamp);
 				free(question);
 			}
 			const char *loadfile[] = { "loadfile", request_url, NULL };
 			mpv_command(g_mpv_ctx, loadfile); 
-			if (g_state.state == JF_STATE_PLAYBACK_STARTING) {
-				const char *start_reset[] = { "start", "none", NULL };
-				mpv_command(g_mpv_ctx, start_reset);
-				g_state.state = JF_STATE_PLAYBACK;
-			}
+			jf_menu_item_static_copy(&g_state.currently_playing, item);
 			free(request_url);
 			break;
 		case JF_ITEM_TYPE_EPISODE:
 		case JF_ITEM_TYPE_MOVIE:
-			printf("DEBUG: jf_menu_play_item video types not yet supported.\n");
+			printf("ERROR: jf_menu_play_item video types not yet supported.\n");
 			break;
 		default:
 			fprintf(stderr, "ERROR: jf_menu_play_item unsupported item type (%d). This is a bug.\n",
@@ -484,6 +478,31 @@ void jf_menu_dotdot()
 void jf_menu_quit()
 {
 	g_state.state = JF_STATE_USER_QUIT;
+}
+
+
+bool jf_menu_mark_played(const jf_menu_item *item)
+{
+	char *url;
+	jf_reply *reply;
+	if ((url = jf_concat(4, "/users/", g_options.userid, "/playeditems/", item->id)) == NULL) {
+		fprintf(stderr, "ERROR: jf_menu_mark_played jf_concat returned NULL.\n");
+		return false;
+	}
+	reply = jf_request(url, JF_REQUEST_IN_MEMORY, "");
+	free(url);
+	if (reply == NULL) {
+		fprintf(stderr, "ERROR: jf_menu_mark_played jf_request returned NULL.\n");
+		return false;
+	}
+	if (JF_REPLY_PTR_HAS_ERROR(reply)) {
+		fprintf(stderr, "ERROR: could not mark item %s as played: %s.\n", item->name,
+				jf_reply_error_string(reply));
+		jf_reply_free(reply);
+		return false;
+	}
+	jf_reply_free(reply);
+	return true;
 }
 
 
@@ -619,8 +638,7 @@ void jf_menu_clear()
 bool jf_menu_user_ask_yn(const char *question)
 {
 	char reply = '\0';
-	while (reply != 'y' && reply != 'Y'
-			&& reply != 'n' && reply != 'N') {
+	while (reply != 'y' && reply != 'Y' && reply != 'n' && reply != 'N') {
 		printf("%s [y/n]\n", question);
 		reply = fgetc(stdin);
 	}

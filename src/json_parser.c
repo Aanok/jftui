@@ -154,7 +154,7 @@ static int sax_items_end_map(void *ctx)
 			// SAVE AND CLEAR ITEM
 			jf_menu_item *item = jf_menu_item_new(context->current_item_type, NULL,
 					(const char*)context->id, context->current_item_display_name->buf,
-					context->ticks);
+					context->runtime_ticks, context->playback_ticks);
 			jf_disk_payload_add_item(item);
 			jf_menu_item_free(item);
 			jf_sax_context_current_item_clear(context);
@@ -207,6 +207,8 @@ static int sax_items_map_key(void *ctx, const unsigned char *key, size_t key_len
 				context->parser_state = JF_SAX_IN_ITEM_INDEX_VALUE;
 			} else if (JF_SAX_KEY_IS("ParentIndexNumber")) {
 				context->parser_state = JF_SAX_IN_ITEM_PARENT_INDEX_VALUE;
+			} else if (JF_SAX_KEY_IS("RunTimeTicks")) {
+				context->parser_state = JF_SAX_IN_ITEM_RUNTIME_TICKS_VALUE;
 			} else if (JF_SAX_KEY_IS("UserData")) {
 				context->parser_state = JF_SAX_IN_USERDATA_VALUE;
 			}
@@ -345,8 +347,12 @@ static int sax_items_number(void *ctx, const char *string, size_t string_len)
 {
 	jf_sax_context *context = (jf_sax_context *)(ctx);
 	switch (context->parser_state) {
+		case JF_SAX_IN_ITEM_RUNTIME_TICKS_VALUE:
+			context->runtime_ticks = strtoll(string, NULL, 10);
+			context->parser_state = JF_SAX_IN_ITEM_MAP;
+			break;
 		case JF_SAX_IN_USERDATA_TICKS_VALUE:
-			context->ticks = strtoll(string, NULL, 10);
+			context->playback_ticks = strtoll(string, NULL, 10);
 			context->parser_state = JF_SAX_IN_USERDATA_MAP;
 			break;
 		case JF_SAX_IN_ITEM_YEAR_VALUE:
@@ -405,7 +411,8 @@ static void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb)
 	context->name_len = context->id_len = context->artist_len = 0;
 	context->album_len = context->series_len = context->year_len = 0;
 	context->index_len = context->parent_index_len = 0;
-	context->ticks = 0;
+	context->runtime_ticks = 0;
+	context->playback_ticks = 0;
 }
 
 
@@ -420,6 +427,8 @@ static void jf_sax_context_current_item_clear(jf_sax_context *context)
 	context->year_len = 0;
 	context->index_len = 0;
 	context->parent_index_len = 0;
+	context->runtime_ticks = 0;
+	context->playback_ticks = 0;
 
 	free(context->copy_buffer);
 	context->copy_buffer = NULL;
@@ -564,7 +573,7 @@ char *jf_generate_login_request(const char *username, const char *password)
 	char *json = NULL;
 	size_t json_len;
 
-	if ((gen = yajl_gen_alloc(NULL)) == NULL) return (char *)NULL;
+	if ((gen = yajl_gen_alloc(NULL)) == NULL) return NULL;
 	JF_GEN_BAD_JUMP_OUT(yajl_gen_map_open(gen));
 	JF_GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)"Username", JF_STATIC_STRLEN("Username")));
 	JF_GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)username, strlen(username)));
@@ -576,5 +585,26 @@ char *jf_generate_login_request(const char *username, const char *password)
 
 out:
 	yajl_gen_free(gen);
-	return (char *)json;
+	return json;
+}
+
+
+char *jf_json_generate_progress_post(const char *id, const long long ticks)
+{
+	yajl_gen gen;
+	char *json = NULL;
+	size_t json_len;
+
+	if ((gen = yajl_gen_alloc(NULL)) == NULL) return NULL;
+	yajl_gen_map_open(gen);
+	yajl_gen_string(gen, (const unsigned char *)"ItemId", JF_STATIC_STRLEN("ItemId"));
+	yajl_gen_string(gen, (const unsigned char *)id, JF_ID_LENGTH);
+	yajl_gen_string(gen, (const unsigned char *)"PositionTicks", JF_STATIC_STRLEN("PositionTicks"));
+	yajl_gen_integer(gen, ticks);
+	yajl_gen_map_close(gen);
+	yajl_gen_get_buf(gen, (const unsigned char **)&json, &json_len);
+	json = strndup(json, json_len);
+
+	yajl_gen_free(gen);
+	return json;
 }
