@@ -26,6 +26,9 @@
 	do {										\
 		write(2, str, JF_STATIC_STRLEN(str));	\
 	} while (false)
+
+#define JF_TICKS_TO_SECS(t)	(t) / 10000000
+#define JF_SECS_TO_TICKS(s)	(s) * 10000000
 /////////////////////////////////
 
 
@@ -85,7 +88,8 @@ typedef struct jf_menu_item {
 	struct jf_menu_item **children; // NULL-terminated
 	char id[JF_ID_LENGTH +1];
 	char *name;
-	long long ticks;
+	long long playback_ticks;
+	long long runtime_ticks;
 } jf_menu_item;
 
 
@@ -98,10 +102,14 @@ typedef struct jf_menu_item {
 // 	- children: a NULL-terminated array of pointers to jf_menu_item's that descend from the current one in the UI/library hierarchy.
 // 	- id: the string marking the id of the item. It will be copied to an internal buffer and must have JF_ID_LENGTH size but does not need to be \0-terminated. May be NULL for persistent menu items, in which case the internal buffer will contain a \0-terminated empty string.
 // 	- name: the string marking the display name of the item. It must be \0-terminated. It will be copied by means of strdup. May be NULL, in which case the corresponding field of the jf_menu_item will be NULL.
+// 	- runtime_ticks: length of underlying media item measured in Jellyfin ticks.
+// 	- playback_ticks: progress marker for partially viewed items measured in Jellyfin ticks.
 //
 // Returns:
 //  A pointer to the newly allocated struct on success or NULL on failure.
-jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children, const char *id, const char *name, long long ticks);
+jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children,
+		const char *id, const char *name, const long long runtime_ticks,
+		const long long playback_ticks);
 
 // Function jf_menu_item_free
 //
@@ -110,17 +118,21 @@ jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children, const
 // Parameters:
 // 	- menu_item: a pointer to the struct to deallocate. It may be NULL, in which case the function will no-op.
 void jf_menu_item_free(jf_menu_item *menu_item);
+
+
+// children is set to NULL in dest
+jf_menu_item *jf_menu_item_static_copy(jf_menu_item *dest, const jf_menu_item *src);
 //////////////////////////////////////////////////////////
 
 
 ////////// GLOBAL APPLICATION STATE //////////
 typedef char jf_application_state;
 
-#define JF_STATE_STARTING			0
-#define JF_STATE_MENU_UI			1
-#define JF_STATE_PLAYBACK			2
-#define JF_STATE_PLAYBACK_SEEKING	3
-#define JF_STATE_PLAYBACK_STARTING	4
+#define JF_STATE_STARTING				0
+#define JF_STATE_MENU_UI				1
+#define JF_STATE_PLAYBACK				2
+#define JF_STATE_PLAYBACK_NAVIGATING	3
+#define JF_STATE_PLAYBACK_START_MARK	4
 
 #define JF_STATE_USER_QUIT	-1
 #define JF_STATE_FAIL		-2
@@ -132,13 +144,16 @@ typedef struct jf_global_state {
 	char *session_id;
 	char *server_name;
 	jf_application_state state;
+	jf_menu_item currently_playing;
 } jf_global_state;
 
 
 // Function jf_global_state_init
 //
-// Performs early initialization of global application state.
-// Computes and assigns fields runtime_dir and session_id of application-wide jf_global_state struct.
+// Performs early initialization of global application state:
+// 	- Computes and sets fields runtime_dir and session_id;
+// 	- Sets state to JF_STATE_STARTING;
+// 	- Sets NULL to everything else.
 //
 // Returns:
 // 	true on success, false on failure.

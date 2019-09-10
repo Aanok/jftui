@@ -319,6 +319,7 @@ jf_reply *jf_request(const char *resource, jf_request_type request_type, const c
 		curl_easy_getinfo(s_handle, CURLINFO_RESPONSE_CODE, &status_code);
 		switch (status_code) { 
 			case 200:
+			case 204:
 				break;
 			case 401:
 				reply->size = JF_REPLY_ERROR_HTTP_401;

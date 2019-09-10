@@ -9,7 +9,8 @@ extern mpv_handle *g_mpv_ctx;
 
 ////////// JF_MENU_ITEM //////////
 jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children,
-		const char *id, const char *name, long long ticks)
+		const char *id, const char *name, const long long runtime_ticks,
+		const long long playback_ticks)
 {
 	jf_menu_item *menu_item;
 
@@ -30,7 +31,8 @@ jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children,
 	} else {
 		menu_item->name = strdup(name);
 	}
-	menu_item->ticks = ticks;
+	menu_item->runtime_ticks = runtime_ticks;
+	menu_item->playback_ticks = playback_ticks;
 	
 	return menu_item;
 }
@@ -56,12 +58,26 @@ void jf_menu_item_free(jf_menu_item *menu_item)
 		free(menu_item);
 	}
 }
+
+
+jf_menu_item *jf_menu_item_static_copy(jf_menu_item *dest, const jf_menu_item *src)
+{
+	if (dest != NULL) {
+		memcpy(dest, src, sizeof(jf_menu_item));
+		dest->children = NULL;
+	}
+	return dest;
+}
 //////////////////////////////////
 
 
 ////////// GLOBAL APPLICATION STATE //////////
 bool jf_global_state_init(void)
 {
+	// all pointer fields set to NULL
+	// state set to JF_STATE_STARTING
+	g_state = (jf_global_state){ 0 };
+
 	// runtime_dir
 	if ((g_state.runtime_dir = getenv("XDG_DATA_HOME")) == NULL) {
 		if ((g_state.runtime_dir = getenv("HOME")) == NULL) {
@@ -252,8 +268,8 @@ char *jf_make_timestamp(const long long ticks)
 	char *str;
 	unsigned char seconds, minutes, hours;
 	seconds = (ticks / 10000000) % 60;
-	minutes = (seconds / 60) % 60;
-	hours = minutes / 60;
+	minutes = (ticks / 10000000 / 60) % 60;
+	hours = (unsigned char)(ticks / 10000000 / 60 / 60);
 
 	// allocate with overestimate. we shan't cry
 	if ((str = malloc(sizeof("xxx:xx:xx"))) == NULL) {

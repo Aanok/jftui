@@ -90,9 +90,10 @@ typedef unsigned char jf_sax_parser_state;
 #define JF_SAX_IN_ITEM_YEAR_VALUE				15
 #define JF_SAX_IN_ITEM_INDEX_VALUE				16
 #define JF_SAX_IN_ITEM_PARENT_INDEX_VALUE		17
-#define JF_SAX_IN_USERDATA_MAP					18
-#define JF_SAX_IN_USERDATA_VALUE				19
-#define JF_SAX_IN_USERDATA_TICKS_VALUE			20
+#define JF_SAX_IN_ITEM_RUNTIME_TICKS_VALUE		18
+#define JF_SAX_IN_USERDATA_MAP					19
+#define JF_SAX_IN_USERDATA_VALUE				20
+#define JF_SAX_IN_USERDATA_TICKS_VALUE			21
 #define JF_SAX_IGNORE							255
 //////////////////////////////////////////////
 
@@ -118,7 +119,8 @@ typedef struct jf_sax_context {
 	const unsigned char *year;			size_t year_len;
 	const unsigned char *index;			size_t index_len;
 	const unsigned char *parent_index;	size_t parent_index_len;
-	long long ticks;
+	long long runtime_ticks;
+	long long playback_ticks;
 } jf_sax_context;
 
 
@@ -126,6 +128,7 @@ void *jf_sax_parser_thread(void *arg);
 
 char *jf_json_error_string(void);
 bool jf_json_parse_login_response(const char *payload);
-char *jf_json_make_login_request(const char *username, const char *password);
+char *jf_json_generate_login_request(const char *username, const char *password);
+char *jf_json_generate_progress_post(const char *id, const long long ticks);
 
 #endif

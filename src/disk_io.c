@@ -48,8 +48,10 @@ static bool jf_disk_add_item(jf_file_cache *cache, const jf_menu_item *item)
 	}
 	JF_DISK_OP_SIMPLE_FATAL(fwrite(&("\0"), 1, 1, cache->body), 1, false,
 			"could not NULL-terminate item name in cache body");
-	JF_DISK_OP_SIMPLE_FATAL(fwrite(&(item->ticks), sizeof(long long), 1, cache->body),
-			1, false, "could not write item ticks in cache body");
+	JF_DISK_OP_SIMPLE_FATAL(fwrite(&(item->runtime_ticks), sizeof(long long), 1, cache->body),
+			1, false, "could not write item runtime_ticks in cache body");
+	JF_DISK_OP_SIMPLE_FATAL(fwrite(&(item->playback_ticks), sizeof(long long), 1, cache->body),
+			1, false, "could not write item playback_ticks in cache body");
 
 	cache->count++;
 
@@ -86,8 +88,10 @@ static jf_menu_item *jf_disk_get_item(jf_file_cache *cache, size_t n)
 			break;
 		}
 	}
-	JF_DISK_OP_FATAL(fread(&(item->ticks), sizeof(long long), 1, cache->body), 1,
-			NULL, "could not read ticks for item %zu in a cache body", n);
+	JF_DISK_OP_FATAL(fread(&(item->runtime_ticks), sizeof(long long), 1, cache->body), 1,
+			NULL, "could not read runtime_ticks for item %zu in a cache body", n);
+	JF_DISK_OP_FATAL(fread(&(item->playback_ticks), sizeof(long long), 1, cache->body), 1,
+			NULL, "could not read playback_ticks for item %zu in a cache body", n);
 
 	return item;
 }
