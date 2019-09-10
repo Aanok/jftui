@@ -224,7 +224,7 @@ bool jf_user_config()
 	}
 
 	// login request
-	login_post = jf_json_make_login_request(username, password->buf);
+	login_post = jf_json_generate_login_request(username, password->buf);
 	free(username);
 	jf_growing_buffer_clear(password);
 	login_reply = jf_login_request(login_post);
