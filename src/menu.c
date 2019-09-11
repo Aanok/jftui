@@ -345,7 +345,7 @@ static void jf_menu_play_item(const jf_menu_item *item)
 			}
 			const char *loadfile[] = { "loadfile", request_url, NULL };
 			mpv_command(g_mpv_ctx, loadfile); 
-			jf_menu_item_static_copy(&g_state.currently_playing, item);
+			jf_menu_item_static_copy(&g_state.now_playing, item);
 			free(request_url);
 			break;
 		case JF_ITEM_TYPE_EPISODE:

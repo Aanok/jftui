@@ -69,9 +69,11 @@ mpv_handle *jf_mpv_context_new()
 int main(int argc, char *argv[])
 {
 	// VARIABLES
-	char *config_path;
+	char *config_path, *progress_post;
 	mpv_event *event;
 	int mpv_flag_yes = 1, mpv_flag_no = 0;
+	int64_t playback_ticks;
+	jf_reply *reply;
 
 	// LIBMPV VERSION CHECK
 	// required for "osc" option
@@ -200,7 +202,7 @@ int main(int argc, char *argv[])
 			// RUNTIME: READ AND PROCESS EVENTS
 			default:
 				event = mpv_wait_event(g_mpv_ctx, -1);
-				printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
+// 				printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
 				switch (event->event_id) {
 					case MPV_EVENT_CLIENT_MESSAGE:
 						// playlist controls
@@ -213,6 +215,22 @@ int main(int argc, char *argv[])
 						}
 						break;
 					case MPV_EVENT_END_FILE:
+						// tell server file playback stopped so it won't keep accruing progress
+						playback_ticks = mpv_get_property(g_mpv_ctx, "time-pos", MPV_FORMAT_INT64, &playback_ticks) == 0 ?
+							JF_SECS_TO_TICKS(playback_ticks) : g_state.now_playing.playback_ticks;
+						if ((progress_post = jf_json_generate_progress_post(g_state.now_playing.id, playback_ticks)) == NULL) {
+							fprintf(stderr, "Warning: session stop jf_json_generate_progress_post returned NULL.\n");
+						} else {
+							reply = jf_request("/sessions/playing/stopped", JF_REQUEST_IN_MEMORY, progress_post);
+							free(progress_post);
+							if (reply == NULL) {
+								fprintf(stderr, "Warning: session stop jf_request returned NULL.\n");
+							} else if (JF_REPLY_PTR_HAS_ERROR(reply)) {
+								fprintf(stderr, "Warning: session stop jf_request: %s.\n", jf_reply_error_string(reply));
+							}
+							jf_reply_free(reply);
+						}
+						// move to next item in playlist, if any
 						if (((mpv_event_end_file *)event->data)->reason == MPV_END_FILE_REASON_EOF) {
 							if (jf_menu_playlist_forward()) {
 								g_state.state = JF_STATE_PLAYBACK_NAVIGATING;
@@ -229,31 +247,23 @@ int main(int argc, char *argv[])
 						if (strcmp("time-pos", ((mpv_event_property *)event->data)->name) != 0) break;
 						if (((mpv_event_property *)event->data)->format == MPV_FORMAT_NONE) break;
 						// event valid, check if need to update the server
-						int64_t playback_ticks = JF_SECS_TO_TICKS(*(int64_t *)((mpv_event_property *)event->data)->data);
-						if (llabs(playback_ticks - g_state.currently_playing.playback_ticks) < JF_SECS_TO_TICKS(10)) break;
-						if (playback_ticks < 0.05 * g_state.currently_playing.runtime_ticks) break;
-						// close to end, mark played unless last update already did so
-						if (playback_ticks > 0.95 * g_state.currently_playing.runtime_ticks
-								&& g_state.currently_playing.playback_ticks < 0.95 * g_state.currently_playing.runtime_ticks) {
-							if (jf_menu_mark_played(&g_state.currently_playing)) {
-								g_state.currently_playing.playback_ticks = playback_ticks;
-							}
-							printf("DEBUG: marked as played.\n");
+						playback_ticks = JF_SECS_TO_TICKS(*(int64_t *)((mpv_event_property *)event->data)->data);
+						if (llabs(playback_ticks - g_state.now_playing.playback_ticks) < JF_SECS_TO_TICKS(10)) break;
+						// good for update; note this will also start a playback session if none are there
+						if ((progress_post = jf_json_generate_progress_post(g_state.now_playing.id, playback_ticks)) == NULL) {
+							fprintf(stderr, "Warning: progress update jf_json_generate_progress_post returned NULL.\n");
 							break;
 						}
-						// good for update
-						char *post = jf_json_generate_progress_post(g_state.currently_playing.id, playback_ticks);
-						jf_reply *reply = jf_request("/sessions/playing/progress", JF_REQUEST_IN_MEMORY, post);
-						free(post);
+						reply = jf_request("/sessions/playing/progress", JF_REQUEST_IN_MEMORY, progress_post);
+						free(progress_post);
 						if (reply == NULL) {
-							fprintf(stderr, "Error: progress update jf_request returned NULL.\n");
+							fprintf(stderr, "Warning: progress update jf_request returned NULL.\n");
 							break;
 						}
 						if (JF_REPLY_PTR_HAS_ERROR(reply)) {
-							fprintf(stderr, "Error: progress update jf_request: %s.\n", jf_reply_error_string(reply));
+							fprintf(stderr, "Warning: progress update jf_request: %s.\n", jf_reply_error_string(reply));
 						} else {
-							g_state.currently_playing.playback_ticks = playback_ticks;
-							printf("DEBUG: successful progress update\n");
+							g_state.now_playing.playback_ticks = playback_ticks;
 						}
 						jf_reply_free(reply);
 						break;

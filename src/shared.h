@@ -144,7 +144,7 @@ typedef struct jf_global_state {
 	char *session_id;
 	char *server_name;
 	jf_application_state state;
-	jf_menu_item currently_playing;
+	jf_menu_item now_playing;
 } jf_global_state;
 
 
