@@ -574,16 +574,15 @@ char *jf_json_generate_login_request(const char *username, const char *password)
 	size_t json_len;
 
 	if ((gen = yajl_gen_alloc(NULL)) == NULL) return NULL;
-	JF_GEN_BAD_JUMP_OUT(yajl_gen_map_open(gen));
-	JF_GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)"Username", JF_STATIC_STRLEN("Username")));
-	JF_GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)username, strlen(username)));
-	JF_GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)"Pw", JF_STATIC_STRLEN("Pw")));
-	JF_GEN_BAD_JUMP_OUT(yajl_gen_string(gen, (const unsigned char *)password, strlen(password)));
-	JF_GEN_BAD_JUMP_OUT(yajl_gen_map_close(gen));
-	JF_GEN_BAD_JUMP_OUT(yajl_gen_get_buf(gen, (const unsigned char **)&json, &json_len));
+	JF_JSON_GEN_FATAL(yajl_gen_map_open(gen));
+	JF_JSON_GEN_FATAL(yajl_gen_string(gen, (const unsigned char *)"Username", JF_STATIC_STRLEN("Username")));
+	JF_JSON_GEN_FATAL(yajl_gen_string(gen, (const unsigned char *)username, strlen(username)));
+	JF_JSON_GEN_FATAL(yajl_gen_string(gen, (const unsigned char *)"Pw", JF_STATIC_STRLEN("Pw")));
+	JF_JSON_GEN_FATAL(yajl_gen_string(gen, (const unsigned char *)password, strlen(password)));
+	JF_JSON_GEN_FATAL(yajl_gen_map_close(gen));
+	JF_JSON_GEN_FATAL(yajl_gen_get_buf(gen, (const unsigned char **)&json, &json_len));
 	json = strndup(json, json_len);
 
-out:
 	yajl_gen_free(gen);
 	return json;
 }
@@ -596,13 +595,13 @@ char *jf_json_generate_progress_post(const char *id, const long long ticks)
 	size_t json_len;
 
 	if ((gen = yajl_gen_alloc(NULL)) == NULL) return NULL;
-	yajl_gen_map_open(gen);
-	yajl_gen_string(gen, (const unsigned char *)"ItemId", JF_STATIC_STRLEN("ItemId"));
-	yajl_gen_string(gen, (const unsigned char *)id, JF_ID_LENGTH);
-	yajl_gen_string(gen, (const unsigned char *)"PositionTicks", JF_STATIC_STRLEN("PositionTicks"));
-	yajl_gen_integer(gen, ticks);
-	yajl_gen_map_close(gen);
-	yajl_gen_get_buf(gen, (const unsigned char **)&json, &json_len);
+	JF_JSON_GEN_FATAL(yajl_gen_map_open(gen));
+	JF_JSON_GEN_FATAL(yajl_gen_string(gen, (const unsigned char *)"ItemId", JF_STATIC_STRLEN("ItemId")));
+	JF_JSON_GEN_FATAL(yajl_gen_string(gen, (const unsigned char *)id, JF_ID_LENGTH));
+	JF_JSON_GEN_FATAL(yajl_gen_string(gen, (const unsigned char *)"PositionTicks", JF_STATIC_STRLEN("PositionTicks")));
+	JF_JSON_GEN_FATAL(yajl_gen_integer(gen, ticks));
+	JF_JSON_GEN_FATAL(yajl_gen_map_close(gen));
+	JF_JSON_GEN_FATAL(yajl_gen_get_buf(gen, (const unsigned char **)&json, &json_len));
 	json = strndup(json, json_len);
 
 	yajl_gen_free(gen);

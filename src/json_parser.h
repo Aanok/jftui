@@ -16,9 +16,12 @@
 
 
 // CODE MACROS
-#define JF_GEN_BAD_JUMP_OUT(gen)				\
-do {											\
-	if ((gen) != yajl_gen_status_ok) goto out;	\
+#define JF_JSON_GEN_FATAL(prod)			\
+do {									\
+	if ((prod) != yajl_gen_status_ok) {	\
+			yajl_gen_free(gen);			\
+			return NULL;				\
+	}									\
 } while (false)
 
 #define JF_SAX_ITEM_FILL(field)						\
