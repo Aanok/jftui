@@ -1,4 +1,4 @@
-#include "json_parser.h"
+#include "json.h"
 
 ////////// GLOBALS //////////
 extern jf_options g_options;
@@ -11,18 +11,18 @@ static char s_error_buffer[JF_PARSER_ERROR_BUFFER_SIZE];
 
 
 ////////// STATIC FUNCTIONS //////////
-static int sax_items_start_map(void *ctx);
-static int sax_items_end_map(void *ctx);
-static int sax_items_map_key(void *ctx, const unsigned char *key, size_t key_len);
-static int sax_items_start_array(void *ctx);
-static int sax_items_end_array(void *ctx);
-static int sax_items_string(void *ctx, const unsigned char *string, size_t strins_len);
-static int sax_items_number(void *ctx, const char *string, size_t strins_len);
+static int jf_sax_items_start_map(void *ctx);
+static int jf_sax_items_end_map(void *ctx);
+static int jf_sax_items_map_key(void *ctx, const unsigned char *key, size_t key_len);
+static int jf_sax_items_start_array(void *ctx);
+static int jf_sax_items_end_array(void *ctx);
+static int jf_sax_items_string(void *ctx, const unsigned char *string, size_t strins_len);
+static int jf_sax_items_number(void *ctx, const char *string, size_t strins_len);
 
-// Function: jf_yajl_parser_new
+// Function: jf_sax_yajl_parser_new
 //
 // Allocates a new yajl parser instance, registering callbacks and context and setting yajl_allow_multiple_values to let it digest multiple JSON messages in a row.
-// Failures are considered catastrophic. Will set thread buffer state to JF_THREAD_BUFFER_STATE_PARSER_DEAD and put an error message in the thread buffer data buffer.
+// Failures are considered catastrophic: will set thread buffer state to JF_THREAD_BUFFER_STATE_PARSER_DEAD and put an error message in the thread buffer data buffer.
 //
 // Parameters:
 // 	- callbacks: Pointer to callbacks struct to register.
@@ -30,7 +30,7 @@ static int sax_items_number(void *ctx, const char *string, size_t strins_len);
 //
 // Returns:
 // 	The yajl_handle of the new parser on success, NULL on failure.
-static yajl_handle jf_yajl_parser_new(yajl_callbacks *callbacks, jf_sax_context *context);
+static yajl_handle jf_sax_yajl_parser_new(yajl_callbacks *callbacks, jf_sax_context *context);
 
 static void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb);
 static void jf_sax_context_current_item_clear(jf_sax_context *context);
@@ -39,7 +39,7 @@ static bool jf_sax_context_current_item_copy(jf_sax_context *context);
 
 
 ////////// SAX PARSER CALLBACKS //////////
-static int sax_items_start_map(void *ctx)
+static int jf_sax_items_start_map(void *ctx)
 {
 	jf_sax_context *context = (jf_sax_context *)(ctx);
 	switch (context->parser_state) {
@@ -72,7 +72,7 @@ static int sax_items_start_map(void *ctx)
 }
 
 
-static int sax_items_end_map(void *ctx)
+static int jf_sax_items_end_map(void *ctx)
 {
 	jf_sax_context *context = (jf_sax_context *)(ctx);
 	switch (context->parser_state) {
@@ -177,7 +177,7 @@ static int sax_items_end_map(void *ctx)
 }
 
 
-static int sax_items_map_key(void *ctx, const unsigned char *key, size_t key_len)
+static int jf_sax_items_map_key(void *ctx, const unsigned char *key, size_t key_len)
 {
 	jf_sax_context *context = (jf_sax_context *)(ctx);
 	switch (context->parser_state) {
@@ -221,7 +221,7 @@ static int sax_items_map_key(void *ctx, const unsigned char *key, size_t key_len
 	return 1;
 }
 
-static int sax_items_start_array(void *ctx)
+static int jf_sax_items_start_array(void *ctx)
 {
 	jf_sax_context *context = (jf_sax_context *)(ctx);
 	switch (context->parser_state) {
@@ -249,7 +249,7 @@ static int sax_items_start_array(void *ctx)
 }
 
 
-static int sax_items_end_array(void *ctx)
+static int jf_sax_items_end_array(void *ctx)
 {
 	jf_sax_context *context = (jf_sax_context *)(ctx);
 	switch (context->parser_state) {
@@ -274,7 +274,7 @@ static int sax_items_end_array(void *ctx)
 }
 
 
-static int sax_items_string(void *ctx, const unsigned char *string, size_t string_len)
+static int jf_sax_items_string(void *ctx, const unsigned char *string, size_t string_len)
 {
 	jf_sax_context *context = (jf_sax_context *)(ctx);
 	switch (context->parser_state) {
@@ -343,7 +343,7 @@ static int sax_items_string(void *ctx, const unsigned char *string, size_t strin
 }
 
 
-static int sax_items_number(void *ctx, const char *string, size_t string_len)
+static int jf_sax_items_number(void *ctx, const char *string, size_t string_len)
 {
 	jf_sax_context *context = (jf_sax_context *)(ctx);
 	switch (context->parser_state) {
@@ -373,7 +373,7 @@ static int sax_items_number(void *ctx, const char *string, size_t string_len)
 //////////////////////////////////////////
 
 
-static yajl_handle jf_yajl_parser_new(yajl_callbacks *callbacks, jf_sax_context *context)
+static yajl_handle jf_sax_yajl_parser_new(yajl_callbacks *callbacks, jf_sax_context *context)
 {
 	yajl_handle parser;
 
@@ -461,7 +461,7 @@ static bool jf_sax_context_current_item_copy(jf_sax_context *context)
 
 // NB all data created by the thread itself is allocated on the stack,
 // so it is safe to detach it
-void *jf_sax_parser_thread(void *arg)
+void *jf_json_sax_thread(void *arg)
 {
 	jf_sax_context context;
 	yajl_status status;
@@ -471,18 +471,18 @@ void *jf_sax_parser_thread(void *arg)
 		.yajl_boolean = NULL,
 		.yajl_integer = NULL,
 		.yajl_double = NULL,
-		.yajl_number = sax_items_number,
-		.yajl_string = sax_items_string,
-		.yajl_start_map = sax_items_start_map,
-		.yajl_map_key = sax_items_map_key,
-		.yajl_end_map = sax_items_end_map,
-		.yajl_start_array = sax_items_start_array,
-		.yajl_end_array = sax_items_end_array
+		.yajl_number = jf_sax_items_number,
+		.yajl_string = jf_sax_items_string,
+		.yajl_start_map = jf_sax_items_start_map,
+		.yajl_map_key = jf_sax_items_map_key,
+		.yajl_end_map = jf_sax_items_end_map,
+		.yajl_start_array = jf_sax_items_start_array,
+		.yajl_end_array = jf_sax_items_end_array
 	};
 
 	jf_sax_context_init(&context, (jf_thread_buffer *)arg);
 
-	if ((parser = jf_yajl_parser_new(&callbacks, &context)) == NULL) {
+	if ((parser = jf_sax_yajl_parser_new(&callbacks, &context)) == NULL) {
 		return NULL;
 	}
 
@@ -500,7 +500,7 @@ void *jf_sax_parser_thread(void *arg)
 			yajl_free_error(parser, error_str);
 			// the parser never recovers after an error; we must free and reallocate it
 			yajl_free(parser);
-			if ((parser = jf_yajl_parser_new(&callbacks, &context)) == NULL) {
+			if ((parser = jf_sax_yajl_parser_new(&callbacks, &context)) == NULL) {
 				return NULL;
 			}
 		} else if (context.parser_state == JF_SAX_IDLE) {
@@ -517,7 +517,7 @@ void *jf_sax_parser_thread(void *arg)
 				strcpy(context.tb->data, "jf_sax_context_current_item_copy malloc fail");
 				// we need to reset the parser
 				yajl_free(parser);
-				if ((parser = jf_yajl_parser_new(&callbacks, &context)) == NULL) {
+				if ((parser = jf_sax_yajl_parser_new(&callbacks, &context)) == NULL) {
 					return NULL;
 				}
 			}

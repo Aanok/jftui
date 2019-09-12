@@ -1,4 +1,4 @@
-#include "disk_io.h"
+#include "disk.h"
 
 ////////// GLOBALS //////////
 extern jf_global_state g_state;

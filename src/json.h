@@ -1,5 +1,5 @@
-#ifndef _JF_JSON_PARSER
-#define _JF_JSON_PARSER
+#ifndef _JF_JSON
+#define _JF_JSON
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,10 +12,10 @@
 
 #include "shared.h"
 #include "config.h"
-#include "disk_io.h"
+#include "disk.h"
 
 
-// CODE MACROS
+////////// CODE MACROS //////////
 #define JF_JSON_GEN_FATAL(prod)			\
 do {									\
 	if ((prod) != yajl_gen_status_ok) {	\
@@ -70,6 +70,7 @@ do {																				\
 					suffix, JF_STATIC_STRLEN(suffix));						\
 		}																	\
 	} while (false)
+/////////////////////////////////
 
 
 ////////// SAX PARSER STATE MACHINE //////////
@@ -127,7 +128,7 @@ typedef struct jf_sax_context {
 } jf_sax_context;
 
 
-void *jf_sax_parser_thread(void *arg);
+void *jf_json_sax_thread(void *arg);
 
 char *jf_json_error_string(void);
 bool jf_json_parse_login_response(const char *payload);

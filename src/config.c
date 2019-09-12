@@ -178,7 +178,7 @@ bool jf_config_write(const char *config_path)
 
 
 // TODO: this is a stub
-bool jf_user_config()
+bool jf_config_ask_user()
 {
 	struct termios old, new;
 	char *username, *login_post;
@@ -197,7 +197,7 @@ bool jf_user_config()
 	printf("Please enter the URL of your Jellyfin server. Example: http://foo.bar:8096/jf\n(note: unless specified, ports will be the protocol's defaults, i.e. 80 for HTTP and 443 for HTTPS)\n");
 	while (true) {
 		g_options.server = linenoise("> ");
-		if (jf_network_url_is_valid(g_options.server)) {
+		if (jf_net_url_is_valid(g_options.server)) {
 			g_options.server_len = strlen(g_options.server);
 			break;
 		} else {
@@ -227,10 +227,10 @@ bool jf_user_config()
 	login_post = jf_json_generate_login_request(username, password->buf);
 	free(username);
 	jf_growing_buffer_clear(password);
-	login_reply = jf_login_request(login_post);
+	login_reply = jf_net_login_request(login_post);
 	free(login_post);
 	if (login_reply == NULL) {
-		fprintf(stderr, "FATAL: jf_login_request returned NULL.\n");
+		fprintf(stderr, "FATAL: jf_net_login_request returned NULL.\n");
 		return false;
 	}
 	if (JF_REPLY_PTR_HAS_ERROR(login_reply)) {

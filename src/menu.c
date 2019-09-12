@@ -1,7 +1,7 @@
 #include "menu.h"
 
 ////////// COMMAND PARSER //////////
-#include "command_parser.c"
+#include "cmd.c"
 ////////////////////////////////////
 
 
@@ -489,10 +489,10 @@ bool jf_menu_mark_played(const jf_menu_item *item)
 		fprintf(stderr, "ERROR: jf_menu_mark_played jf_concat returned NULL.\n");
 		return false;
 	}
-	reply = jf_request(url, JF_REQUEST_IN_MEMORY, "");
+	reply = jf_net_request(url, JF_REQUEST_IN_MEMORY, "");
 	free(url);
 	if (reply == NULL) {
-		fprintf(stderr, "ERROR: jf_menu_mark_played jf_request returned NULL.\n");
+		fprintf(stderr, "ERROR: jf_menu_mark_played jf_net_request returned NULL.\n");
 		return false;
 	}
 	if (JF_REPLY_PTR_HAS_ERROR(reply)) {
@@ -559,7 +559,7 @@ void jf_menu_ui()
 		// READ AND PROCESS USER COMMAND
 		memset(&yy, 0, sizeof(yycontext));
 		while (true) {
-			switch (yy_command_parser_get_state(&yy)) {
+			switch (yy_cmd_get_parser_state(&yy)) {
 				case JF_CMD_VALIDATE_START:
 					// read input and do first pass (validation)
 					line = linenoise("> ");

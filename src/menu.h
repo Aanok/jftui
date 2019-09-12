@@ -11,8 +11,8 @@
 
 #include "shared.h"
 #include "config.h"
-#include "network.h"
-#include "disk_io.h"
+#include "net.h"
+#include "disk.h"
 
 
 ////////// CODE MACROS //////////
@@ -35,16 +35,16 @@
 		printf("DEBUG: request_url = %s\n", url);											\
 	} while (false)
 
-#define JF_MENU_DO_REQUEST_FATAL(item, url, request_type)						\
-	do {																		\
-		if ((reply = jf_request(url, request_type, NULL)) == NULL) {			\
-			fprintf(stderr, "FATAL: could not allocate jf_reply.\n");			\
-			jf_menu_item_free(item);											\
-			item = NULL;														\
-			free(request_url);													\
-			g_state.state = JF_STATE_FAIL;										\
-			return false;														\
-		}																		\
+#define JF_MENU_DO_REQUEST_FATAL(item, url, request_type)					\
+	do {																	\
+		if ((reply = jf_net_request(url, request_type, NULL)) == NULL) {	\
+			fprintf(stderr, "FATAL: could not allocate jf_reply.\n");		\
+			jf_menu_item_free(item);										\
+			item = NULL;													\
+			free(request_url);												\
+			g_state.state = JF_STATE_FAIL;									\
+			return false;													\
+		}																	\
 	} while (false)
 
 #define JF_MENU_FOLDER_CHECK_REPLY_FATAL(item, reply)							\

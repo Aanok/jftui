@@ -1,4 +1,4 @@
-#include "network.h"
+#include "net.h"
 
 
 ////////// GLOBAL VARIABLES //////////
@@ -17,7 +17,7 @@ static jf_thread_buffer s_tb;
 static void jf_thread_buffer_wait_parsing_done(void);
 static size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *userdata);
 static size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, void *userdata);
-static bool jf_network_make_headers(void);
+static bool jf_net_make_headers(void);
 //////////////////////////////////////
 
 
@@ -169,7 +169,7 @@ void jf_thread_buffer_clear_error()
 
 ////////// NETWORK UNIT //////////
 // TODO better error handling
-bool jf_network_pre_init()
+bool jf_net_pre_init()
 {
 	curl_global_init(CURL_GLOBAL_ALL | CURL_GLOBAL_SSL);
 	s_handle = curl_easy_init();
@@ -185,7 +185,7 @@ bool jf_network_pre_init()
 
 	// sax parser thread
 	jf_thread_buffer_init(&s_tb);
-	if (pthread_create(&sax_parser_thread, NULL, jf_sax_parser_thread, (void *)&(s_tb)) == -1) {
+	if (pthread_create(&sax_parser_thread, NULL, jf_json_sax_thread, (void *)&(s_tb)) == -1) {
 		return false;
 	}
 	if (pthread_detach(sax_parser_thread) != 0) {
@@ -196,7 +196,7 @@ bool jf_network_pre_init()
 }
 
 
-static bool jf_network_make_headers()
+static bool jf_net_make_headers()
 {
 	char *tmp;
 
@@ -227,7 +227,7 @@ static bool jf_network_make_headers()
 }
 
 
-bool jf_network_refresh()
+bool jf_net_refresh()
 {
 	// security bypass stuff
 	if (! g_options.ssl_verifyhost) {
@@ -238,11 +238,11 @@ bool jf_network_refresh()
 	curl_slist_free_all(s_headers_POST); // no-op if arg is NULL
 	s_headers = NULL;
 	s_headers_POST = NULL;
-	return jf_network_make_headers();
+	return jf_net_make_headers();
 }
 
 
-void jf_network_clear()
+void jf_net_clear()
 {
 	curl_slist_free_all(s_headers_POST);
 	curl_easy_cleanup(s_handle);
@@ -254,7 +254,7 @@ void jf_network_clear()
 ////////// NETWORKING //////////
 
 //TODO add error checks to all setopt's
-jf_reply *jf_request(const char *resource, jf_request_type request_type, const char *POST_payload)
+jf_reply *jf_net_request(const char *resource, jf_request_type request_type, const char *POST_payload)
 {
 	CURLcode result;
 	long status_code;
@@ -340,11 +340,11 @@ jf_reply *jf_request(const char *resource, jf_request_type request_type, const c
 }
 
 
-jf_reply *jf_login_request(const char *POST_payload)
+jf_reply *jf_net_login_request(const char *POST_payload)
 {
 	char *tmp;
 
-	if (! jf_network_make_headers()) {
+	if (! jf_net_make_headers()) {
 		return NULL;
 	}
 
@@ -369,13 +369,13 @@ jf_reply *jf_login_request(const char *POST_payload)
 	free(tmp);
 
 	// send request
-	return jf_request("/emby/Users/authenticatebyname", 0, POST_payload);
+	return jf_net_request("/emby/Users/authenticatebyname", 0, POST_payload);
 }
 ////////////////////////////////
 
 
 ////////// MISCELLANEOUS GARBAGE ///////////
-bool jf_network_url_is_valid(const char *url)
+bool jf_net_url_is_valid(const char *url)
 {
 	CURLU *curlu;
 

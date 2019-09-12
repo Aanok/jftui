@@ -11,7 +11,7 @@
 #include "linenoise.h"
 
 #include "shared.h"
-#include "network.h"
+#include "net.h"
 
 
 ////////// CODE MACROS //////////
@@ -60,7 +60,7 @@ void jf_options_clear(void);
 char *jf_config_get_default_dir(void);
 bool jf_config_read(const char *config_path);
 bool jf_config_write(const char *config_path);
-bool jf_user_config(void);
+bool jf_config_ask_user(void);
 ////////////////////////////////////////
 
 #endif

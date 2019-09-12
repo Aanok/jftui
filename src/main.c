@@ -11,10 +11,10 @@
 #include <mpv/client.h>
 
 #include "shared.h"
-#include "network.h"
-#include "json_parser.h"
+#include "net.h"
+#include "json.h"
 #include "config.h"
-#include "disk_io.h"
+#include "disk.h"
 
 
 #define JF_MPV_ERROR_FATAL(status)													\
@@ -102,12 +102,11 @@ int main(int argc, char *argv[])
 	
 
 	// SETUP NETWORK
-	// NB the network unit keeps a reference to options, not a copy. Keep it live till cleanup!
-	if (! jf_network_pre_init()) {
+	if (! jf_net_pre_init()) {
 		fprintf(stderr, "FATAL: could not initialize network context.\n");
 		exit(EXIT_FAILURE);
 	}
-	atexit(jf_network_clear);
+	atexit(jf_net_clear);
 	////////////////
 	
 
@@ -138,7 +137,7 @@ int main(int argc, char *argv[])
 				free(config_path);
 				exit(EXIT_SUCCESS);
 			}
-			if (! jf_user_config()) {
+			if (! jf_config_ask_user()) {
 				free(config_path);
 				exit(EXIT_FAILURE);
 			}
@@ -149,7 +148,7 @@ int main(int argc, char *argv[])
 			free(config_path);
 			exit(EXIT_SUCCESS);
 		}
-		if (! jf_user_config()) {
+		if (! jf_config_ask_user()) {
 			free(config_path);
 			exit(EXIT_FAILURE);
 		}
@@ -162,8 +161,9 @@ int main(int argc, char *argv[])
 	}
 	////////////////////////////////////
 	
+
 	// DOUBLE CHECK AND FINALIZE NETWORK CONFIG
-	if (! jf_network_refresh()) {
+	if (! jf_net_refresh()) {
 		free(config_path);
 		exit(EXIT_FAILURE);
 	}
@@ -221,12 +221,12 @@ int main(int argc, char *argv[])
 						if ((progress_post = jf_json_generate_progress_post(g_state.now_playing.id, playback_ticks)) == NULL) {
 							fprintf(stderr, "Warning: session stop jf_json_generate_progress_post returned NULL.\n");
 						} else {
-							reply = jf_request("/sessions/playing/stopped", JF_REQUEST_IN_MEMORY, progress_post);
+							reply = jf_net_request("/sessions/playing/stopped", JF_REQUEST_IN_MEMORY, progress_post);
 							free(progress_post);
 							if (reply == NULL) {
-								fprintf(stderr, "Warning: session stop jf_request returned NULL.\n");
+								fprintf(stderr, "Warning: session stop jf_net_request returned NULL.\n");
 							} else if (JF_REPLY_PTR_HAS_ERROR(reply)) {
-								fprintf(stderr, "Warning: session stop jf_request: %s.\n", jf_reply_error_string(reply));
+								fprintf(stderr, "Warning: session stop jf_net_request: %s.\n", jf_reply_error_string(reply));
 							}
 							jf_reply_free(reply);
 						}
@@ -254,14 +254,14 @@ int main(int argc, char *argv[])
 							fprintf(stderr, "Warning: progress update jf_json_generate_progress_post returned NULL.\n");
 							break;
 						}
-						reply = jf_request("/sessions/playing/progress", JF_REQUEST_IN_MEMORY, progress_post);
+						reply = jf_net_request("/sessions/playing/progress", JF_REQUEST_IN_MEMORY, progress_post);
 						free(progress_post);
 						if (reply == NULL) {
-							fprintf(stderr, "Warning: progress update jf_request returned NULL.\n");
+							fprintf(stderr, "Warning: progress update jf_net_request returned NULL.\n");
 							break;
 						}
 						if (JF_REPLY_PTR_HAS_ERROR(reply)) {
-							fprintf(stderr, "Warning: progress update jf_request: %s.\n", jf_reply_error_string(reply));
+							fprintf(stderr, "Warning: progress update jf_net_request: %s.\n", jf_reply_error_string(reply));
 						} else {
 							g_state.now_playing.playback_ticks = playback_ticks;
 						}

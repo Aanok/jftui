@@ -1,5 +1,5 @@
-#ifndef _JF_DISK_IO
-#define _JF_DISK_IO
+#ifndef _JF_DISK
+#define _JF_DISK
 
 #include <stdio.h>
 #include <unistd.h>

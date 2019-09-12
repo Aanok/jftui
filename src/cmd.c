@@ -4,70 +4,70 @@
 #include <stdlib.h>
 #include <string.h>
 #define YYRULECOUNT 7
-#line 1 "src/command_grammar.leg"
+#line 1 "src/cmd.leg"
 
-	#define YYSTYPE unsigned long
-	#include <stdlib.h>
-	#include <stdbool.h>
+#define YYSTYPE unsigned long
+#include <stdlib.h>
+#include <stdbool.h>
 
-	#include "shared.h"
-	#include "menu.h"
+#include "shared.h"
+#include "menu.h"
 
-	////////// STATE MACHINE //////////
-	typedef char jf_command_parser_state;
+////////// STATE MACHINE //////////
+typedef char jf_cmd_parser_state;
 
-	// make sure to start from 0 so memset init works
-	#define JF_CMD_VALIDATE_START	0
-	#define JF_CMD_VALIDATE_ATOMS	1
-	#define JF_CMD_VALIDATE_FOLDER	2
-	#define JF_CMD_VALIDATE_OK		3
-	#define JF_CMD_SPECIAL			4
-	#define JF_CMD_SUCCESS			5
+// make sure to start from 0 so memset init works
+#define JF_CMD_VALIDATE_START	0
+#define JF_CMD_VALIDATE_ATOMS	1
+#define JF_CMD_VALIDATE_FOLDER	2
+#define JF_CMD_VALIDATE_OK		3
+#define JF_CMD_SPECIAL			4
+#define JF_CMD_SUCCESS			5
 
-	#define JF_CMD_FAIL_FOLDER		-1
-	#define JF_CMD_FAIL_SYNTAX		-2
-	#define JF_CMD_FAIL_DISPATCH	-3
+#define JF_CMD_FAIL_FOLDER		-1
+#define JF_CMD_FAIL_SYNTAX		-2
+#define JF_CMD_FAIL_DISPATCH	-3
 
-	#define JF_CMD_IS_FAIL(state)	((state) < 0)
-	///////////////////////////////////
-
-
-	////////// YY_CTX //////////
-	// forward declaration wrt PEG generated code
-	typedef struct _yycontext yycontext;
-
-	#define YY_CTX_LOCAL
-	#define YY_CTX_MEMBERS				\
-		jf_command_parser_state state;	\
-		char *input;					\
-		size_t read_input;
-	////////////////////////////
+#define JF_CMD_IS_FAIL(state)	((state) < 0)
+///////////////////////////////////
 
 
-	////////// INPUT PROCESSING //////////
-	#define YY_INPUT(ctx, buf, result, max_size)						\
-		{																\
-			size_t to_read = 0;											\
-			while (to_read < max_size) {								\
-				if (ctx->input[ctx->read_input + to_read] == '\0') {	\
-					break;												\
-				}														\
-				to_read++;												\
-			}															\
-			memcpy(buf, ctx->input + ctx->read_input, to_read);			\
-			ctx->read_input += to_read;									\
-			result = to_read;											\
-		}
-	//////////////////////////////////////
+////////// YY_CTX //////////
+// forward declaration wrt PEG generated code
+typedef struct _yycontext yycontext;
+
+#define YY_CTX_LOCAL
+#define YY_CTX_MEMBERS			\
+	jf_cmd_parser_state state;	\
+	char *input;				\
+	size_t read_input;
+////////////////////////////
 
 
-	////////// FUNCTION PROTOTYPES //////////
-	jf_command_parser_state yy_command_parser_get_state(const yycontext *ctx);
+////////// INPUT PROCESSING //////////
+#define YY_INPUT(ctx, buf, result, max_size)						\
+	{																\
+		size_t to_read = 0;											\
+		while (to_read < max_size) {								\
+			if (ctx->input[ctx->read_input + to_read] == '\0') {	\
+				break;												\
+			}														\
+			to_read++;												\
+		}															\
+		memcpy(buf, ctx->input + ctx->read_input, to_read);			\
+		ctx->read_input += to_read;									\
+		result = to_read;											\
+	}
+//////////////////////////////////////
 
-	static void yy_cmd_digest(yycontext *ctx, const size_t n);
-	static void yy_cmd_digest_range(yycontext *ctx, const size_t l, const size_t r);
-	static void yy_cmd_finalize(yycontext *ctx, const bool parse_ok);
-	/////////////////////////////////////////
+
+////////// FUNCTION PROTOTYPES //////////
+jf_cmd_parser_state yy_cmd_get_parser_state(const yycontext *ctx);
+
+static void yy_cmd_digest(yycontext *ctx, const size_t n);
+static void yy_cmd_digest_range(yycontext *ctx, const size_t l, const size_t r);
+static void yy_cmd_finalize(yycontext *ctx, const bool parse_ok);
+/////////////////////////////////////////
 
 #ifndef YY_MALLOC
 #define YY_MALLOC(C, N)		malloc(N)
@@ -352,7 +352,7 @@ YY_ACTION(void) yy_1_num(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_num\n"));
   {
-#line 80
+#line 82
    __ = strtoul(yytext, NULL, 10); ;
   }
 #undef yythunkpos
@@ -369,7 +369,7 @@ YY_ACTION(void) yy_2_Atom(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_2_Atom\n"));
   {
-#line 79
+#line 81
    yy_cmd_digest(yy, n); ;
   }
 #undef yythunkpos
@@ -389,7 +389,7 @@ YY_ACTION(void) yy_1_Atom(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_Atom\n"));
   {
-#line 78
+#line 80
    yy_cmd_digest_range(yy, l, r); ;
   }
 #undef yythunkpos
@@ -406,7 +406,7 @@ YY_ACTION(void) yy_1_Selector(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_Selector\n"));
   {
-#line 74
+#line 76
    yy_cmd_digest_range(yy, 1, jf_menu_child_count()); ;
   }
 #undef yythunkpos
@@ -420,7 +420,7 @@ YY_ACTION(void) yy_3_Start(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_3_Start\n"));
   {
-#line 73
+#line 75
    yy_cmd_finalize(yy, true); ;
   }
 #undef yythunkpos
@@ -434,7 +434,7 @@ YY_ACTION(void) yy_2_Start(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_2_Start\n"));
   {
-#line 71
+#line 73
    yy->state = JF_CMD_SPECIAL; jf_menu_quit(); ;
   }
 #undef yythunkpos
@@ -448,7 +448,7 @@ YY_ACTION(void) yy_1_Start(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_Start\n"));
   {
-#line 68
+#line 70
    yy->state = JF_CMD_SPECIAL; jf_menu_dotdot(); ;
   }
 #undef yythunkpos
@@ -644,90 +644,90 @@ YY_PARSE(yycontext *) YYRELEASE(yycontext *yyctx)
 }
 
 #endif
-#line 85 "src/command_grammar.leg"
+#line 89 "src/cmd.leg"
 
-	jf_command_parser_state yy_command_parser_get_state(const yycontext *ctx)
-	{
-		return ctx->state;
+jf_cmd_parser_state yy_cmd_get_parser_state(const yycontext *ctx)
+{
+	return ctx->state;
+}
+
+
+static void yy_cmd_digest(yycontext *ctx, size_t n)
+{
+	jf_item_type item_type;
+
+	// no-op on fail state
+	if (JF_CMD_IS_FAIL(ctx->state)) {
+		return;
 	}
 
+	// no-op if item does not exist (out of bounds)
+	if ((item_type = jf_menu_child_get_type(n)) == JF_ITEM_TYPE_NONE) {
+		return;
+	}
 
-	static void yy_cmd_digest(yycontext *ctx, size_t n)
-	{
-		jf_item_type item_type;
+	switch (ctx->state) {
+		case JF_CMD_VALIDATE_START:
+			if (JF_ITEM_TYPE_IS_FOLDER(item_type)) {
+				ctx->state = JF_CMD_VALIDATE_FOLDER;
+			} else {
+				ctx->state = JF_CMD_VALIDATE_ATOMS;
+			}
+			break;
+		case JF_CMD_VALIDATE_ATOMS:
+			if (JF_ITEM_TYPE_IS_FOLDER(item_type)) {
+				ctx->state = JF_CMD_FAIL_FOLDER;
+			}
+			break;
+		case JF_CMD_VALIDATE_FOLDER:
+			if (! JF_ITEM_TYPE_IS_FOLDER(item_type)) {
+				ctx->state = JF_CMD_FAIL_FOLDER;
+			}
+			break;
+		case JF_CMD_VALIDATE_OK:
+			if (! jf_menu_child_dispatch(n)) {
+				ctx->state = JF_CMD_FAIL_DISPATCH;
+			}
+			break;
+		default:
+			fprintf(stderr, "Error: yy_cmd_digest encountered unexpected state transition. This is a bug.\n");	
+			break;
+	}
+}
 
-		// no-op on fail state
-		if (JF_CMD_IS_FAIL(ctx->state)) {
-			return;
-		}
 
-		// no-op if item does not exist (out of bounds)
-		if ((item_type = jf_menu_child_get_type(n)) == JF_ITEM_TYPE_NONE) {
-			return;
-		}
+static void yy_cmd_digest_range(yycontext *ctx, size_t l, const size_t r)
+{
+	int step = l <= r ? 1 : -1;
+	while (true) {
+		yy_cmd_digest(ctx, l);
+		if (l == r || l == -1) break;
+		l += step;
+	}
+}
 
+
+static void yy_cmd_finalize(yycontext *ctx, const bool parse_ok)
+{
+	if (parse_ok == false) {
+		ctx->state = JF_CMD_FAIL_SYNTAX;
+	} else {
 		switch (ctx->state) {
-			case JF_CMD_VALIDATE_START:
-				if (JF_ITEM_TYPE_IS_FOLDER(item_type)) {
-					ctx->state = JF_CMD_VALIDATE_FOLDER;
-				} else {
-					ctx->state = JF_CMD_VALIDATE_ATOMS;
-				}
-				break;
 			case JF_CMD_VALIDATE_ATOMS:
-				if (JF_ITEM_TYPE_IS_FOLDER(item_type)) {
-					ctx->state = JF_CMD_FAIL_FOLDER;
-				}
-				break;
 			case JF_CMD_VALIDATE_FOLDER:
-				if (! JF_ITEM_TYPE_IS_FOLDER(item_type)) {
-					ctx->state = JF_CMD_FAIL_FOLDER;
-				}
+				ctx->read_input = 0;
+				ctx->state = JF_CMD_VALIDATE_OK;
 				break;
 			case JF_CMD_VALIDATE_OK:
-				if (! jf_menu_child_dispatch(n)) {
-					ctx->state = JF_CMD_FAIL_DISPATCH;
-				}
+			case JF_CMD_SPECIAL:
+			case JF_CMD_VALIDATE_START: // all items out of bounds
+				ctx->state = JF_CMD_SUCCESS;
+				break;
+			case JF_CMD_FAIL_FOLDER:
 				break;
 			default:
-				fprintf(stderr, "Error: yy_cmd_digest encountered unexpected state transition. This is a bug.\n");	
-				break;
+				fprintf(stderr, "Error: yy_cmd_finalize encountered unexpected state transition. This is a bug.\n");	
 		}
 	}
-
-
-	static void yy_cmd_digest_range(yycontext *ctx, size_t l, const size_t r)
-	{
-		int step = l <= r ? 1 : -1;
-		while (true) {
-			yy_cmd_digest(ctx, l);
-			if (l == r || l == -1) break;
-			l += step;
-		}
-	}
-
-
-	static void yy_cmd_finalize(yycontext *ctx, const bool parse_ok)
-	{
-		if (parse_ok == false) {
-			ctx->state = JF_CMD_FAIL_SYNTAX;
-		} else {
-			switch (ctx->state) {
-				case JF_CMD_VALIDATE_ATOMS:
-				case JF_CMD_VALIDATE_FOLDER:
-					ctx->read_input = 0;
-					ctx->state = JF_CMD_VALIDATE_OK;
-					break;
-				case JF_CMD_VALIDATE_OK:
-				case JF_CMD_SPECIAL:
-				case JF_CMD_VALIDATE_START: // all items out of bounds
-					ctx->state = JF_CMD_SUCCESS;
-					break;
-				case JF_CMD_FAIL_FOLDER:
-					break;
-				default:
-					fprintf(stderr, "Error: yy_cmd_finalize encountered unexpected state transition. This is a bug.\n");	
-			}
-		}
-	}
+}
 

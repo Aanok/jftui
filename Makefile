@@ -5,9 +5,9 @@ CFLAGS=`pkg-config --cflags libcurl yajl mpv` -pthread
 LFLAGS=`pkg-config --libs libcurl yajl mpv`
 DFLAGS=-g -O1 -fno-omit-frame-pointer -fno-optimize-sibling-calls -fsanitize=address -fsanitize=undefined
 
-SOURCES=src/linenoise.c src/shared.c src/config.c src/disk_io.c src/json_parser.c src/menu.c src/network.c src/main.c
+SOURCES=src/linenoise.c src/shared.c src/config.c src/disk.c src/json.c src/menu.c src/net.c src/main.c
 
-OBJECTS=build/linenoise.o build/menu.o build/shared.o build/config.o build/disk_io.o build/json_parser.o build/network.o build/main.o
+OBJECTS=build/linenoise.o build/menu.o build/shared.o build/config.o build/disk.o build/json.o build/net.o build/main.o
 
 BUILD_DIR := build
 
@@ -40,13 +40,13 @@ ${BUILD_DIR}/jftui: ${BUILD_DIR} $(SOURCES)
 ${BUILD_DIR}/jftui_debug: ${BUILD_DIR} $(OBJECTS) $(SOURCES)
 	$(CC) $(WFLAGS) $(LFLAGS) $(DFLAGS) $(OBJECTS) -o $@
 
-src/command_parser.c: src/command_grammar.leg
+src/cmd.c: src/cmd.leg
 	leg -o $@ $^
 
 ${BUILD_DIR}/linenoise.o: src/linenoise.c
 	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
 
-${BUILD_DIR}/menu.o: src/menu.c src/command_parser.c
+${BUILD_DIR}/menu.o: src/menu.c src/cmd.c
 	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ src/menu.c
 
 ${BUILD_DIR}/shared.o: src/shared.c
@@ -55,13 +55,13 @@ ${BUILD_DIR}/shared.o: src/shared.c
 ${BUILD_DIR}/config.o: src/config.c
 	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
 
-${BUILD_DIR}/disk_io.o: src/disk_io.c
+${BUILD_DIR}/disk.o: src/disk.c
 	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
 
-${BUILD_DIR}/json_parser.o: src/json_parser.c
+${BUILD_DIR}/json.o: src/json.c
 	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
 
-${BUILD_DIR}/network.o: src/network.c
+${BUILD_DIR}/net.o: src/net.c
 	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
 
 ${BUILD_DIR}/main.o: src/main.c

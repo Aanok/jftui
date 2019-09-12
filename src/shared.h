@@ -126,7 +126,7 @@ jf_menu_item *jf_menu_item_static_copy(jf_menu_item *dest, const jf_menu_item *s
 
 
 ////////// GLOBAL APPLICATION STATE //////////
-typedef char jf_application_state;
+typedef char jf_jftui_state;
 
 #define JF_STATE_STARTING				0
 #define JF_STATE_MENU_UI				1
@@ -143,7 +143,7 @@ typedef struct jf_global_state {
 	char *runtime_dir;
 	char *session_id;
 	char *server_name;
-	jf_application_state state;
+	jf_jftui_state state;
 	jf_menu_item now_playing;
 } jf_global_state;
 
