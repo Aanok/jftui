@@ -97,6 +97,20 @@ static jf_menu_item *jf_disk_get_item(jf_file_cache *cache, size_t n)
 }
 
 
+char *jf_disk_get_default_runtime_dir()
+{
+	char *dir;
+	if ((dir = getenv("XDG_DATA_HOME")) == NULL) {
+		if ((dir = getenv("HOME")) != NULL) {
+			dir = jf_concat(2, getenv("HOME"), "/.local/share/jftui");
+		}
+	} else {
+		dir = jf_concat(2, dir, "/jftui");
+	}
+	return dir;
+}
+
+
 bool jf_disk_init()
 {
 	if (access(g_state.runtime_dir, F_OK) != 0) {

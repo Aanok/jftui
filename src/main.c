@@ -9,6 +9,8 @@
 #include <locale.h>
 #include <mpv/client.h>
 
+#include "ketopt.h"
+
 #include "shared.h"
 #include "net.h"
 #include "json.h"
@@ -16,6 +18,7 @@
 #include "disk.h"
 
 
+////////// CODE MACROS //////////
 #define JF_MPV_FATAL(status)														\
 do {																				\
 	if (status < 0) {																\
@@ -24,6 +27,7 @@ do {																				\
 		exit(EXIT_FAILURE);															\
 	}																				\
 } while (false);
+/////////////////////////////////
 
 
 ////////// GLOBAL VARIABLES //////////
@@ -39,11 +43,21 @@ static mpv_handle *jf_mpv_context_new(void);
 
 
 ////////// STATIC FUNCTIONS //////////
-mpv_handle *jf_mpv_context_new(void);
+static void jf_print_usage(void);
+static mpv_handle *jf_mpv_context_new(void);
 //////////////////////////////////////
 
 
-mpv_handle *jf_mpv_context_new()
+static void jf_print_usage() {
+	printf("Usage:\n");
+	printf("\t--help\n");
+	printf("\t--config-dir <directory> (default: $XDG_CONFIG_HOME/jftui)\n");
+	printf("\t--runtime-dir <directory> (default: $XDG_DATA_HOME/jftui)\n");
+	printf("\t--login.\n");
+}
+
+
+static mpv_handle *jf_mpv_context_new()
 {
 	mpv_handle *ctx;
 	int mpv_flag_yes = 1;
@@ -62,6 +76,7 @@ mpv_handle *jf_mpv_context_new()
 	JF_MPV_FATAL(mpv_set_option(ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
 	if ((x_emby_token = jf_concat(2, "x-emby-token: ", g_options.token)) == NULL) {
 		fprintf(stderr, "FATAL: jf_concat for x-emby-token header field for mpv requests returned NULL.\n");
+		exit(EXIT_FAILURE);
 	}
 	JF_MPV_FATAL(mpv_set_option_string(ctx, "http-header-fields", x_emby_token));
 	free(x_emby_token);
@@ -76,17 +91,33 @@ mpv_handle *jf_mpv_context_new()
 int main(int argc, char *argv[])
 {
 	// VARIABLES
+	ko_longopt_t longopts[] = {
+		{ "help", ko_no_argument, 301 },
+		{ "config-dir", ko_required_argument, 302 },
+		{ "runtime-dir", ko_required_argument, 303 },
+		{ "login", ko_no_argument, 304 },
+		{ NULL, 0, 0 }
+	};
+	ketopt_t opt = KETOPT_INIT;
+	int c;
 	char *config_path, *progress_post;
 	mpv_event *event;
 	int mpv_flag_yes = 1, mpv_flag_no = 0;
 	int64_t playback_ticks;
 	jf_reply *reply;
 
+
 	// LIBMPV VERSION CHECK
 	// required for "osc" option
-	if (mpv_client_api_version() < MPV_MAKE_VERSION(1,23)) {
-		fprintf(stderr, "FATAL: found libmpv version %lu.%lu, but 1.23 or greater is required.\n", mpv_client_api_version() >> 16, mpv_client_api_version() & 0xFFFF);
+	if (MPV_CLIENT_API_VERSION < MPV_MAKE_VERSION(1,23)) {
+		fprintf(stderr, "FATAL: found libmpv version %lu.%lu, but 1.23 or greater is required.\n",
+				MPV_CLIENT_API_VERSION >> 16, MPV_CLIENT_API_VERSION & 0xFFFF);
 		exit(EXIT_FAILURE);
+	}
+	// future proofing
+	if (MPV_CLIENT_API_VERSION >= MPV_MAKE_VERSION(2,0)) {
+		fprintf(stderr, "Warning: found libmpv version %lu.%lu, but jftui expects 1.xx. mpv will probably not work.\n",
+				MPV_CLIENT_API_VERSION >> 16, MPV_CLIENT_API_VERSION & 0xFFFF);
 	}
 	///////////////////////
 
@@ -101,11 +132,55 @@ int main(int argc, char *argv[])
 	}
 	atexit(jf_global_state_clear);
 	/////////////////
-	
+
+
+	// COMMAND LINE ARGUMENTS
+	while ((c = ketopt(&opt, argc, argv, 0, "", longopts)) >= 0) {
+		switch (c) {
+		case 301:
+			// usage
+			jf_print_usage();
+			exit(EXIT_SUCCESS);
+			break;
+		case 302:
+			// config-dir
+			g_state.config_dir = strdup(opt.arg);
+			break;
+		case 303:
+			// runtime-dir
+			g_state.runtime_dir = strdup(opt.arg);
+			break;
+		case 304:
+			// login
+			printf("DEBUG: login.\n");
+			break;
+		case '?':
+			// unrecognized
+			fprintf(stderr, "FATAL: unrecognized option %s.\n", argv[1]);
+			jf_print_usage();
+			exit(EXIT_FAILURE);
+			break;
+		case ':':
+			// missing-arg
+			fprintf(stderr, "FATAL: missing argument for option %s.\n", argv[1]);
+			jf_print_usage();
+			exit(EXIT_FAILURE);
+			break;
+		}
+	}
 	
 	// SETUP DISK
+	// apply runtime directory location default unless there was user override
+	if (g_state.runtime_dir == NULL) {
+		if ((g_state.runtime_dir = jf_disk_get_default_runtime_dir()) == NULL) {
+			fprintf(stderr, "FATAL: could not acquire runtime directory location. $HOME could not be read and --runtime-dir was not passed.\n");
+			exit(EXIT_FAILURE);
+		}
+	}
 	jf_disk_init();
 	atexit(jf_disk_clear);
+	/////////////
+
 
 	// SETUP NETWORK
 	if (! jf_net_pre_init()) {

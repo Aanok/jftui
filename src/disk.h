@@ -12,8 +12,7 @@
 #define JF_DISK_OPEN_FILE_FATAL(cache, kind)								\
 	do {																	\
 		char *tmp;															\
-		tmp = jf_concat(4, g_state.runtime_dir, "/", g_state.session_id,	\
-				"_" #cache "_" #kind);										\
+		tmp = jf_concat(2, g_state.runtime_dir, "/" #cache "_" #kind);		\
 		if ((cache.kind = fopen(tmp, "w+")) == NULL) {						\
 			int fopen_errno = errno;										\
 			fprintf(stderr, "FATAL: could not open file %s: %s.\n",			\
@@ -27,8 +26,7 @@
 #define JF_DISK_REOPEN_FILE_FATAL(cache, kind)								\
 	do {																	\
 		char *tmp;															\
-		tmp = jf_concat(4, g_state.runtime_dir, "/", g_state.session_id,	\
-				"_" #cache "_" #kind);										\
+		tmp = jf_concat(2, g_state.runtime_dir, "/" #cache "_" #kind);		\
 		if (fclose(cache.kind) != 0) {										\
 			int fclose_errno = errno;										\
 			fprintf(stderr, "FATAL: could not close file %s: %s.\n",		\
@@ -51,8 +49,7 @@
 	do {																	\
 		char *tmp;															\
 		fclose(cache.kind);													\
-		tmp = jf_concat(4, g_state.runtime_dir, "/", g_state.session_id,	\
-				"_" #cache "_" #kind);										\
+		tmp = jf_concat(2, g_state.runtime_dir, "/" #cache "_" #kind);		\
 		if (unlink(tmp) != 0) {												\
 			int unlink_errno = errno;										\
 			fprintf(stderr, "WARNING: could not delete file %s: %s.\n",		\
@@ -107,6 +104,7 @@ typedef struct jf_file_cache {
 
 
 ////////// FUNCTION STUBS //////////
+char *jf_disk_get_default_runtime_dir(void);
 bool jf_disk_init(void);
 bool jf_disk_refresh(void);
 void jf_disk_clear(void);
