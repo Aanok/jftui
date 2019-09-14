@@ -16,14 +16,23 @@
 #include "disk.h"
 
 
-#define JF_MPV_FATAL(status)														\
-do {																				\
-	if (status < 0) {																\
-		fprintf(stderr, "FATAL: mpv API error: %s\n", mpv_error_string(status));	\
-		mpv_terminate_destroy(g_mpv_ctx);											\
-		exit(EXIT_FAILURE);															\
-	}																				\
-} while (false);
+////////// CODE MACROS //////////
+#define JF_MISSING_ARG_FATAL(arg)												\
+	do {																		\
+		fprintf(stderr, "FATAL: missing parameter for argument " #arg "\n");	\
+		jf_print_usage();														\
+		exit(EXIT_FAILURE);														\
+	} while (false)
+
+#define JF_MPV_FATAL(status)															\
+	do {																				\
+		if (status < 0) {																\
+			fprintf(stderr, "FATAL: mpv API error: %s\n", mpv_error_string(status));	\
+			mpv_terminate_destroy(g_mpv_ctx);											\
+			exit(EXIT_FAILURE);															\
+		}																				\
+	} while (false);
+/////////////////////////////////
 
 
 ////////// GLOBAL VARIABLES //////////
@@ -39,11 +48,21 @@ static mpv_handle *jf_mpv_context_new(void);
 
 
 ////////// STATIC FUNCTIONS //////////
-mpv_handle *jf_mpv_context_new(void);
+static void jf_print_usage(void);
+static mpv_handle *jf_mpv_context_new(void);
 //////////////////////////////////////
 
 
-mpv_handle *jf_mpv_context_new()
+static void jf_print_usage() {
+	printf("Usage:\n");
+	printf("\t--help\n");
+	printf("\t--config-dir <directory> (default: $XDG_CONFIG_HOME/jftui)\n");
+	printf("\t--runtime-dir <directory> (default: $XDG_DATA_HOME/jftui)\n");
+	printf("\t--login.\n");
+}
+
+
+static mpv_handle *jf_mpv_context_new()
 {
 	mpv_handle *ctx;
 	int mpv_flag_yes = 1;
@@ -62,6 +81,7 @@ mpv_handle *jf_mpv_context_new()
 	JF_MPV_FATAL(mpv_set_option(ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
 	if ((x_emby_token = jf_concat(2, "x-emby-token: ", g_options.token)) == NULL) {
 		fprintf(stderr, "FATAL: jf_concat for x-emby-token header field for mpv requests returned NULL.\n");
+		exit(EXIT_FAILURE);
 	}
 	JF_MPV_FATAL(mpv_set_option_string(ctx, "http-header-fields", x_emby_token));
 	free(x_emby_token);
@@ -76,17 +96,25 @@ mpv_handle *jf_mpv_context_new()
 int main(int argc, char *argv[])
 {
 	// VARIABLES
+	int i;
 	char *config_path, *progress_post;
 	mpv_event *event;
 	int mpv_flag_yes = 1, mpv_flag_no = 0;
 	int64_t playback_ticks;
 	jf_reply *reply;
 
+
 	// LIBMPV VERSION CHECK
 	// required for "osc" option
-	if (mpv_client_api_version() < MPV_MAKE_VERSION(1,23)) {
-		fprintf(stderr, "FATAL: found libmpv version %lu.%lu, but 1.23 or greater is required.\n", mpv_client_api_version() >> 16, mpv_client_api_version() & 0xFFFF);
+	if (MPV_CLIENT_API_VERSION < MPV_MAKE_VERSION(1,23)) {
+		fprintf(stderr, "FATAL: found libmpv version %lu.%lu, but 1.23 or greater is required.\n",
+				MPV_CLIENT_API_VERSION >> 16, MPV_CLIENT_API_VERSION & 0xFFFF);
 		exit(EXIT_FAILURE);
+	}
+	// future proofing
+	if (MPV_CLIENT_API_VERSION >= MPV_MAKE_VERSION(2,0)) {
+		fprintf(stderr, "Warning: found libmpv version %lu.%lu, but jftui expects 1.xx. mpv will probably not work.\n",
+				MPV_CLIENT_API_VERSION >> 16, MPV_CLIENT_API_VERSION & 0xFFFF);
 	}
 	///////////////////////
 
@@ -101,11 +129,46 @@ int main(int argc, char *argv[])
 	}
 	atexit(jf_global_state_clear);
 	/////////////////
+
+
+	// COMMAND LINE ARGUMENTS
+	i = 0;
+	while (++i < argc) {
+		if (strcmp(argv[i], "--help") == 0) {
+			jf_print_usage();
+			exit(EXIT_SUCCESS);
+		} else if (strcmp(argv[i], "--config-dir") == 0) {
+			if (++i >= argc) {
+				JF_MISSING_ARG_FATAL("--config-dir");
+			}
+			g_state.config_dir = strdup(argv[i]);
+		} else if (strcmp(argv[i], "--runtime-dir") == 0) {
+			if (++i >= argc) {
+				JF_MISSING_ARG_FATAL("--runtime-dir");
+			}
+			g_state.runtime_dir = strdup(argv[i]);
+		} else if (strcmp(argv[i], "--login") == 0) {
+			printf("DEBUG: login.\n");
+		} else {
+			fprintf(stderr, "FATAL: unrecognized argument %s.\n", argv[i]);
+			exit(EXIT_FAILURE);
+		}
+	}
+	/////////////////////////
 	
-	
+
 	// SETUP DISK
+	// apply runtime directory location default unless there was user override
+	if (g_state.runtime_dir == NULL) {
+		if ((g_state.runtime_dir = jf_disk_get_default_runtime_dir()) == NULL) {
+			fprintf(stderr, "FATAL: could not acquire runtime directory location. $HOME could not be read and --runtime-dir was not passed.\n");
+			exit(EXIT_FAILURE);
+		}
+	}
 	jf_disk_init();
 	atexit(jf_disk_clear);
+	/////////////
+
 
 	// SETUP NETWORK
 	if (! jf_net_pre_init()) {
@@ -177,10 +240,11 @@ int main(int argc, char *argv[])
 	g_state.server_name = strdup("TEST SERVER"); // placeholder; we will somehow need to send it to the menu TU
 	// TODO check token still valid, prompt relogin otherwise
 	
+	
 	// COMMIT CONFIG TO DISK
 	jf_config_write(config_path);
 	free(config_path);
-	//////////////////////////////////////////
+	////////////////////////
 
 
 	// SETUP MPV

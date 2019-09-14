@@ -97,10 +97,25 @@ static jf_menu_item *jf_disk_get_item(jf_file_cache *cache, size_t n)
 }
 
 
+char *jf_disk_get_default_runtime_dir()
+{
+	char *dir;
+	if ((dir = getenv("XDG_DATA_HOME")) == NULL) {
+		if ((dir = getenv("HOME")) != NULL) {
+			dir = jf_concat(2, getenv("HOME"), "/.local/share/jftui");
+		}
+	} else {
+		dir = jf_concat(2, dir, "/jftui");
+	}
+	return dir;
+}
+
+
 bool jf_disk_init()
 {
+	char *tmp;
+
 	if (access(g_state.runtime_dir, F_OK) != 0) {
-		errno = 0;
 		if (mkdir(g_state.runtime_dir, S_IRWXU) == -1) {
 			int mkdir_errno = errno;
 			fprintf(stderr, "FATAL: could not create runtime directory %s: %s.\n",
@@ -116,6 +131,13 @@ bool jf_disk_init()
 		}
 	}
 
+	tmp = jf_concat(2, g_state.runtime_dir, "/s_payload_header");
+	if (access(tmp, F_OK) == 0) {
+		fprintf(stderr, "Warning: there are files from another jftui session in %s. If you want to run multiple instances concurrently, make sure to specify a distinct --runtime-dir for each one after the first or they will interfere with each other.\n", g_state.runtime_dir);
+		fprintf(stderr, "(if jftui terminated abruptly on the last run using this same runtime-dir, you may ignore this warning)\n");
+	}
+	free(tmp);
+
 	JF_DISK_OPEN_FILE_FATAL(s_payload, header);
 	JF_DISK_OPEN_FILE_FATAL(s_payload, body);
 	s_payload.count = 0;
@@ -129,6 +151,7 @@ bool jf_disk_init()
 
 bool jf_disk_refresh()
 {
+	char *tmp;
 	JF_DISK_REOPEN_FILE_FATAL(s_payload, header);
 	JF_DISK_REOPEN_FILE_FATAL(s_payload, body);
 	s_payload.count = 0;
@@ -141,6 +164,7 @@ bool jf_disk_refresh()
 
 void jf_disk_clear()
 {
+	char *tmp;
 	JF_DISK_CLOSE_DELETE_FILE(s_payload, header);
 	JF_DISK_CLOSE_DELETE_FILE(s_payload, body);
 	JF_DISK_CLOSE_DELETE_FILE(s_playlist, header);

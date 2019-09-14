@@ -78,19 +78,9 @@ bool jf_global_state_init(void)
 	// state set to JF_STATE_STARTING
 	g_state = (jf_global_state){ 0 };
 
-	// runtime_dir
-	if ((g_state.runtime_dir = getenv("XDG_DATA_HOME")) == NULL) {
-		if ((g_state.runtime_dir = getenv("HOME")) == NULL) {
-			return false;
-		} else {
-			g_state.runtime_dir = jf_concat(2, getenv("HOME"), "/.local/share/jftui");
-		}
-	} else {
-		g_state.runtime_dir = jf_concat(2, g_state.runtime_dir, "/jftui");
-	}
-
 	// session_id
 	if ((g_state.session_id = jf_generate_random_id(0)) == NULL) {
+		fprintf(stderr, "FATAL: jf_generate_random_id returned NULL.\n");
 		return false;
 	}
 

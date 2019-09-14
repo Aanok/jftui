@@ -58,15 +58,15 @@ void jf_options_clear()
 // returns NULL if $HOME not set
 char *jf_config_get_default_dir(void)
 {
-	char *str;
-	if ((str = getenv("XDG_CONFIG_HOME")) == NULL) {
-		if ((str = getenv("HOME")) != NULL) {
-			str = jf_concat(2, getenv("HOME"), "/.config/jftui");
+	char *dir;
+	if ((dir = getenv("XDG_CONFIG_HOME")) == NULL) {
+		if ((dir = getenv("HOME")) != NULL) {
+			dir = jf_concat(2, getenv("HOME"), "/.config/jftui");
 		}
 	} else {
-		str = jf_concat(2, str, "/jftui");
+		dir = jf_concat(2, dir, "/jftui");
 	}
-	return str;
+	return dir;
 }
 
 
