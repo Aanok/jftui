@@ -2,7 +2,6 @@
 #define _POSIX_C_SOURCE 200809L  //
 ///////////////////////////////////
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,7 +16,7 @@
 #include "disk.h"
 
 
-#define JF_MPV_ERROR_FATAL(status)													\
+#define JF_MPV_FATAL(status)														\
 do {																				\
 	if (status < 0) {																\
 		fprintf(stderr, "FATAL: mpv API error: %s\n", mpv_error_string(status));	\
@@ -27,14 +26,21 @@ do {																				\
 } while (false);
 
 
-////////// GLOBALS //////////
+////////// GLOBAL VARIABLES //////////
 jf_options g_options;
 jf_global_state g_state;
 mpv_handle *g_mpv_ctx = NULL;
-/////////////////////////////
+//////////////////////////////////////
 
 
+////////// STATIC VARIABLES //////////
 static mpv_handle *jf_mpv_context_new(void);
+//////////////////////////////////////
+
+
+////////// STATIC FUNCTIONS //////////
+mpv_handle *jf_mpv_context_new(void);
+//////////////////////////////////////
 
 
 mpv_handle *jf_mpv_context_new()
@@ -47,20 +53,21 @@ mpv_handle *jf_mpv_context_new()
 		fprintf(stderr, "FATAL: failed to create mpv context.\n");
 		return NULL;
 	}
-	JF_MPV_ERROR_FATAL(mpv_set_option(ctx, "config", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ERROR_FATAL(mpv_set_option(ctx, "osc", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ERROR_FATAL(mpv_set_option(ctx, "input-default-bindings", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ERROR_FATAL(mpv_set_option(ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ERROR_FATAL(mpv_set_option(ctx, "input-terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ERROR_FATAL(mpv_set_option(ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_FATAL(mpv_set_option(ctx, "config-dir", MPV_FORMAT_STRING, &g_state.config_dir));
+	JF_MPV_FATAL(mpv_set_option(ctx, "config", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_FATAL(mpv_set_option(ctx, "osc", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_FATAL(mpv_set_option(ctx, "input-default-bindings", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_FATAL(mpv_set_option(ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_FATAL(mpv_set_option(ctx, "input-terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_FATAL(mpv_set_option(ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
 	if ((x_emby_token = jf_concat(2, "x-emby-token: ", g_options.token)) == NULL) {
 		fprintf(stderr, "FATAL: jf_concat for x-emby-token header field for mpv requests returned NULL.\n");
 	}
-	JF_MPV_ERROR_FATAL(mpv_set_option_string(ctx, "http-header-fields", x_emby_token));
+	JF_MPV_FATAL(mpv_set_option_string(ctx, "http-header-fields", x_emby_token));
 	free(x_emby_token);
-	JF_MPV_ERROR_FATAL(mpv_observe_property(ctx, 0, "time-pos", MPV_FORMAT_INT64));
+	JF_MPV_FATAL(mpv_observe_property(ctx, 0, "time-pos", MPV_FORMAT_INT64));
 
-	JF_MPV_ERROR_FATAL(mpv_initialize(ctx));
+	JF_MPV_FATAL(mpv_initialize(ctx));
 
 	return ctx;
 }
@@ -93,17 +100,16 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 	atexit(jf_global_state_clear);
-	jf_disk_init();
-	atexit(jf_disk_clear);
 	/////////////////
 	
 	
-	// TODO command line arguments
-	
+	// SETUP DISK
+	jf_disk_init();
+	atexit(jf_disk_clear);
 
 	// SETUP NETWORK
 	if (! jf_net_pre_init()) {
-		fprintf(stderr, "FATAL: could not initialize network context.\n");
+		fprintf(stderr, "FATAL: could not pre-initialize network context.\n");
 		exit(EXIT_FAILURE);
 	}
 	atexit(jf_net_clear);
@@ -274,9 +280,9 @@ int main(int argc, char *argv[])
 						} else {
 							// go into UI mode
 							g_state.state = JF_STATE_MENU_UI;
-							JF_MPV_ERROR_FATAL(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_no));
+							JF_MPV_FATAL(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_no));
 							while (g_state.state == JF_STATE_MENU_UI) jf_menu_ui();
-							JF_MPV_ERROR_FATAL(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+							JF_MPV_FATAL(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
 						}
 						break;
 					case MPV_EVENT_SHUTDOWN:
