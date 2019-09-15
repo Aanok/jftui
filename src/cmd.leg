@@ -68,6 +68,7 @@ static void yy_cmd_finalize(yycontext *ctx, const bool parse_ok);
 
 Start = ws*
 	( ".." ws*					{ yy->state = JF_CMD_SPECIAL; jf_menu_dotdot(); }
+	| "h"						{ yy->state = JF_CMD_SPECIAL; jf_menu_clear(); }
 #	| "r" ws+ @{ yy->state = JF_CMD_RECURSIVE; } Selector ws*
 #	| "s" ws+ < string >		{ printf("DEBUG: search \"%s\"\n", yytext); }
 	| 'q' ws*					{ yy->state = JF_CMD_SPECIAL; jf_menu_quit(); }

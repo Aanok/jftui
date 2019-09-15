@@ -352,7 +352,7 @@ YY_ACTION(void) yy_1_num(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_num\n"));
   {
-#line 82
+#line 83
    __ = strtoul(yytext, NULL, 10); ;
   }
 #undef yythunkpos
@@ -369,7 +369,7 @@ YY_ACTION(void) yy_2_Atom(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_2_Atom\n"));
   {
-#line 81
+#line 82
    yy_cmd_digest(yy, n); ;
   }
 #undef yythunkpos
@@ -389,7 +389,7 @@ YY_ACTION(void) yy_1_Atom(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_Atom\n"));
   {
-#line 80
+#line 81
    yy_cmd_digest_range(yy, l, r); ;
   }
 #undef yythunkpos
@@ -406,8 +406,22 @@ YY_ACTION(void) yy_1_Selector(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_1_Selector\n"));
   {
-#line 76
+#line 77
    yy_cmd_digest_range(yy, 1, jf_menu_child_count()); ;
+  }
+#undef yythunkpos
+#undef yypos
+#undef yy
+}
+YY_ACTION(void) yy_4_Start(yycontext *yy, char *yytext, int yyleng)
+{
+#define __ yy->__
+#define yypos yy->__pos
+#define yythunkpos yy->__thunkpos
+  yyprintf((stderr, "do yy_4_Start\n"));
+  {
+#line 76
+   yy_cmd_finalize(yy, true); ;
   }
 #undef yythunkpos
 #undef yypos
@@ -420,8 +434,8 @@ YY_ACTION(void) yy_3_Start(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_3_Start\n"));
   {
-#line 75
-   yy_cmd_finalize(yy, true); ;
+#line 74
+   yy->state = JF_CMD_SPECIAL; jf_menu_quit(); ;
   }
 #undef yythunkpos
 #undef yypos
@@ -434,8 +448,8 @@ YY_ACTION(void) yy_2_Start(yycontext *yy, char *yytext, int yyleng)
 #define yythunkpos yy->__thunkpos
   yyprintf((stderr, "do yy_2_Start\n"));
   {
-#line 73
-   yy->state = JF_CMD_SPECIAL; jf_menu_quit(); ;
+#line 71
+   yy->state = JF_CMD_SPECIAL; jf_menu_clear(); ;
   }
 #undef yythunkpos
 #undef yypos
@@ -570,15 +584,16 @@ YY_RULE(int) yy_Start(yycontext *yy)
   {  int yypos33= yy->__pos, yythunkpos33= yy->__thunkpos;  if (!yy_ws(yy)) goto l33;  goto l32;
   l33:;	  yy->__pos= yypos33; yy->__thunkpos= yythunkpos33;
   }  yyDo(yy, yy_1_Start, yy->__begin, yy->__end);  goto l30;
-  l31:;	  yy->__pos= yypos30; yy->__thunkpos= yythunkpos30;  if (!yymatchChar(yy, 'q')) goto l34;
-  l35:;	
-  {  int yypos36= yy->__pos, yythunkpos36= yy->__thunkpos;  if (!yy_ws(yy)) goto l36;  goto l35;
-  l36:;	  yy->__pos= yypos36; yy->__thunkpos= yythunkpos36;
-  }  yyDo(yy, yy_2_Start, yy->__begin, yy->__end);  goto l30;
-  l34:;	  yy->__pos= yypos30; yy->__thunkpos= yythunkpos30;  if (!yy_Selector(yy)) goto l29;
-  l37:;	
-  {  int yypos38= yy->__pos, yythunkpos38= yy->__thunkpos;  if (!yy_ws(yy)) goto l38;  goto l37;
-  l38:;	  yy->__pos= yypos38; yy->__thunkpos= yythunkpos38;
+  l31:;	  yy->__pos= yypos30; yy->__thunkpos= yythunkpos30;  if (!yymatchChar(yy, 'h')) goto l34;  yyDo(yy, yy_2_Start, yy->__begin, yy->__end);  goto l30;
+  l34:;	  yy->__pos= yypos30; yy->__thunkpos= yythunkpos30;  if (!yymatchChar(yy, 'q')) goto l35;
+  l36:;	
+  {  int yypos37= yy->__pos, yythunkpos37= yy->__thunkpos;  if (!yy_ws(yy)) goto l37;  goto l36;
+  l37:;	  yy->__pos= yypos37; yy->__thunkpos= yythunkpos37;
+  }  yyDo(yy, yy_3_Start, yy->__begin, yy->__end);  goto l30;
+  l35:;	  yy->__pos= yypos30; yy->__thunkpos= yythunkpos30;  if (!yy_Selector(yy)) goto l29;
+  l38:;	
+  {  int yypos39= yy->__pos, yythunkpos39= yy->__thunkpos;  if (!yy_ws(yy)) goto l39;  goto l38;
+  l39:;	  yy->__pos= yypos39; yy->__thunkpos= yythunkpos39;
   }
   }
   l30:;	  goto l28;
@@ -589,7 +604,7 @@ YY_RULE(int) yy_Start(yycontext *yy)
 #undef yytext
 #undef yyleng
   }  goto l25;
-  l28:;	  yyDo(yy, yy_3_Start, yy->__begin, yy->__end);
+  l28:;	  yyDo(yy, yy_4_Start, yy->__begin, yy->__end);
   yyprintf((stderr, "  ok   %s @ %s\n", "Start", yy->__buf+yy->__pos));
   return 1;
   l25:;	  yy->__pos= yypos0; yy->__thunkpos= yythunkpos0;
@@ -644,7 +659,7 @@ YY_PARSE(yycontext *) YYRELEASE(yycontext *yyctx)
 }
 
 #endif
-#line 89 "src/cmd.leg"
+#line 90 "src/cmd.leg"
 
 jf_cmd_parser_state yy_cmd_get_parser_state(const yycontext *ctx)
 {
