@@ -120,11 +120,17 @@ int main(int argc, char *argv[])
 
 
 	// VARIABLES INIT
-	jf_options_init();
+	// options
+	g_options = (jf_options){ 0 }; 
+	g_options.ssl_verifyhost = JF_CONFIG_SSL_VERIFYHOST_DEFAULT;
 	atexit(jf_options_clear);
+	// menu
 	jf_menu_init();
 	atexit(jf_menu_clear);
-	if (! jf_global_state_init()) {
+	// global state
+	g_state = (jf_global_state){ 0 };
+	if ((g_state.session_id = jf_generate_random_id(0)) == NULL) {
+		fprintf(stderr, "FATAL: jf_generate_random_id returned NULL.\n");
 		exit(EXIT_FAILURE);
 	}
 	atexit(jf_global_state_clear);
@@ -148,7 +154,7 @@ int main(int argc, char *argv[])
 			}
 			g_state.runtime_dir = strdup(argv[i]);
 		} else if (strcmp(argv[i], "--login") == 0) {
-			printf("DEBUG: login.\n");
+			g_state.state = JF_STATE_STARTING_LOGIN;
 		} else {
 			fprintf(stderr, "FATAL: unrecognized argument %s.\n", argv[i]);
 			exit(EXIT_FAILURE);
@@ -200,16 +206,13 @@ int main(int argc, char *argv[])
 			free(config_path);
 			exit(EXIT_FAILURE);
 		}
-		// if fundamental fields are missing (may happen if the config file was edited badly)
+		// if fundamental fields are missing (file corrupted for some reason)
 		if (JF_OPTIONS_IS_INCOMPLETE()) {
 			if (! jf_menu_user_ask_yn("Error: settings file missing fundamental fields. Would you like to go through manual configuration?")) {
 				free(config_path);
 				exit(EXIT_SUCCESS);
 			}
-			if (! jf_config_ask_user()) {
-				free(config_path);
-				exit(EXIT_FAILURE);
-			}
+			g_state.state = JF_STATE_STARTING_FULL_CONFIG;
 		}
 	} else if (errno == ENOENT || errno == ENOTDIR) {
 		// it's not there
@@ -217,16 +220,25 @@ int main(int argc, char *argv[])
 			free(config_path);
 			exit(EXIT_SUCCESS);
 		}
-		if (! jf_config_ask_user()) {
-			free(config_path);
-			exit(EXIT_FAILURE);
-		}
+		g_state.state = JF_STATE_STARTING_FULL_CONFIG;
 	} else {
 		int access_errno = errno;
 		fprintf(stderr, "FATAL: access for settings file at location %s: %s.\n",
 			config_path, strerror(access_errno));
 		free(config_path);
 		exit(EXIT_FAILURE);
+	}
+
+	if (g_state.state == JF_STATE_STARTING_FULL_CONFIG) {
+		if (! jf_config_ask_user()) {
+			free(config_path);
+			exit(EXIT_FAILURE);
+		}
+	} else if (g_state.state == JF_STATE_STARTING_LOGIN) {
+		if (! jf_config_ask_user_login()) {
+			free(config_path);
+			exit(EXIT_FAILURE);
+		}
 	}
 	////////////////////////////////////
 	

@@ -72,22 +72,6 @@ jf_menu_item *jf_menu_item_static_copy(jf_menu_item *dest, const jf_menu_item *s
 
 
 ////////// GLOBAL APPLICATION STATE //////////
-bool jf_global_state_init(void)
-{
-	// all pointer fields set to NULL
-	// state set to JF_STATE_STARTING
-	g_state = (jf_global_state){ 0 };
-
-	// session_id
-	if ((g_state.session_id = jf_generate_random_id(0)) == NULL) {
-		fprintf(stderr, "FATAL: jf_generate_random_id returned NULL.\n");
-		return false;
-	}
-
-	return true;
-}
-
-
 void jf_global_state_clear()
 {
 	free(g_state.config_dir);
@@ -166,7 +150,7 @@ bool jf_growing_buffer_empty(jf_growing_buffer *buffer)
 }
 
 
-void jf_growing_buffer_clear(jf_growing_buffer *buffer)
+void jf_growing_buffer_free(jf_growing_buffer *buffer)
 {
 	if (buffer == NULL) {
 		return;

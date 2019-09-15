@@ -129,10 +129,12 @@ jf_menu_item *jf_menu_item_static_copy(jf_menu_item *dest, const jf_menu_item *s
 typedef char jf_jftui_state;
 
 #define JF_STATE_STARTING				0
-#define JF_STATE_MENU_UI				1
-#define JF_STATE_PLAYBACK				2
-#define JF_STATE_PLAYBACK_NAVIGATING	3
-#define JF_STATE_PLAYBACK_START_MARK	4
+#define JF_STATE_STARTING_FULL_CONFIG	1
+#define JF_STATE_STARTING_LOGIN			2
+#define JF_STATE_MENU_UI				3
+#define JF_STATE_PLAYBACK				4
+#define JF_STATE_PLAYBACK_NAVIGATING	5
+#define JF_STATE_PLAYBACK_START_MARK	6
 
 #define JF_STATE_USER_QUIT	-1
 #define JF_STATE_FAIL		-2
@@ -147,17 +149,6 @@ typedef struct jf_global_state {
 	jf_menu_item now_playing;
 } jf_global_state;
 
-
-// Function jf_global_state_init
-//
-// Performs early initialization of global application state:
-// 	- Computes and sets fields runtime_dir and session_id;
-// 	- Sets state to JF_STATE_STARTING;
-// 	- Sets NULL to everything else.
-//
-// Returns:
-// 	true on success, false on failure.
-bool jf_global_state_init(void);
 
 void jf_global_state_clear(void);
 //////////////////////////////////////////////
@@ -200,7 +191,7 @@ typedef struct jf_growing_buffer {
 jf_growing_buffer *jf_growing_buffer_new(const size_t size);
 bool jf_growing_buffer_append(jf_growing_buffer *buffer, const void *data, const size_t length);
 bool jf_growing_buffer_empty(jf_growing_buffer *buffer);
-void jf_growing_buffer_clear(jf_growing_buffer *buffer);
+void jf_growing_buffer_free(jf_growing_buffer *buffer);
 ////////////////////////////////////
 
 

@@ -54,7 +54,7 @@ char *jf_reply_error_string(const jf_reply *r)
 		case JF_REPLY_ERROR_UNINITIALIZED:
 			return "jf_network uninitialized";
 		case JF_REPLY_ERROR_HTTP_401:
-			return "http request returned error 401: unauthorized; you likely need to renew your auth token";
+			return "http request returned error 401: unauthorized; you likely need to renew your auth token. Restart with --login";
 			break;
 		case JF_REPLY_ERROR_MALLOC:
 			return "memory allocation failed";
@@ -168,34 +168,6 @@ void jf_thread_buffer_clear_error()
 
 
 ////////// NETWORK UNIT //////////
-// TODO better error handling
-bool jf_net_pre_init()
-{
-	curl_global_init(CURL_GLOBAL_ALL | CURL_GLOBAL_SSL);
-	s_handle = curl_easy_init();
-	pthread_t sax_parser_thread;
-
-
-	// ask for compression (all kinds supported)
-	curl_easy_setopt(s_handle, CURLOPT_ACCEPT_ENCODING, "");
-
-	// follow redirects and keep POST method if using it
-	curl_easy_setopt(s_handle, CURLOPT_FOLLOWLOCATION, 1);
-	curl_easy_setopt(s_handle, CURLOPT_POSTREDIR, CURL_REDIR_POST_ALL);
-
-	// sax parser thread
-	jf_thread_buffer_init(&s_tb);
-	if (pthread_create(&sax_parser_thread, NULL, jf_json_sax_thread, (void *)&(s_tb)) == -1) {
-		return false;
-	}
-	if (pthread_detach(sax_parser_thread) != 0) {
-		return false;
-	}
-
-	return true;
-}
-
-
 static bool jf_net_make_headers()
 {
 	char *tmp;
@@ -220,6 +192,33 @@ static bool jf_net_make_headers()
 
 	// headers for POST: second list
 	if ((s_headers_POST = curl_slist_append(s_headers, "content-type: application/json; charset=utf-8")) == NULL) {
+		return false;
+	}
+
+	return true;
+}
+
+
+// TODO better error handling
+bool jf_net_pre_init()
+{
+	curl_global_init(CURL_GLOBAL_ALL | CURL_GLOBAL_SSL);
+	s_handle = curl_easy_init();
+	pthread_t sax_parser_thread;
+
+	// ask for compression (all kinds supported)
+	curl_easy_setopt(s_handle, CURLOPT_ACCEPT_ENCODING, "");
+
+	// follow redirects and keep POST method if using it
+	curl_easy_setopt(s_handle, CURLOPT_FOLLOWLOCATION, 1);
+	curl_easy_setopt(s_handle, CURLOPT_POSTREDIR, CURL_REDIR_POST_ALL);
+
+	// sax parser thread
+	jf_thread_buffer_init(&s_tb);
+	if (pthread_create(&sax_parser_thread, NULL, jf_json_sax_thread, (void *)&(s_tb)) == -1) {
+		return false;
+	}
+	if (pthread_detach(sax_parser_thread) != 0) {
 		return false;
 	}
 
@@ -252,7 +251,6 @@ void jf_net_clear()
 
 
 ////////// NETWORKING //////////
-
 //TODO add error checks to all setopt's
 jf_reply *jf_net_request(const char *resource, jf_request_type request_type, const char *POST_payload)
 {

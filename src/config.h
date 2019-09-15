@@ -51,7 +51,6 @@ typedef struct jf_options {
 } jf_options;
 
 
-void jf_options_init(void);
 void jf_options_clear(void);
 ////////////////////////////////
 
@@ -60,6 +59,7 @@ void jf_options_clear(void);
 char *jf_config_get_default_dir(void);
 bool jf_config_read(const char *config_path);
 bool jf_config_write(const char *config_path);
+bool jf_config_ask_user_login(void);
 bool jf_config_ask_user(void);
 ////////////////////////////////////////
 

@@ -15,17 +15,6 @@ static void jf_options_complete_with_defaults(void);
 
 
 ////////// JF_OPTIONS //////////
-void jf_options_init()
-{
-	// initialize to empty, will NULL pointers
-	g_options = (jf_options){ 0 }; 
-
-	// initialize fields where 0 is a valid value
-	g_options.ssl_verifyhost = JF_CONFIG_SSL_VERIFYHOST_DEFAULT;
-}
-
-
-// Will provide defaults for fields: client, device, deviceid, version
 static void jf_options_complete_with_defaults()
 {
 	g_options.client = g_options.client != NULL ? g_options.client : strdup(JF_CONFIG_CLIENT_DEFAULT);
@@ -177,33 +166,19 @@ bool jf_config_write(const char *config_path)
 ////////////////////////////////////////
 
 
-// TODO: this is a stub
-bool jf_config_ask_user()
+bool jf_config_ask_user_login()
 {
 	struct termios old, new;
 	char *username, *login_post;
-	int c;
 	jf_growing_buffer *password;
 	jf_reply *login_reply;
+	int c;
 
-	// setup
 	if ((password = jf_growing_buffer_new(128)) == NULL) {
 		fprintf(stderr, "FATAL: password jf_growing_buffer_new returned NULL.\n");
 		return false;
 	}
-	jf_options_complete_with_defaults();
 
-	// login user input
-	printf("Please enter the URL of your Jellyfin server. Example: http://foo.bar:8096/jf\n(note: unless specified, ports will be the protocol's defaults, i.e. 80 for HTTP and 443 for HTTPS)\n");
-	while (true) {
-		g_options.server = linenoise("> ");
-		if (jf_net_url_is_valid(g_options.server)) {
-			g_options.server_len = strlen(g_options.server);
-			break;
-		} else {
-			fprintf(stderr, "Error: malformed URL. Please try again.\n");
-		}
-	}
 	printf("Please enter your username.\n");
 	username = linenoise("> ");
 	printf("Please enter your password.\n> ");
@@ -217,16 +192,11 @@ bool jf_config_ask_user()
 	jf_growing_buffer_append(password, "", 1);
 	tcsetattr(STDIN_FILENO, TCSANOW, &old);
 	putchar('\n');
-
-	// misc config user input
-	if (jf_menu_user_ask_yn("Do you need jftui to ignore hostname validation (required e.g. if you're using Jellyfin's built-in SSL certificate)?")) {
-		g_options.ssl_verifyhost = false;
-	}
-
-	// login request
+	
 	login_post = jf_json_generate_login_request(username, password->buf);
 	free(username);
-	jf_growing_buffer_clear(password);
+	memset(password->buf, 0, password->used);
+	jf_growing_buffer_free(password);
 	login_reply = jf_net_login_request(login_post);
 	free(login_post);
 	if (login_reply == NULL) {
@@ -234,7 +204,7 @@ bool jf_config_ask_user()
 		return false;
 	}
 	if (JF_REPLY_PTR_HAS_ERROR(login_reply)) {
-		fprintf(stderr, "FATAL: jf_login_request: %s.\n", jf_reply_error_string(login_reply));
+		fprintf(stderr, "FATAL: jf_net_login_request: %s.\n", jf_reply_error_string(login_reply));
 		jf_reply_free(login_reply);
 		return false;
 	}
@@ -244,6 +214,37 @@ bool jf_config_ask_user()
 		return false;
 	}
 	jf_reply_free(login_reply);
+
+	return true;
+}
+
+
+// TODO: this is a stub
+bool jf_config_ask_user()
+{
+	// setup
+	jf_options_complete_with_defaults();
+
+	// login user input
+	printf("Please enter the URL of your Jellyfin server. Example: http://foo.bar:8096/jf\n(note: unless specified, ports will be the protocol's defaults, i.e. 80 for HTTP and 443 for HTTPS)\n");
+	while (true) {
+		g_options.server = linenoise("> ");
+		if (jf_net_url_is_valid(g_options.server)) {
+			g_options.server_len = strlen(g_options.server);
+			break;
+		} else {
+			fprintf(stderr, "Error: malformed URL. Please try again.\n");
+		}
+	}
+
+	if (! jf_config_ask_user_login()) {
+		return false;
+	}
+
+	// misc config user input
+	if (jf_menu_user_ask_yn("Do you need jftui to ignore hostname validation (required e.g. if you're using Jellyfin's built-in SSL certificate)?")) {
+		g_options.ssl_verifyhost = false;
+	}
 
 	printf("Configuration and login successful.\n");
 	return true;

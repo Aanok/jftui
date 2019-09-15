@@ -27,7 +27,7 @@ uninstall:
 	rm $(DESTDIR)/usr/bin/jftui
 
 clean:
-	rm -rf ${BUILD_DIR}
+	rm -rf ${BUILD_DIR} runtime
 
 
 
