@@ -45,9 +45,14 @@ void jf_reply_free(jf_reply *r)
 
 char *jf_reply_error_string(const jf_reply *r)
 {
+	if (r == NULL) {
+		return "jf_reply is NULL";
+	}
+
 	if (r->size >= 0) {
 		return "no error";
 	}
+
 	switch (r->size) {
 		case JF_REPLY_ERROR_STUB:
 			return "stub functionality";
