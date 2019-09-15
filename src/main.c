@@ -119,22 +119,21 @@ int main(int argc, char *argv[])
 	///////////////////////
 
 
-	// VARIABLES INIT
-	// options
+	// SETUP OPTIONS
 	g_options = (jf_options){ 0 }; 
 	g_options.ssl_verifyhost = JF_CONFIG_SSL_VERIFYHOST_DEFAULT;
 	atexit(jf_options_clear);
-	// menu
-	jf_menu_init();
-	atexit(jf_menu_clear);
-	// global state
+	////////////////
+
+
+	// SETUP GLOBAL STATE
 	g_state = (jf_global_state){ 0 };
 	if ((g_state.session_id = jf_generate_random_id(0)) == NULL) {
 		fprintf(stderr, "FATAL: jf_generate_random_id returned NULL.\n");
 		exit(EXIT_FAILURE);
 	}
 	atexit(jf_global_state_clear);
-	/////////////////
+	/////////////////////
 
 
 	// COMMAND LINE ARGUMENTS
@@ -176,7 +175,7 @@ int main(int argc, char *argv[])
 	/////////////
 
 
-	// SETUP NETWORK
+	// INITIAL NETWORK SETUP
 	if (! jf_net_pre_init()) {
 		fprintf(stderr, "FATAL: could not pre-initialize network context.\n");
 		exit(EXIT_FAILURE);
@@ -229,6 +228,7 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
+	// interactive config if required
 	if (g_state.state == JF_STATE_STARTING_FULL_CONFIG) {
 		if (! jf_config_ask_user()) {
 			free(config_path);
@@ -240,23 +240,34 @@ int main(int argc, char *argv[])
 			exit(EXIT_FAILURE);
 		}
 	}
+	
+	// save to disk
+	jf_config_write(config_path);
+	free(config_path);
 	////////////////////////////////////
 	
 
-	// DOUBLE CHECK AND FINALIZE NETWORK CONFIG
+	// FINALIZE NETWORK SETUP
 	if (! jf_net_refresh()) {
-		free(config_path);
 		exit(EXIT_FAILURE);
 	}
-	// TODO ping server (and get name)
-	g_state.server_name = strdup("TEST SERVER"); // placeholder; we will somehow need to send it to the menu TU
-	// TODO check token still valid, prompt relogin otherwise
-	
-	
-	// COMMIT CONFIG TO DISK
-	jf_config_write(config_path);
-	free(config_path);
+	// get server name and double check everything's fine
+	reply = jf_net_request("/system/info", JF_REQUEST_IN_MEMORY, NULL);
+	if (reply == NULL || JF_REPLY_PTR_HAS_ERROR(reply)) {
+		fprintf(stderr, "FATAL: could not reach server: %s.\n", jf_reply_error_string(reply));
+		exit(EXIT_FAILURE);
+	}
+	if (! jf_json_parse_server_info_response(reply->payload)) {
+		exit(EXIT_FAILURE);
+	}
+	jf_reply_free(reply);
 	////////////////////////
+	
+
+	// SETUP MENU
+	jf_menu_init();
+	atexit(jf_menu_clear);
+	/////////////////
 
 
 	// SETUP MPV
@@ -305,9 +316,7 @@ int main(int argc, char *argv[])
 						} else {
 							reply = jf_net_request("/sessions/playing/stopped", JF_REQUEST_IN_MEMORY, progress_post);
 							free(progress_post);
-							if (reply == NULL) {
-								fprintf(stderr, "Warning: session stop jf_net_request returned NULL.\n");
-							} else if (JF_REPLY_PTR_HAS_ERROR(reply)) {
+							if (reply == NULL || JF_REPLY_PTR_HAS_ERROR(reply)) {
 								fprintf(stderr, "Warning: session stop jf_net_request: %s.\n", jf_reply_error_string(reply));
 							}
 							jf_reply_free(reply);
@@ -338,11 +347,7 @@ int main(int argc, char *argv[])
 						}
 						reply = jf_net_request("/sessions/playing/progress", JF_REQUEST_IN_MEMORY, progress_post);
 						free(progress_post);
-						if (reply == NULL) {
-							fprintf(stderr, "Warning: progress update jf_net_request returned NULL.\n");
-							break;
-						}
-						if (JF_REPLY_PTR_HAS_ERROR(reply)) {
+						if (reply == NULL || JF_REPLY_PTR_HAS_ERROR(reply)) {
 							fprintf(stderr, "Warning: progress update jf_net_request: %s.\n", jf_reply_error_string(reply));
 						} else {
 							g_state.now_playing.playback_ticks = playback_ticks;

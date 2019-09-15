@@ -54,7 +54,7 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
 			NULL
 		},
 		"",
-		"Server Root",
+		"",
 		0, 0
 	};
 static jf_menu_stack s_menu_stack;
@@ -211,7 +211,7 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 			case JF_ITEM_TYPE_MENU_LIBRARIES:
 				return jf_concat(3, "/users/", g_options.userid, "/views");
 			default:
-				fprintf(stderr, "ERROR: get_request_url was called on an unsupported item_type (%d).\n", item->type);
+				fprintf(stderr, "Error: get_request_url was called on an unsupported item_type (%d).\n", item->type);
 				return NULL;
 		}
 	}
@@ -246,12 +246,12 @@ static bool jf_menu_print_context()
 	size_t i;
 
 	if (s_context == NULL) {
-		fprintf(stderr, "ERROR: jf_menu_print_context found NULL menu context. This is a bug.\n");
+		fprintf(stderr, "Error: jf_menu_print_context found NULL menu context. This is a bug.\n");
 		return false;
 	}
 
 	if (! JF_ITEM_TYPE_IS_FOLDER(s_context->type)) {
-		fprintf(stderr, "ERROR: jf_menu_print_context found non-folder menu context. This is a bug.\n");
+		fprintf(stderr, "Error: jf_menu_print_context found non-folder menu context. This is a bug.\n");
 		return false;
 	}
 
@@ -293,7 +293,7 @@ static bool jf_menu_print_context()
 			jf_menu_stack_push(s_context);
 			break;
 		default:
-			fprintf(stderr, "ERROR: jf_menu_dispatch_context unsupported menu item type. This is a bug.\n");
+			fprintf(stderr, "Errro: jf_menu_dispatch_context unsupported menu item type. This is a bug.\n");
 			jf_menu_item_free(s_context);
 			return false;
 	}
@@ -311,7 +311,7 @@ static void jf_menu_play_item(const jf_menu_item *item)
 	}
 
 	if (JF_ITEM_TYPE_IS_FOLDER(item->type)) {
-		fprintf(stderr, "ERROR: jf_menu_play_item invoked on folder item type. This is a bug.\n");
+		fprintf(stderr, "Error: jf_menu_play_item invoked on folder item type. This is a bug.\n");
 		return;
 	}
 
@@ -319,19 +319,19 @@ static void jf_menu_play_item(const jf_menu_item *item)
 		case JF_ITEM_TYPE_AUDIO:
 		case JF_ITEM_TYPE_AUDIOBOOK:
 			if ((request_url = jf_menu_item_get_request_url(item)) == NULL) {
-				fprintf(stderr, "ERROR: jf_menu_play_item could not get request url for item %s\n", item->name);
+				fprintf(stderr, "Error: jf_menu_play_item could not get request url for item %s\n", item->name);
 				return;
 			}
 			if (item->playback_ticks != 0) {
 				char *question, *timestamp;
 				if ((timestamp = jf_make_timestamp(item->playback_ticks)) == NULL) {
-					fprintf(stderr, "ERROR: %s resume jf_make_timestamp failure.\n", item->name);
+					fprintf(stderr, "Error: %s resume jf_make_timestamp failure.\n", item->name);
 					free(request_url);
 					return;
 				}
 				if ((question = jf_concat(5, "Would you like to resume ",
 								item->name, " at the ", timestamp, " mark?")) == NULL) {
-					fprintf(stderr, "ERROR: %s resume jf_concat allocation failure.\n", item->name);
+					fprintf(stderr, "Error: %s resume jf_concat allocation failure.\n", item->name);
 					free(request_url);
 					free(timestamp);
 					return;
@@ -350,10 +350,10 @@ static void jf_menu_play_item(const jf_menu_item *item)
 			break;
 		case JF_ITEM_TYPE_EPISODE:
 		case JF_ITEM_TYPE_MOVIE:
-			printf("ERROR: jf_menu_play_item video types not yet supported.\n");
+			printf("Error: jf_menu_play_item video types not yet supported.\n");
 			break;
 		default:
-			fprintf(stderr, "ERROR: jf_menu_play_item unsupported item type (%d). This is a bug.\n",
+			fprintf(stderr, "Error: jf_menu_play_item unsupported item type (%d). This is a bug.\n",
 					item->type);
 			break;
 	}
@@ -432,7 +432,7 @@ bool jf_menu_child_dispatch(size_t n)
 			jf_menu_stack_push(child);
 			break;
 		default:
-			fprintf(stderr, "ERROR: jf_menu_child_dispatch unsupported menu item type. This is a bug.\n");
+			fprintf(stderr, "Error: jf_menu_child_dispatch unsupported menu item type. This is a bug.\n");
 			jf_menu_item_free(child);
 			break;
 	}
@@ -486,17 +486,13 @@ bool jf_menu_mark_played(const jf_menu_item *item)
 	char *url;
 	jf_reply *reply;
 	if ((url = jf_concat(4, "/users/", g_options.userid, "/playeditems/", item->id)) == NULL) {
-		fprintf(stderr, "ERROR: jf_menu_mark_played jf_concat returned NULL.\n");
+		fprintf(stderr, "Error: jf_menu_mark_played jf_concat returned NULL.\n");
 		return false;
 	}
 	reply = jf_net_request(url, JF_REQUEST_IN_MEMORY, "");
 	free(url);
-	if (reply == NULL) {
-		fprintf(stderr, "ERROR: jf_menu_mark_played jf_net_request returned NULL.\n");
-		return false;
-	}
-	if (JF_REPLY_PTR_HAS_ERROR(reply)) {
-		fprintf(stderr, "ERROR: could not mark item %s as played: %s.\n", item->name,
+	if (reply == NULL || JF_REPLY_PTR_HAS_ERROR(reply)) {
+		fprintf(stderr, "Error: could not mark item %s as played: %s.\n", item->name,
 				jf_reply_error_string(reply));
 		jf_reply_free(reply);
 		return false;
@@ -581,13 +577,13 @@ void jf_menu_ui()
 					jf_menu_try_play();
 					return;
 				case JF_CMD_FAIL_FOLDER:
-					fprintf(stderr, "ERROR: cannot open many folders or both folders and items with non-recursive command.\n");
+					fprintf(stderr, "Error: cannot open many folders or both folders and items with non-recursive command.\n");
 					free(line);
 					yyrelease(&yy);
 					memset(&yy, 0, sizeof(yycontext));
 					break;
 				case JF_CMD_FAIL_SYNTAX:
-					fprintf(stderr, "ERROR: malformed command.\n");
+					fprintf(stderr, "Error: malformed command.\n");
 					free(line);
 					yyrelease(&yy);
 					memset(&yy, 0, sizeof(yycontext));
@@ -598,7 +594,7 @@ void jf_menu_ui()
 					yyrelease(&yy);
 					return;
 				default:
-					fprintf(stderr, "ERROR: command parser ended in unexpected state. This is a bug.\n");
+					fprintf(stderr, "Error: command parser ended in unexpected state. This is a bug.\n");
 					free(line);
 					yyrelease(&yy);
 					memset(&yy, 0, sizeof(yycontext));
@@ -613,7 +609,11 @@ void jf_menu_ui()
 ////////// MISCELLANEOUS //////////
 bool jf_menu_init()
 {
+	// all linenoise setup
 	linenoiseHistorySetMaxLen(10);
+	
+	// update server name
+	s_root_menu->name = g_state.server_name;
 
 	// init menu stack
 	if ((s_menu_stack.items = malloc(10 * sizeof(jf_menu_item *))) == NULL) {

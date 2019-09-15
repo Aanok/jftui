@@ -66,7 +66,7 @@ void jf_net_clear(void);
 //
 // Parameters:
 // 	resource - The suffix of the resource to request. Final URL will be the result of appending this to the server's address.
-// 	request_type - JF_REQUEST_IN_MEMORY will cause the response to be passed back inside one big jf_reply, JF_REQUEST_SAX will cause the response to be passed to the JSON parser and digested as a non-promiscuous context, JF_REQUEST_SAX_PROMISCUOUS likewise but digested as a promiscuous context.
+// 	request_type - JF_REQUEST_IN_MEMORY will cause the response to be passed back in a jf_reply struct, JF_REQUEST_SAX will cause the response to be passed to the JSON parser and digested as a non-promiscuous context, JF_REQUEST_SAX_PROMISCUOUS likewise but digested as a promiscuous context.
 //	POST_payload - If NULL, the request will be an HTTP GET. Otherwise, the argument will constitute the body of an HTTP POST.
 //
 // Returns:

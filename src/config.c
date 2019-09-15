@@ -166,6 +166,7 @@ bool jf_config_write(const char *config_path)
 ////////////////////////////////////////
 
 
+////////// INTERACTIVE USER CONFIG //////////
 bool jf_config_ask_user_login()
 {
 	struct termios old, new;
@@ -199,11 +200,7 @@ bool jf_config_ask_user_login()
 	jf_growing_buffer_free(password);
 	login_reply = jf_net_login_request(login_post);
 	free(login_post);
-	if (login_reply == NULL) {
-		fprintf(stderr, "FATAL: jf_net_login_request returned NULL.\n");
-		return false;
-	}
-	if (JF_REPLY_PTR_HAS_ERROR(login_reply)) {
+	if (login_reply == NULL || JF_REPLY_PTR_HAS_ERROR(login_reply)) {
 		fprintf(stderr, "FATAL: jf_net_login_request: %s.\n", jf_reply_error_string(login_reply));
 		jf_reply_free(login_reply);
 		return false;
@@ -219,7 +216,6 @@ bool jf_config_ask_user_login()
 }
 
 
-// TODO: this is a stub
 bool jf_config_ask_user()
 {
 	// setup
@@ -249,3 +245,4 @@ bool jf_config_ask_user()
 	printf("Configuration and login successful.\n");
 	return true;
 }
+/////////////////////////////////////////////

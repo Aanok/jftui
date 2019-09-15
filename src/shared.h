@@ -125,33 +125,19 @@ jf_menu_item *jf_menu_item_static_copy(jf_menu_item *dest, const jf_menu_item *s
 //////////////////////////////////////////////////////////
 
 
-////////// GLOBAL APPLICATION STATE //////////
-typedef char jf_jftui_state;
-
-#define JF_STATE_STARTING				0
-#define JF_STATE_STARTING_FULL_CONFIG	1
-#define JF_STATE_STARTING_LOGIN			2
-#define JF_STATE_MENU_UI				3
-#define JF_STATE_PLAYBACK				4
-#define JF_STATE_PLAYBACK_NAVIGATING	5
-#define JF_STATE_PLAYBACK_START_MARK	6
-
-#define JF_STATE_USER_QUIT	-1
-#define JF_STATE_FAIL		-2
+////////// GROWING BUFFER //////////
+typedef struct jf_growing_buffer {
+	char *buf;
+	size_t size;
+	size_t used;
+} jf_growing_buffer;
 
 
-typedef struct jf_global_state {
-	char *config_dir;
-	char *runtime_dir;
-	char *session_id;
-	char *server_name;
-	jf_jftui_state state;
-	jf_menu_item now_playing;
-} jf_global_state;
-
-
-void jf_global_state_clear(void);
-//////////////////////////////////////////////
+jf_growing_buffer *jf_growing_buffer_new(const size_t size);
+bool jf_growing_buffer_append(jf_growing_buffer *buffer, const void *data, const size_t length);
+bool jf_growing_buffer_empty(jf_growing_buffer *buffer);
+void jf_growing_buffer_free(jf_growing_buffer *buffer);
+////////////////////////////////////
 
 
 ////////// THREAD_BUFFER //////////
@@ -180,19 +166,33 @@ bool jf_thread_buffer_init(jf_thread_buffer *tb);
 ///////////////////////////////////
 
 
-////////// GROWING BUFFER //////////
-typedef struct jf_growing_buffer {
-	char *buf;
-	size_t size;
-	size_t used;
-} jf_growing_buffer;
+////////// GLOBAL APPLICATION STATE //////////
+typedef char jf_jftui_state;
+
+#define JF_STATE_STARTING				0
+#define JF_STATE_STARTING_FULL_CONFIG	1
+#define JF_STATE_STARTING_LOGIN			2
+#define JF_STATE_MENU_UI				3
+#define JF_STATE_PLAYBACK				4
+#define JF_STATE_PLAYBACK_NAVIGATING	5
+#define JF_STATE_PLAYBACK_START_MARK	6
+
+#define JF_STATE_USER_QUIT	-1
+#define JF_STATE_FAIL		-2
 
 
-jf_growing_buffer *jf_growing_buffer_new(const size_t size);
-bool jf_growing_buffer_append(jf_growing_buffer *buffer, const void *data, const size_t length);
-bool jf_growing_buffer_empty(jf_growing_buffer *buffer);
-void jf_growing_buffer_free(jf_growing_buffer *buffer);
-////////////////////////////////////
+typedef struct jf_global_state {
+	char *config_dir;
+	char *runtime_dir;
+	char *session_id;
+	char *server_name;
+	jf_jftui_state state;
+	jf_menu_item now_playing;
+} jf_global_state;
+
+
+void jf_global_state_clear(void);
+//////////////////////////////////////////////
 
 
 ////////// MISCELLANEOUS GARBAGE //////////

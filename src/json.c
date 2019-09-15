@@ -2,6 +2,7 @@
 
 ////////// GLOBALS //////////
 extern jf_options g_options;
+extern jf_global_state g_state;
 /////////////////////////////
 
 
@@ -585,6 +586,30 @@ char *jf_json_generate_login_request(const char *username, const char *password)
 
 	yajl_gen_free(gen);
 	return json;
+}
+
+
+bool jf_json_parse_server_info_response(const char *payload)
+{
+	yajl_val parsed;
+	const char *server_name_selector[2] = { "ServerName", NULL };
+
+	s_error_buffer[0] = '\0';
+	if ((parsed = yajl_tree_parse(payload, s_error_buffer, JF_PARSER_ERROR_BUFFER_SIZE)) == NULL) {
+		if (s_error_buffer[0] == '\0') {
+			strcpy(s_error_buffer, "yajl_tree_parse unknown error");
+		}
+		return false;
+	}
+	// NB macros propagate NULL
+	if ((g_state.server_name = YAJL_GET_STRING(yajl_tree_get(parsed, server_name_selector, yajl_t_string))) != NULL) {
+		g_state.server_name = strdup(g_state.server_name);
+		yajl_tree_free(parsed);
+		return true;
+	} else {
+		yajl_tree_free(parsed);
+		return false;
+	}
 }
 
 

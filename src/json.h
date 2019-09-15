@@ -133,6 +133,7 @@ void *jf_json_sax_thread(void *arg);
 char *jf_json_error_string(void);
 bool jf_json_parse_login_response(const char *payload);
 char *jf_json_generate_login_request(const char *username, const char *password);
+bool jf_json_parse_server_info_response(const char *payload);
 char *jf_json_generate_progress_post(const char *id, const long long ticks);
 
 #endif
