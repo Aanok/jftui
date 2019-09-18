@@ -198,6 +198,8 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 			case JF_ITEM_TYPE_ARTIST:
 				return jf_concat(5, "/users/", g_options.userid, "/items?albumartistids=",
 						item->id, "&recursive=true&includeitemtypes=musicalbum&sortby=isfolder,sortname&sortorder=ascending");
+			case JF_ITEM_TYPE_SEARCH_RESULT:
+				return jf_concat(4, "/users/", g_options.userid, "/items?recursive=true&searchterm=", item->name);
 			// Persistent folders
 			case JF_ITEM_TYPE_MENU_FAVORITES:
 				return jf_concat(3, "/users/", g_options.userid, "/items?filters=isfavorite&recursive=true&sortby=sortname");
@@ -266,6 +268,7 @@ static bool jf_menu_print_context()
 		case JF_ITEM_TYPE_MENU_NEXT_UP:
 		case JF_ITEM_TYPE_MENU_LATEST:
 		case JF_ITEM_TYPE_MENU_LIBRARIES:
+		case JF_ITEM_TYPE_SEARCH_RESULT:
 			JF_MENU_PRINT_TITLE(s_context->name);
 			JF_MENU_PRINT_FOLDER_FATAL(s_context, JF_REQUEST_SAX_PROMISCUOUS);
 			break;
@@ -478,6 +481,19 @@ void jf_menu_dotdot()
 void jf_menu_quit()
 {
 	g_state.state = JF_STATE_USER_QUIT;
+}
+
+
+void jf_menu_search(const char *s)
+{
+	jf_menu_item *menu_item;
+
+	if ((menu_item = jf_menu_item_new(JF_ITEM_TYPE_SEARCH_RESULT, NULL,
+					NULL, s, 0, 0)) == NULL) {
+		fprintf(stderr, "Warning: jf_menu_search jf_menu_item_new returned NULL. Search will not be performed.\n");
+		return;
+	}
+	jf_menu_stack_push(menu_item);
 }
 
 

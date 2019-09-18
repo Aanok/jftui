@@ -68,6 +68,8 @@ typedef char jf_item_type;
 #define JF_ITEM_TYPE_SEASON				29
 #define JF_ITEM_TYPE_SERIES				30
 
+#define JF_ITEM_TYPE_SEARCH_RESULT		100
+
 // Persistent folders
 #define JF_ITEM_TYPE_MENU_ROOT		-1
 #define JF_ITEM_TYPE_MENU_FAVORITES	-2

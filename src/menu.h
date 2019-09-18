@@ -100,6 +100,7 @@ bool jf_menu_child_dispatch(const size_t n);
 
 void jf_menu_dotdot(void);
 void jf_menu_quit(void);
+void jf_menu_search(const char *s);
 bool jf_menu_mark_played(const jf_menu_item *item);
 
 bool jf_menu_playlist_forward(void);

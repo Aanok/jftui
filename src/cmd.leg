@@ -70,7 +70,7 @@ Start = ws*
 	( ".." ws*					{ yy->state = JF_CMD_SPECIAL; jf_menu_dotdot(); }
 	| "h"						{ yy->state = JF_CMD_SPECIAL; jf_menu_clear(); }
 #	| "r" ws+ @{ yy->state = JF_CMD_RECURSIVE; } Selector ws*
-#	| "s" ws+ < string >		{ printf("DEBUG: search \"%s\"\n", yytext); }
+	| "s" ws+ < string >		{ yy->state = JF_CMD_SPECIAL; jf_menu_search(yytext); }
 	| 'q' ws*					{ yy->state = JF_CMD_SPECIAL; jf_menu_quit(); }
 	| Selector ws*
 	) ~ { yy_cmd_finalize(yy, false); } { yy_cmd_finalize(yy, true); }
@@ -82,7 +82,7 @@ Atom = l:num ws* '-' ws* r:num	{ yy_cmd_digest_range(yy, l, r); }
 	| n:num						{ yy_cmd_digest(yy, n); }
 num = < [0-9]+ >				{ $$ = strtoul(yytext, NULL, 10); }
 ws = [ \t]
-string = [^\n\r]+
+string = [^\n\r]*
 
 ######################################################################################
 
