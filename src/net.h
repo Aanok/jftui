@@ -81,6 +81,7 @@ jf_reply *jf_net_login_request(const char *POST_payload);
 
 
 ////////// MISCELLANEOUS GARBAGE ///////////
+char * jf_net_urlencode(const char *url);
 bool jf_net_url_is_valid(const char *url);
 ////////////////////////////////////////////
 

@@ -378,6 +378,28 @@ jf_reply *jf_net_login_request(const char *POST_payload)
 
 
 ////////// MISCELLANEOUS GARBAGE ///////////
+char *jf_net_urlencode(const char *url)
+{
+	char *tmp, *retval;
+
+	if (s_handle == NULL) {
+		fprintf(stderr, "FATAL: jf_net_urlencode called before jf_net_pre_init. This is a bug.\n");
+		return NULL;
+	}
+	if ((tmp = curl_easy_escape(s_handle, url, 0)) == NULL) {
+		fprintf(stderr, "FATAL: jf_net_urlencode curl_easy_escape returned NULL.\n");
+		return NULL;
+	}
+	retval = strdup(tmp);
+	curl_free(tmp);
+	if (retval == NULL) {
+		fprintf(stderr, "FATAL: jf_net_urlencode strdup returned NULL.\n");
+		return NULL;
+	}
+	return retval;
+}
+
+	
 bool jf_net_url_is_valid(const char *url)
 {
 	CURLU *curlu;

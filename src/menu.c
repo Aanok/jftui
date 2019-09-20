@@ -487,9 +487,16 @@ void jf_menu_quit()
 void jf_menu_search(const char *s)
 {
 	jf_menu_item *menu_item;
+	char *escaped;
 
-	if ((menu_item = jf_menu_item_new(JF_ITEM_TYPE_SEARCH_RESULT, NULL,
-					NULL, s, 0, 0)) == NULL) {
+	if ((escaped = jf_net_urlencode(s)) == NULL) {
+		fprintf(stderr, "Warning: jf_menu_search jf_net_urlencode returned NULL. Search will not be performed.\n");
+		return;
+	}
+
+	menu_item = jf_menu_item_new(JF_ITEM_TYPE_SEARCH_RESULT, NULL, NULL, escaped, 0, 0);
+	free(escaped);
+	if (menu_item == NULL) {
 		fprintf(stderr, "Warning: jf_menu_search jf_menu_item_new returned NULL. Search will not be performed.\n");
 		return;
 	}

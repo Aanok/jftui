@@ -156,6 +156,7 @@ int main(int argc, char *argv[])
 			g_state.state = JF_STATE_STARTING_LOGIN;
 		} else {
 			fprintf(stderr, "FATAL: unrecognized argument %s.\n", argv[i]);
+			jf_print_usage();
 			exit(EXIT_FAILURE);
 		}
 	}

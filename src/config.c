@@ -222,14 +222,15 @@ bool jf_config_ask_user()
 	jf_options_complete_with_defaults();
 
 	// login user input
-	printf("Please enter the URL of your Jellyfin server. Example: http://foo.bar:8096/jf\n(note: unless specified, ports will be the protocol's defaults, i.e. 80 for HTTP and 443 for HTTPS)\n");
+	printf("Please enter the encoded URL of your Jellyfin server. Example: http://foo%%20bar.baz:8096/jf\n(note: unless specified, ports will be the protocol's defaults, i.e. 80 for HTTP and 443 for HTTPS)\n");
 	while (true) {
 		g_options.server = linenoise("> ");
 		if (jf_net_url_is_valid(g_options.server)) {
-			g_options.server_len = strlen(g_options.server);
+			g_options.server_len = g_options.server == NULL ? 0 : strlen(g_options.server);
 			break;
 		} else {
 			fprintf(stderr, "Error: malformed URL. Please try again.\n");
+			free(g_options.server);
 		}
 	}
 

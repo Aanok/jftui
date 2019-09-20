@@ -134,7 +134,7 @@ bool jf_disk_init()
 	tmp = jf_concat(2, g_state.runtime_dir, "/s_payload_header");
 	if (access(tmp, F_OK) == 0) {
 		fprintf(stderr, "Warning: there are files from another jftui session in %s. If you want to run multiple instances concurrently, make sure to specify a distinct --runtime-dir for each one after the first or they will interfere with each other.\n", g_state.runtime_dir);
-		fprintf(stderr, "(if jftui terminated abruptly on the last run using this same runtime-dir, you may ignore this warning)\n");
+		fprintf(stderr, "(if jftui terminated abruptly on the last run using this same runtime-dir, you may ignore this warning)\n\n");
 	}
 	free(tmp);
 
