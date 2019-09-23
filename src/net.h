@@ -53,8 +53,8 @@ typedef unsigned char jf_request_type;
 size_t jf_thread_buffer_item_count(void);
 void jf_thread_buffer_clear_error(void);
 
-bool jf_net_pre_init(void);
-bool jf_net_refresh(void);
+void jf_net_pre_init(void);
+void jf_net_refresh(void);
 void jf_net_clear(void);
 
 

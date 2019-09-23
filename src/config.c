@@ -7,9 +7,8 @@ extern jf_options g_options;
 
 
 ////////// STATIC FUNCTIONS //////////
-// Procedure: jf_options_complete_with_defaults
-//
-// Will fill in fields client, device, deviceid and version of the global options struct, unless they're already filled in.
+// Will fill in fields client, device, deviceid and version of the global
+// options struct, unless they're already filled in.
 static void jf_options_complete_with_defaults(void);
 //////////////////////////////////////
 
@@ -17,16 +16,16 @@ static void jf_options_complete_with_defaults(void);
 ////////// JF_OPTIONS //////////
 static void jf_options_complete_with_defaults()
 {
-	g_options.client = g_options.client != NULL ? g_options.client : strdup(JF_CONFIG_CLIENT_DEFAULT);
-	g_options.device = g_options.device != NULL ? g_options.device : strdup(JF_CONFIG_DEVICE_DEFAULT);
+	if (g_options.client == NULL) assert((g_options.client = strdup(JF_CONFIG_CLIENT_DEFAULT)) != NULL);
+	if (g_options.device == NULL) assert((g_options.device = strdup(JF_CONFIG_DEVICE_DEFAULT)) != NULL);
 	if (g_options.deviceid[0] == '\0') {
-		if (gethostname(g_options.deviceid, JF_CONFIG_DEVICEID_MAX_LEN - 1) == 0) {
-			g_options.deviceid[JF_CONFIG_DEVICEID_MAX_LEN - 1] = '\0';
+		if (gethostname(g_options.deviceid, JF_CONFIG_DEVICEID_MAX_LEN) == 0) {
+			g_options.deviceid[JF_CONFIG_DEVICEID_MAX_LEN] = '\0';
 		} else {
 			strcpy(g_options.deviceid, JF_CONFIG_DEVICEID_DEFAULT);
 		}
 	}
-	g_options.version = g_options.version != NULL ? g_options.version : strdup(JF_CONFIG_VERSION_DEFAULT);
+	if (g_options.version == NULL) assert((g_options.version = strdup(JF_CONFIG_VERSION_DEFAULT)) != NULL);
 }
 
 
@@ -60,9 +59,7 @@ char *jf_config_get_default_dir(void)
 
 
 // TODO: allow whitespace
-// NB this function is meant to work on an existing config file.
-// First time config should be handled separately.
-bool jf_config_read(const char *config_path)
+void jf_config_read(const char *config_path)
 {
 	FILE *config_file;
 	char *line;
@@ -70,32 +67,15 @@ bool jf_config_read(const char *config_path)
 	char *value;
 	size_t value_len;
 
-	if (config_path == NULL) {
-		fprintf(stderr, "FATAL: tried to open settings file with NULL path.\n");
-		return false;
-	}
+	assert(config_path != NULL);
 
-	if ((line = malloc(line_size)) == NULL) {
-		fprintf(stderr, "FATAL: couldn't allocate getline buffer.\n");
-		return false;
-	}
+	assert((line = malloc(line_size)) != NULL);
 
-	errno = 0;
-	if ((config_file = fopen(config_path, "r")) == NULL) {
-		int fopen_errno = errno;
-		fprintf(stderr, "FATAL: fopen for settings file at location %s: %s.\n",
-				config_path, strerror(fopen_errno));
-		return false;
-	}
+	assert((config_file = fopen(config_path, "r")) != NULL);
 
 	// read from file
 	while (getline(&line, &line_size, config_file) != -1) {
-		if (line == NULL) {
-			fprintf(stderr, "FATAL: couldn't resize getline buffer.\n");
-			return false;
-		}
-		// allow comments
-		if (line[0] == '#') continue;
+		assert(line != NULL);
 		if ((value = strchr(line, '=')) == NULL) {
 			// the line is malformed; issue a warning and skip it
 			fprintf(stderr, "Warning: skipping malformed settings file line: %s.\n", line);
@@ -104,30 +84,30 @@ bool jf_config_read(const char *config_path)
 		value += 1; // digest '='
 		// figure out which option key it is
 		// NB options that start with a prefix of other options must go after those!
-		if JF_CONFIG_KEY_IS("server") {
+		if (JF_CONFIG_KEY_IS("server")) {
 			JF_CONFIG_FILL_VALUE(server);
 			g_options.server_len = value_len;
-		} else if JF_CONFIG_KEY_IS("token") {
+		} else if (JF_CONFIG_KEY_IS("token")) {
 			JF_CONFIG_FILL_VALUE(token);
-		} else if JF_CONFIG_KEY_IS("userid") {
+		} else if (JF_CONFIG_KEY_IS("userid")) {
 			JF_CONFIG_FILL_VALUE(userid);
-		} else if JF_CONFIG_KEY_IS("ssl_verifyhost") {
+		} else if (JF_CONFIG_KEY_IS("ssl_verifyhost")) {
 			if (strncmp(value, "false", JF_STATIC_STRLEN("false")) == 0) g_options.ssl_verifyhost = false;
-		} else if JF_CONFIG_KEY_IS("client") {
+		} else if (JF_CONFIG_KEY_IS("client")) {
 			JF_CONFIG_FILL_VALUE(client);
-		} else if JF_CONFIG_KEY_IS("deviceid") {
+		} else if (JF_CONFIG_KEY_IS("deviceid")) {
 			value_len = strlen(value);
 			if (value[value_len - 1] == '\n') value_len--;
 			if (value_len > JF_CONFIG_DEVICEID_MAX_LEN - 1) value_len = JF_CONFIG_DEVICEID_MAX_LEN - 1;
 			strncpy(g_options.deviceid, value, value_len);
 			g_options.deviceid[value_len] = '\0';
-		} else if JF_CONFIG_KEY_IS("device") {
+		} else if (JF_CONFIG_KEY_IS("device")) {
 			JF_CONFIG_FILL_VALUE(device);
-		} else if JF_CONFIG_KEY_IS("version") {
+		} else if (JF_CONFIG_KEY_IS("version")) {
 			JF_CONFIG_FILL_VALUE(version);
 		} else {
 			// option key was not recognized; print a warning and go on
-			fprintf(stderr, "WARNING: unrecognized option key in settings file line: %s.\n", line);
+			fprintf(stderr, "Warning: unrecognized option key in settings file line: %s.\n", line);
 		}
 	}
 
@@ -136,18 +116,14 @@ bool jf_config_read(const char *config_path)
 
 	free(line);
 	fclose(config_file);
-
-	return true;
 }
 
 
-// TODO: error handling
-bool jf_config_write(const char *config_path)
+void jf_config_write(const char *config_path)
 {
 	FILE *config_file;
 
 	if ((config_file = fopen(config_path, "w")) != NULL) {
-		// bit inefficient but w/e
 		JF_CONFIG_WRITE_VALUE(server);
 		JF_CONFIG_WRITE_VALUE(token);
 		JF_CONFIG_WRITE_VALUE(userid);
@@ -157,17 +133,20 @@ bool jf_config_write(const char *config_path)
 		JF_CONFIG_WRITE_VALUE(deviceid);
 		JF_CONFIG_WRITE_VALUE(version);
 
-		fclose(config_file);
-		return true;
+		if (fclose(config_file) != 0) {
+			perror("Warning: jf_config_write: fclose");
+			fprintf(stderr, "Settings may not have been saved to disk.\n");
+		}
 	} else {
-		return false;
+		perror("Warning: jf_config_write: fopen");
+		fprintf(stderr, "Settings could not be saved to disk.\n");
 	}
 }
 ////////////////////////////////////////
 
 
 ////////// INTERACTIVE USER CONFIG //////////
-bool jf_config_ask_user_login()
+void jf_config_ask_user_login()
 {
 	struct termios old, new;
 	char *username, *login_post;
@@ -175,10 +154,7 @@ bool jf_config_ask_user_login()
 	jf_reply *login_reply;
 	int c;
 
-	if ((password = jf_growing_buffer_new(128)) == NULL) {
-		fprintf(stderr, "FATAL: password jf_growing_buffer_new returned NULL.\n");
-		return false;
-	}
+	assert((password = jf_growing_buffer_new(128)) != NULL);
 
 	printf("Please enter your username.\n");
 	username = linenoise("> ");
@@ -200,29 +176,19 @@ bool jf_config_ask_user_login()
 	jf_growing_buffer_free(password);
 	login_reply = jf_net_login_request(login_post);
 	free(login_post);
-	if (login_reply == NULL || JF_REPLY_PTR_HAS_ERROR(login_reply)) {
-		fprintf(stderr, "FATAL: jf_net_login_request: %s.\n", jf_reply_error_string(login_reply));
-		jf_reply_free(login_reply);
-		return false;
-	}
-	if (! jf_json_parse_login_response(login_reply->payload)) {
-		fprintf(stderr, "FATAL: could not parse login response.\n");
-		jf_reply_free(login_reply);
-		return false;
-	}
+	jf_json_parse_login_response(login_reply->payload);
 	jf_reply_free(login_reply);
-
-	return true;
 }
 
 
-bool jf_config_ask_user()
+void jf_config_ask_user()
 {
 	// setup
 	jf_options_complete_with_defaults();
 
 	// login user input
-	printf("Please enter the encoded URL of your Jellyfin server. Example: http://foo%%20bar.baz:8096/jf\n(note: unless specified, ports will be the protocol's defaults, i.e. 80 for HTTP and 443 for HTTPS)\n");
+	printf("Please enter the encoded URL of your Jellyfin server. Example: http://foo%%20bar.baz:8096/jf\n");
+	printf("(note: unless specified, ports will be the protocol's defaults, i.e. 80 for HTTP and 443 for HTTPS)\n");
 	while (true) {
 		g_options.server = linenoise("> ");
 		if (jf_net_url_is_valid(g_options.server)) {
@@ -234,9 +200,7 @@ bool jf_config_ask_user()
 		}
 	}
 
-	if (! jf_config_ask_user_login()) {
-		return false;
-	}
+	jf_config_ask_user_login();
 
 	// misc config user input
 	if (jf_menu_user_ask_yn("Do you need jftui to ignore hostname validation (required e.g. if you're using Jellyfin's built-in SSL certificate)?")) {
@@ -244,6 +208,5 @@ bool jf_config_ask_user()
 	}
 
 	printf("Configuration and login successful.\n");
-	return true;
 }
 /////////////////////////////////////////////

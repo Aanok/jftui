@@ -7,51 +7,58 @@ extern jf_global_state g_state;
 
 ////////// STATIC VARIABLES //////////
 static jf_growing_buffer *s_buffer = NULL;
-static jf_file_cache s_payload;
-static jf_file_cache s_playlist;
+static jf_file_cache s_payload = (jf_file_cache){ 0 };
+static jf_file_cache s_playlist = (jf_file_cache){ 0 };
 //////////////////////////////////////
 
 
 ////////// STATIC FUNCTIONS ///////////
+static JF_FORCE_INLINE void jf_disk_align_to(jf_file_cache *cache, const size_t n);
+static JF_FORCE_INLINE void jf_disk_open(jf_file_cache *cache);
 static bool jf_disk_add_item(jf_file_cache *cache, const jf_menu_item *item);
-static jf_menu_item *jf_disk_get_item(jf_file_cache *cache, size_t n);
+static jf_menu_item *jf_disk_get_item(jf_file_cache *cache, const size_t n);
 ///////////////////////////////////////
 
 
-// item must not be NULL
+static JF_FORCE_INLINE void jf_disk_open(jf_file_cache *cache)
+{
+	assert((cache->header = fopen(cache->header_path, "w+")) != NULL);
+	assert((cache->body = fopen(cache->body_path, "w+")) != NULL);
+	cache->count = 0;
+}
+
+
+static JF_FORCE_INLINE void
+jf_disk_align_to(jf_file_cache *cache, const size_t n)
+{
+	long body_offset;
+	assert(fseek(cache->header, (long)((n - 1) * sizeof(long)), SEEK_SET) == 0);
+	assert(fread(&body_offset, sizeof(long), 1, cache->header) == 1);
+	assert(fseek(cache->body, body_offset, SEEK_SET) == 0);
+}
+
+
 static bool jf_disk_add_item(jf_file_cache *cache, const jf_menu_item *item)
 {
 	long starting_body_offset;
+	size_t name_length;
+
+	assert(item != NULL);
 
 	// header and alignment
-	JF_DISK_OP_SIMPLE_FATAL(fseek(cache->header, 0, SEEK_END), 0, false,
-			"could not seek to end of cache header");
-	JF_DISK_OP_SIMPLE_FATAL(fseek(cache->body, 0, SEEK_END), 0, false,
-			"could not seek to end of cache body");
-	if ((starting_body_offset = ftell(cache->body)) == -1) {
-		int backup_errno = errno;
-		fprintf(stderr, "FATAL: could not ftell cache body: %s.\n", strerror(backup_errno));
-		return false;
-	}
-	JF_DISK_OP_SIMPLE_FATAL(fwrite(&starting_body_offset, sizeof(long), 1, cache->header),
-			1, false, "could not write offset in cache header");
+	assert(fseek(cache->header, 0, SEEK_END) == 0);
+	assert(fseek(cache->body, 0, SEEK_END) == 0);
+	assert((starting_body_offset = ftell(cache->body)) != -1);
+	assert(fwrite(&starting_body_offset, sizeof(long), 1, cache->header) == 1);
 
 	// body
-	JF_DISK_OP_SIMPLE_FATAL(fwrite(&(item->type), sizeof(jf_item_type), 1, cache->body),
-			1, false, "could not write item type in cache body");
-	JF_DISK_OP_SIMPLE_FATAL(fwrite(item->id, 1, sizeof(item->id), cache->body),
-			sizeof(item->id), false, "could not write item id in cache body");
-	if (item->name != NULL) {
-		size_t len = strlen(item->name);
-		JF_DISK_OP_SIMPLE_FATAL(fwrite(item->name, 1, len, cache->body), len,
-			false, "could not write item name in cache body");
-	}
-	JF_DISK_OP_SIMPLE_FATAL(fwrite(&("\0"), 1, 1, cache->body), 1, false,
-			"could not NULL-terminate item name in cache body");
-	JF_DISK_OP_SIMPLE_FATAL(fwrite(&(item->runtime_ticks), sizeof(long long), 1, cache->body),
-			1, false, "could not write item runtime_ticks in cache body");
-	JF_DISK_OP_SIMPLE_FATAL(fwrite(&(item->playback_ticks), sizeof(long long), 1, cache->body),
-			1, false, "could not write item playback_ticks in cache body");
+	assert(fwrite(&(item->type), sizeof(jf_item_type), 1, cache->body) == 1);
+	assert(fwrite(item->id, 1, sizeof(item->id), cache->body) == sizeof(item->id));
+	name_length = item->name == NULL ? 0 : strlen(item->name);
+	assert(fwrite(item->name, 1, name_length, cache->body) == name_length);
+	assert(fwrite(&"\0", 1, 1, cache->body) == 1);
+	assert(fwrite(&(item->runtime_ticks), sizeof(long long), 1, cache->body) == 1);
+	assert(fwrite(&(item->playback_ticks), sizeof(long long), 1, cache->body) == 1);
 
 	cache->count++;
 
@@ -59,7 +66,7 @@ static bool jf_disk_add_item(jf_file_cache *cache, const jf_menu_item *item)
 }
 
 
-static jf_menu_item *jf_disk_get_item(jf_file_cache *cache, size_t n)
+static jf_menu_item *jf_disk_get_item(jf_file_cache *cache, const size_t n)
 {
 	jf_menu_item *item;
 	char tmp[1];
@@ -68,30 +75,23 @@ static jf_menu_item *jf_disk_get_item(jf_file_cache *cache, size_t n)
 		return NULL;
 	}
 
-	if ((item = malloc(sizeof(jf_menu_item))) == NULL) {
-		return NULL;
-	}
+	assert((item = malloc(sizeof(jf_menu_item))) != NULL);
 
-	JF_DISK_ALIGN_TO_FATAL(cache, n);
-	JF_DISK_OP_FATAL(fread(&(item->type), sizeof(jf_item_type), 1, cache->body), 1,
-			NULL, "could not read type for item %zu in a cache body", n);
-	JF_DISK_OP_FATAL(fread(item->id, 1, sizeof(item->id), cache->body), sizeof(item->id),
-			NULL, "could not read id for item %zu in a cache body", n);
+	jf_disk_align_to(cache, n);
+	assert(fread(&(item->type), sizeof(jf_item_type), 1, cache->body) == 1);
+	assert(fread(item->id, 1, sizeof(item->id), cache->body) == sizeof(item->id));
 	item->children = NULL;
 	jf_growing_buffer_empty(s_buffer);
 	while (true) {
-		JF_DISK_OP_FATAL(fread(tmp, 1, 1, cache->body), 1,
-				NULL, "could not read name for item %zu in a cache body", n);
+		assert(fread(tmp, 1, 1, cache->body) == 1);
 		jf_growing_buffer_append(s_buffer, tmp, 1);
-		if (tmp[0] == '\0') {
+		if (*tmp == '\0') {
 			item->name = strdup(s_buffer->buf);
 			break;
 		}
 	}
-	JF_DISK_OP_FATAL(fread(&(item->runtime_ticks), sizeof(long long), 1, cache->body), 1,
-			NULL, "could not read runtime_ticks for item %zu in a cache body", n);
-	JF_DISK_OP_FATAL(fread(&(item->playback_ticks), sizeof(long long), 1, cache->body), 1,
-			NULL, "could not read playback_ticks for item %zu in a cache body", n);
+	assert(fread(&(item->runtime_ticks), sizeof(long long), 1, cache->body) == 1);
+	assert(fread(&(item->playback_ticks), sizeof(long long), 1, cache->body) == 1);
 
 	return item;
 }
@@ -107,68 +107,61 @@ char *jf_disk_get_default_runtime_dir()
 	} else {
 		dir = jf_concat(2, dir, "/jftui");
 	}
+
+	if (dir == NULL) {
+		fprintf(stderr, "FATAL: could not acquire runtime directory location. $HOME could not be read and --runtime-dir was not passed.\n");
+		exit(EXIT_FAILURE);
+	}
 	return dir;
 }
 
 
-bool jf_disk_init()
+void jf_disk_init()
 {
 	char *tmp;
 
 	if (access(g_state.runtime_dir, F_OK) != 0) {
-		if (mkdir(g_state.runtime_dir, S_IRWXU) == -1) {
-			int mkdir_errno = errno;
-			fprintf(stderr, "FATAL: could not create runtime directory %s: %s.\n",
-					g_state.runtime_dir, strerror(mkdir_errno));
-			return false;
-		}
+		assert(mkdir(g_state.runtime_dir, S_IRWXU) != -1);
 	}
 
-	if (s_buffer == NULL) {
-		if ((s_buffer = jf_growing_buffer_new(0)) == NULL) {
-			fprintf(stderr, "FATAL: jf_disk_refresh could not allocate growing buffer.\n");
-			return false;
-		}
-	}
+	if (s_buffer == NULL) assert((s_buffer = jf_growing_buffer_new(0)) != NULL);
 
-	tmp = jf_concat(2, g_state.runtime_dir, "/s_payload_header");
-	if (access(tmp, F_OK) == 0) {
-		fprintf(stderr, "Warning: there are files from another jftui session in %s. If you want to run multiple instances concurrently, make sure to specify a distinct --runtime-dir for each one after the first or they will interfere with each other.\n", g_state.runtime_dir);
+	assert((s_payload.header_path = jf_concat(2, g_state.runtime_dir, "/s_payload_header")) != NULL);
+	assert((s_payload.body_path = jf_concat(2, g_state.runtime_dir, "/s_payload_body")) != NULL);
+	assert((s_playlist.header_path = jf_concat(2, g_state.runtime_dir, "/s_playlist_header")) != NULL);
+	assert((s_playlist.body_path = jf_concat(2, g_state.runtime_dir, "/s_playlist_body")) != NULL);
+
+	if ((access(s_payload.header_path, F_OK)
+				&& access(s_payload.body_path, F_OK)
+				&& access(s_playlist.header_path, F_OK)
+				&& access(s_playlist.body_path, F_OK)) == 0) {
+		fprintf(stderr, "Warning: there are files from another jftui session in %s.\n", g_state.runtime_dir);
+		fprintf(stderr, "If you want to run multiple instances concurrently, make sure to specify a distinct --runtime-dir for each one after the first or they will interfere with each other.\n");
 		fprintf(stderr, "(if jftui terminated abruptly on the last run using this same runtime-dir, you may ignore this warning)\n\n");
 	}
-	free(tmp);
 
-	JF_DISK_OPEN_FILE_FATAL(s_payload, header);
-	JF_DISK_OPEN_FILE_FATAL(s_payload, body);
-	s_payload.count = 0;
-	JF_DISK_OPEN_FILE_FATAL(s_playlist, header);
-	JF_DISK_OPEN_FILE_FATAL(s_playlist, body);
-	s_playlist.count = 0;
-
-	return true;
+	jf_disk_open(&s_payload);
+	jf_disk_open(&s_playlist);
 }
 
 
-bool jf_disk_refresh()
+void jf_disk_refresh()
 {
-	char *tmp;
-	JF_DISK_REOPEN_FILE_FATAL(s_payload, header);
-	JF_DISK_REOPEN_FILE_FATAL(s_payload, body);
-	s_payload.count = 0;
-	JF_DISK_REOPEN_FILE_FATAL(s_playlist, header);
-	JF_DISK_REOPEN_FILE_FATAL(s_playlist, body);
-	s_playlist.count = 0;
-	return true;
+	assert(fclose(s_payload.header) == 0);
+	assert(fclose(s_payload.body) == 0);
+	jf_disk_open(&s_payload);
+	assert(fclose(s_playlist.header) == 0);
+	assert(fclose(s_playlist.body) == 0);
+	jf_disk_open(&s_playlist);
 }
 
 
 void jf_disk_clear()
 {
-	char *tmp;
-	JF_DISK_CLOSE_DELETE_FILE(s_payload, header);
-	JF_DISK_CLOSE_DELETE_FILE(s_payload, body);
-	JF_DISK_CLOSE_DELETE_FILE(s_playlist, header);
-	JF_DISK_CLOSE_DELETE_FILE(s_playlist, body);
+	if (s_payload.header_path != NULL) unlink(s_payload.header_path);
+	if (s_payload.body_path != NULL) unlink(s_payload.body_path);
+	if (s_playlist.header_path != NULL) unlink(s_playlist.header_path);
+	if (s_playlist.body_path != NULL) unlink(s_playlist.body_path);
 }
 
 
@@ -195,10 +188,11 @@ jf_item_type jf_disk_payload_get_type(const size_t n)
 		return JF_ITEM_TYPE_NONE;
 	}
 
-	JF_DISK_ALIGN_TO_FATAL(&s_payload, n);
-	JF_DISK_OP_FATAL(fread(&(item_type), sizeof(jf_item_type), 1, s_payload.body),
-			1, JF_ITEM_TYPE_NONE, "could not read type for item %zu in s_payload.body", n);
-
+	jf_disk_align_to(&s_payload, n);
+	if (fread(&(item_type), sizeof(jf_item_type), 1, s_payload.body) != 1) {
+		fprintf(stderr, "Warning: jf_payload_get_type: could not read type for item %zu in s_payload.body.\n", n);
+		return JF_ITEM_TYPE_NONE;
+	}
 	return item_type;
 }
 

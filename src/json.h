@@ -44,19 +44,8 @@ do {																				\
 
 #define JF_SAX_STRING_IS(name) (strncmp((const char *)string, name, sizeof(name) > string_len ? string_len : sizeof(name)) == 0)
 
-#define JF_SAX_PRINT_LEADER(tag)						\
-	do {												\
-		printf(tag " %zu. ", context->tb->item_count);	\
-	} while (false)
+#define JF_SAX_PRINT_LEADER(tag) printf(tag " %zu. ", context->tb->item_count)
 
-#define JF_SAX_TRY_PRINT(prefix, field, suffix)					\
-	do {														\
-		if (context->field ## _len > 0) {						\
-			JF_STATIC_PRINT(prefix);							\
-			write(1, context->field, context->field ## _len);	\
-			JF_STATIC_PRINT(suffix);							\
-		}														\
-	} while (false)
 
 // NB THIS WILL NOT BE NULL-TERMINATED ON ITS OWN!!!
 #define JF_SAX_TRY_APPEND_NAME(prefix, field, suffix)						\
@@ -131,9 +120,9 @@ typedef struct jf_sax_context {
 void *jf_json_sax_thread(void *arg);
 
 char *jf_json_error_string(void);
-bool jf_json_parse_login_response(const char *payload);
+void jf_json_parse_login_response(const char *payload);
 char *jf_json_generate_login_request(const char *username, const char *password);
-bool jf_json_parse_server_info_response(const char *payload);
+void jf_json_parse_server_info_response(const char *payload);
 char *jf_json_generate_progress_post(const char *id, const long long ticks);
 
 #endif

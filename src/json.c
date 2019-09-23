@@ -20,22 +20,22 @@ static int jf_sax_items_end_array(void *ctx);
 static int jf_sax_items_string(void *ctx, const unsigned char *string, size_t strins_len);
 static int jf_sax_items_number(void *ctx, const char *string, size_t strins_len);
 
-// Function: jf_sax_yajl_parser_new
-//
-// Allocates a new yajl parser instance, registering callbacks and context and setting yajl_allow_multiple_values to let it digest multiple JSON messages in a row.
-// Failures are considered catastrophic: will set thread buffer state to JF_THREAD_BUFFER_STATE_PARSER_DEAD and put an error message in the thread buffer data buffer.
+// Allocates a new yajl parser instance, registering callbacks and context and
+// setting yajl_allow_multiple_values to let it digest multiple JSON messages
+// in a row.
+// Failures cause SIGABRT.
 //
 // Parameters:
 // 	- callbacks: Pointer to callbacks struct to register.
 // 	- context: Pointer to json parser context to register.
 //
 // Returns:
-// 	The yajl_handle of the new parser on success, NULL on failure.
-static yajl_handle jf_sax_yajl_parser_new(yajl_callbacks *callbacks, jf_sax_context *context);
+// 	The yajl_handle of the new parser.
+static JF_FORCE_INLINE yajl_handle jf_sax_yajl_parser_new(yajl_callbacks *callbacks, jf_sax_context *context);
 
-static void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb);
-static void jf_sax_context_current_item_clear(jf_sax_context *context);
-static bool jf_sax_context_current_item_copy(jf_sax_context *context);
+static JF_FORCE_INLINE void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb);
+static JF_FORCE_INLINE void jf_sax_context_current_item_clear(jf_sax_context *context);
+static JF_FORCE_INLINE void jf_sax_context_current_item_copy(jf_sax_context *context);
 //////////////////////////////////////
 
 
@@ -374,29 +374,17 @@ static int jf_sax_items_number(void *ctx, const char *string, size_t string_len)
 //////////////////////////////////////////
 
 
-static yajl_handle jf_sax_yajl_parser_new(yajl_callbacks *callbacks, jf_sax_context *context)
+static JF_FORCE_INLINE yajl_handle jf_sax_yajl_parser_new(yajl_callbacks *callbacks, jf_sax_context *context)
 {
 	yajl_handle parser;
-
-	if ((parser = yajl_alloc(callbacks, NULL, (void *)(context))) == NULL) {
-		context->tb->state = JF_THREAD_BUFFER_STATE_PARSER_DEAD;
-		strcpy(context->tb->data, "sax parser yajl_alloc failed");
-		return NULL;
-	}
-
+	assert((parser = yajl_alloc(callbacks, NULL, (void *)(context))) != NULL);
 	// allow persistent parser to digest many JSON objects
-	if (yajl_config(parser, yajl_allow_multiple_values, 1) == 0) {
-		yajl_free(parser);
-		context->tb->state = JF_THREAD_BUFFER_STATE_PARSER_DEAD;
-		strcpy(context->tb->data, "sax parser could not allow_multiple_values");
-		return NULL;
-	}
-
+	assert(yajl_config(parser, yajl_allow_multiple_values, 1) != 0);
 	return parser;
 }
 
 
-static void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb)
+static JF_FORCE_INLINE void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb)
 {
 	context->parser_state = JF_SAX_IDLE;
 	context->state_to_resume = JF_SAX_NO_STATE;
@@ -417,7 +405,7 @@ static void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb)
 }
 
 
-static void jf_sax_context_current_item_clear(jf_sax_context *context)
+static JF_FORCE_INLINE void jf_sax_context_current_item_clear(jf_sax_context *context)
 {
 	context->current_item_type = JF_ITEM_TYPE_NONE;
 	context->name_len = 0;
@@ -436,7 +424,7 @@ static void jf_sax_context_current_item_clear(jf_sax_context *context)
 }
 
 
-static bool jf_sax_context_current_item_copy(jf_sax_context *context)
+static JF_FORCE_INLINE void jf_sax_context_current_item_copy(jf_sax_context *context)
 {
 	// allocate a contiguous buffer containing the copied values
 	// then update the context pointers to point within it
@@ -445,18 +433,15 @@ static bool jf_sax_context_current_item_copy(jf_sax_context *context)
 	item_size = (size_t)(context->name_len + context->id_len + context->artist_len
 		+ context->album_len + context->series_len + context->year_len +
 		context->index_len + context->parent_index_len);
-	if ((context->copy_buffer = malloc(item_size)) != NULL) {
-		JF_SAX_CONTEXT_COPY(name);
-		JF_SAX_CONTEXT_COPY(id);
-		JF_SAX_CONTEXT_COPY(artist);
-		JF_SAX_CONTEXT_COPY(album);
-		JF_SAX_CONTEXT_COPY(series);
-		JF_SAX_CONTEXT_COPY(year);
-		JF_SAX_CONTEXT_COPY(index);
-		JF_SAX_CONTEXT_COPY(parent_index);
-		return true;
-	}
-	return false;
+	assert((context->copy_buffer = malloc(item_size)) != NULL);
+	JF_SAX_CONTEXT_COPY(name);
+	JF_SAX_CONTEXT_COPY(id);
+	JF_SAX_CONTEXT_COPY(artist);
+	JF_SAX_CONTEXT_COPY(album);
+	JF_SAX_CONTEXT_COPY(series);
+	JF_SAX_CONTEXT_COPY(year);
+	JF_SAX_CONTEXT_COPY(index);
+	JF_SAX_CONTEXT_COPY(parent_index);
 }
 
 
@@ -483,9 +468,7 @@ void *jf_json_sax_thread(void *arg)
 
 	jf_sax_context_init(&context, (jf_thread_buffer *)arg);
 
-	if ((parser = jf_sax_yajl_parser_new(&callbacks, &context)) == NULL) {
-		return NULL;
-	}
+	assert((parser = jf_sax_yajl_parser_new(&callbacks, &context)) != NULL);
 
 	pthread_mutex_lock(&context.tb->mut);
 	while (true) {
@@ -501,9 +484,7 @@ void *jf_json_sax_thread(void *arg)
 			yajl_free_error(parser, error_str);
 			// the parser never recovers after an error; we must free and reallocate it
 			yajl_free(parser);
-			if ((parser = jf_sax_yajl_parser_new(&callbacks, &context)) == NULL) {
-				return NULL;
-			}
+			parser = jf_sax_yajl_parser_new(&callbacks, &context);
 		} else if (context.parser_state == JF_SAX_IDLE) {
 			// JSON fully parsed
 			yajl_complete_parse(parser);
@@ -513,15 +494,7 @@ void *jf_json_sax_thread(void *arg)
 			// but if it is already filled from last time, filling it again would be unnecessary
 			// and lead to a memory leak
 			context.tb->state = JF_THREAD_BUFFER_STATE_AWAITING_DATA;
-			if (! jf_sax_context_current_item_copy(&context)) {
-				context.tb->state = JF_THREAD_BUFFER_STATE_PARSER_ERROR;
-				strcpy(context.tb->data, "jf_sax_context_current_item_copy malloc fail");
-				// we need to reset the parser
-				yajl_free(parser);
-				if ((parser = jf_sax_yajl_parser_new(&callbacks, &context)) == NULL) {
-					return NULL;
-				}
-			}
+			jf_sax_context_current_item_copy(&context);
 		} else {
 			context.tb->state = JF_THREAD_BUFFER_STATE_AWAITING_DATA;
 		}
@@ -538,7 +511,7 @@ char *jf_json_error_string()
 }
 
 
-bool jf_json_parse_login_response(const char *payload)
+void jf_json_parse_login_response(const char *payload)
 {
 	yajl_val parsed;
 	const char *userid_selector[3] = { "User", "Id", NULL };
@@ -548,23 +521,18 @@ bool jf_json_parse_login_response(const char *payload)
 
 	s_error_buffer[0] = '\0';
 	if ((parsed = yajl_tree_parse(payload, s_error_buffer, JF_PARSER_ERROR_BUFFER_SIZE)) == NULL) {
-		if (s_error_buffer[0] == '\0') {
-			strcpy(s_error_buffer, "yajl_tree_parse unknown error");
-		}
-		return false;
+		fprintf(stderr, "FATAL: jf_json_parse_login_response: %s\n",
+				s_error_buffer[0] == '\0' ? "yajl_tree_parse unknown error" : s_error_buffer);
+		exit(EXIT_FAILURE);
 	}
 	// NB macros propagate NULL
 	userid = YAJL_GET_STRING(yajl_tree_get(parsed, userid_selector, yajl_t_string));
 	token = YAJL_GET_STRING(yajl_tree_get(parsed, token_selector, yajl_t_string));
-	if (userid != NULL && token != NULL) {
-		g_options.userid = strdup(userid);
-		g_options.token = strdup(token);
-		yajl_tree_free(parsed);
-		return true;
-	} else {
-		yajl_tree_free(parsed);
-		return false;
-	}
+	assert(userid != NULL);
+	assert(token != NULL);
+	g_options.userid = strdup(userid);
+	g_options.token = strdup(token);
+	yajl_tree_free(parsed);
 }
 
 
@@ -589,27 +557,21 @@ char *jf_json_generate_login_request(const char *username, const char *password)
 }
 
 
-bool jf_json_parse_server_info_response(const char *payload)
+void jf_json_parse_server_info_response(const char *payload)
 {
 	yajl_val parsed;
 	const char *server_name_selector[2] = { "ServerName", NULL };
 
 	s_error_buffer[0] = '\0';
 	if ((parsed = yajl_tree_parse(payload, s_error_buffer, JF_PARSER_ERROR_BUFFER_SIZE)) == NULL) {
-		if (s_error_buffer[0] == '\0') {
-			strcpy(s_error_buffer, "yajl_tree_parse unknown error");
-		}
-		return false;
+		fprintf(stderr, "FATAL: jf_json_parse_login_response: %s\n",
+				s_error_buffer[0] == '\0' ? "yajl_tree_parse unknown error" : s_error_buffer);
+		exit(EXIT_FAILURE);
 	}
 	// NB macros propagate NULL
-	if ((g_state.server_name = YAJL_GET_STRING(yajl_tree_get(parsed, server_name_selector, yajl_t_string))) != NULL) {
-		g_state.server_name = strdup(g_state.server_name);
-		yajl_tree_free(parsed);
-		return true;
-	} else {
-		yajl_tree_free(parsed);
-		return false;
-	}
+	assert((g_state.server_name = YAJL_GET_STRING(yajl_tree_get(parsed, server_name_selector, yajl_t_string))) != NULL);
+	g_state.server_name = strdup(g_state.server_name);
+	yajl_tree_free(parsed);
 }
 
 

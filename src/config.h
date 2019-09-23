@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <termios.h>
 #include <unistd.h>
+#include <assert.h>
 
 #include "linenoise.h"
 
@@ -15,7 +16,7 @@
 
 
 ////////// CODE MACROS //////////
-#define JF_CONFIG_KEY_IS(key) (strncmp(line, key, JF_STATIC_STRLEN(key)) == 0)
+#define JF_CONFIG_KEY_IS(key) strncmp(line, key, JF_STATIC_STRLEN(key)) == 0
 
 #define JF_CONFIG_FILL_VALUE(key)					\
 do {												\
@@ -36,7 +37,7 @@ do {												\
 #define JF_CONFIG_DEVICEID_DEFAULT			"Linux"
 #define JF_CONFIG_VERSION_DEFAULT			JF_VERSION
 
-#define JF_OPTIONS_IS_INCOMPLETE() (g_options.server == NULL || g_options.userid == NULL || g_options.token == NULL)
+#define JF_OPTIONS_IS_INCOMPLETE() ()
 
 typedef struct jf_options {
 	char *server;
@@ -46,7 +47,7 @@ typedef struct jf_options {
 	bool ssl_verifyhost;
 	char *client;
 	char *device;
-	char deviceid[JF_CONFIG_DEVICEID_MAX_LEN];
+	char deviceid[JF_CONFIG_DEVICEID_MAX_LEN + 1];
 	char *version;
 } jf_options;
 
@@ -57,10 +58,10 @@ void jf_options_clear(void);
 
 ////////// USER CONFIGURATION //////////
 char *jf_config_get_default_dir(void);
-bool jf_config_read(const char *config_path);
-bool jf_config_write(const char *config_path);
-bool jf_config_ask_user_login(void);
-bool jf_config_ask_user(void);
+void jf_config_read(const char *config_path);
+void jf_config_write(const char *config_path);
+void jf_config_ask_user_login(void);
+void jf_config_ask_user(void);
 ////////////////////////////////////////
 
 #endif

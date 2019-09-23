@@ -13,20 +13,14 @@
 #include <mpv/client.h>
 
 
+#define JF_FORCE_INLINE __attribute__((always_inline))
+
+
 ////////// CODE MACROS //////////
 // for hardcoded strings
 #define JF_STATIC_STRLEN(str) (sizeof(str) - 1)
 
-#define JF_STATIC_WRITE(str)					\
-	do {										\
-		write(1, str, JF_STATIC_STRLEN(str));	\
-	} while (false)
-
-#define JF_STATIC_WRITE_ERROR(str)				\
-	do {										\
-		write(2, str, JF_STATIC_STRLEN(str));	\
-	} while (false)
-
+// for progress
 #define JF_TICKS_TO_SECS(t)	(t) / 10000000
 #define JF_SECS_TO_TICKS(s)	(s) * 10000000
 /////////////////////////////////
@@ -39,44 +33,45 @@
 
 #define JF_ID_LENGTH 32
 
-#define JF_CONFIG_DEVICEID_MAX_LEN 32
+#define JF_CONFIG_DEVICEID_MAX_LEN 31
 ///////////////////////////////
 
 
 ////////// GENERIC JELLYFIN ITEM REPRESENTATION //////////
 // Information about persistency is used to make part of the menu interface
 // tree not get deallocated when navigating upwards
-typedef char jf_item_type;
+typedef enum __attribute__((__packed__)) jf_item_type {
+	// Atoms
+	JF_ITEM_TYPE_NONE = 0,
+	JF_ITEM_TYPE_AUDIO = 1,
+	JF_ITEM_TYPE_EPISODE = 2,
+	JF_ITEM_TYPE_MOVIE = 3,
+	JF_ITEM_TYPE_AUDIOBOOK = 4,
 
-// Atoms
-#define JF_ITEM_TYPE_NONE			0
-#define JF_ITEM_TYPE_AUDIO			1
-#define JF_ITEM_TYPE_EPISODE		2
-#define JF_ITEM_TYPE_MOVIE			3
-#define JF_ITEM_TYPE_AUDIOBOOK		4
+	// Folders
+	JF_ITEM_TYPE_COLLECTION = 20,
+	JF_ITEM_TYPE_COLLECTION_MUSIC = 21,
+	JF_ITEM_TYPE_COLLECTION_SERIES = 22,
+	JF_ITEM_TYPE_COLLECTION_MOVIES = 23,
+	JF_ITEM_TYPE_USER_VIEW = 24,
+	JF_ITEM_TYPE_FOLDER = 25,
+	JF_ITEM_TYPE_PLAYLIST = 26,
+	JF_ITEM_TYPE_ARTIST = 27,
+	JF_ITEM_TYPE_ALBUM = 28,
+	JF_ITEM_TYPE_SEASON = 29,
+	JF_ITEM_TYPE_SERIES = 30,
 
-// Folders
-#define JF_ITEM_TYPE_COLLECTION			20
-#define JF_ITEM_TYPE_COLLECTION_MUSIC	21
-#define JF_ITEM_TYPE_COLLECTION_SERIES	22
-#define JF_ITEM_TYPE_COLLECTION_MOVIES	23
-#define JF_ITEM_TYPE_USER_VIEW			24
-#define JF_ITEM_TYPE_FOLDER				25
-#define JF_ITEM_TYPE_PLAYLIST			26
-#define JF_ITEM_TYPE_ARTIST				27
-#define JF_ITEM_TYPE_ALBUM				28
-#define JF_ITEM_TYPE_SEASON				29
-#define JF_ITEM_TYPE_SERIES				30
+	// Special folder
+	JF_ITEM_TYPE_SEARCH_RESULT = 100,
 
-#define JF_ITEM_TYPE_SEARCH_RESULT		100
-
-// Persistent folders
-#define JF_ITEM_TYPE_MENU_ROOT		-1
-#define JF_ITEM_TYPE_MENU_FAVORITES	-2
-#define JF_ITEM_TYPE_MENU_CONTINUE  -3
-#define JF_ITEM_TYPE_MENU_NEXT_UP	-4
-#define JF_ITEM_TYPE_MENU_LATEST	-5
-#define JF_ITEM_TYPE_MENU_LIBRARIES	-6
+	// Persistent folders
+	JF_ITEM_TYPE_MENU_ROOT = -1,
+	JF_ITEM_TYPE_MENU_FAVORITES = -2,
+	JF_ITEM_TYPE_MENU_CONTINUE = -3,
+	JF_ITEM_TYPE_MENU_NEXT_UP = -4,
+	JF_ITEM_TYPE_MENU_LATEST = -5,
+	JF_ITEM_TYPE_MENU_LIBRARIES = -6,
+} jf_item_type;
 
 // Category macros. They're all expressions
 // UPDATE THESE if you add item_type's or change the item_type representation!

@@ -3,6 +3,7 @@
 
 ////////// GLOBAL VARIABLES //////////
 extern jf_options g_options;
+//////////////////////////////////////
 
 
 ////////// STATIC VARIABLES //////////
@@ -17,7 +18,7 @@ static jf_thread_buffer s_tb;
 static void jf_thread_buffer_wait_parsing_done(void);
 static size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *userdata);
 static size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, void *userdata);
-static bool jf_net_make_headers(void);
+static void jf_net_make_headers(void);
 //////////////////////////////////////
 
 
@@ -25,8 +26,8 @@ static bool jf_net_make_headers(void);
 jf_reply *jf_reply_new()
 {
 	jf_reply *r;
-	if (!(r = (jf_reply *)malloc(sizeof(jf_reply)))) {
-		return (jf_reply *)NULL;
+	if ((r = (jf_reply *)malloc(sizeof(jf_reply))) == NULL) {
+		return NULL;
 	}
 	r->payload = NULL;
 	r->size = 0;
@@ -173,65 +174,58 @@ void jf_thread_buffer_clear_error()
 
 
 ////////// NETWORK UNIT //////////
-static bool jf_net_make_headers()
+static JF_FORCE_INLINE void jf_curl_assert(const CURLcode status)
+{
+	// TODO use ERRORBUFFER
+	if (status != CURLE_OK) {
+		fprintf(stderr, "FATAL: libcurl error: %s\n", curl_easy_strerror(status));
+		abort();
+	}
+}
+
+
+static void jf_net_make_headers()
 {
 	char *tmp;
 
-	if (s_handle == NULL) {
-		// init not complete
-		return false;
-	}
+	assert(s_handle != NULL);
 
 	if (g_options.token != NULL) {
-		if ((tmp = jf_concat(2, "x-emby-token: ", g_options.token)) == NULL) {
-			return false;
-		}
-		if ((s_headers = curl_slist_append(s_headers, tmp)) == NULL) {
-			return false;
-		}
+		assert((tmp = jf_concat(2, "x-emby-token: ", g_options.token)) != NULL);
+		assert((s_headers = curl_slist_append(s_headers, tmp)) != NULL);
 		free(tmp);
 	}
-	if ((s_headers = curl_slist_append(s_headers, "accept: application/json; charset=utf-8")) == NULL) {
-		return false;
-	}
+	assert((s_headers = curl_slist_append(s_headers, "accept: application/json; charset=utf-8")) != NULL);
 
 	// headers for POST: second list
-	if ((s_headers_POST = curl_slist_append(s_headers, "content-type: application/json; charset=utf-8")) == NULL) {
-		return false;
-	}
-
-	return true;
+	assert((s_headers_POST = curl_slist_append(s_headers, "content-type: application/json; charset=utf-8")) != NULL);
 }
 
 
-// TODO better error handling
-bool jf_net_pre_init()
+void jf_net_pre_init()
 {
-	curl_global_init(CURL_GLOBAL_ALL | CURL_GLOBAL_SSL);
-	s_handle = curl_easy_init();
+	// TODO check libcurl version
+	
+	assert(curl_global_init(CURL_GLOBAL_ALL | CURL_GLOBAL_SSL) == 0);
 	pthread_t sax_parser_thread;
 
+	assert((s_handle = curl_easy_init()) != NULL);
+
 	// ask for compression (all kinds supported)
-	curl_easy_setopt(s_handle, CURLOPT_ACCEPT_ENCODING, "");
+	jf_curl_assert(curl_easy_setopt(s_handle, CURLOPT_ACCEPT_ENCODING, ""));
 
 	// follow redirects and keep POST method if using it
-	curl_easy_setopt(s_handle, CURLOPT_FOLLOWLOCATION, 1);
-	curl_easy_setopt(s_handle, CURLOPT_POSTREDIR, CURL_REDIR_POST_ALL);
+	jf_curl_assert(curl_easy_setopt(s_handle, CURLOPT_FOLLOWLOCATION, 1));
+	jf_curl_assert(curl_easy_setopt(s_handle, CURLOPT_POSTREDIR, CURL_REDIR_POST_ALL));
 
 	// sax parser thread
 	jf_thread_buffer_init(&s_tb);
-	if (pthread_create(&sax_parser_thread, NULL, jf_json_sax_thread, (void *)&(s_tb)) == -1) {
-		return false;
-	}
-	if (pthread_detach(sax_parser_thread) != 0) {
-		return false;
-	}
-
-	return true;
+	assert(pthread_create(&sax_parser_thread, NULL, jf_json_sax_thread, (void *)&(s_tb)) != -1);
+	assert(pthread_detach(sax_parser_thread) == 0);
 }
 
 
-bool jf_net_refresh()
+void jf_net_refresh()
 {
 	// security bypass stuff
 	if (! g_options.ssl_verifyhost) {
@@ -242,7 +236,7 @@ bool jf_net_refresh()
 	curl_slist_free_all(s_headers_POST); // no-op if arg is NULL
 	s_headers = NULL;
 	s_headers_POST = NULL;
-	return jf_net_make_headers();
+	jf_net_make_headers();
 }
 
 
@@ -347,28 +341,16 @@ jf_reply *jf_net_login_request(const char *POST_payload)
 {
 	char *tmp;
 
-	if (! jf_net_make_headers()) {
-		return NULL;
-	}
+	jf_net_make_headers();
 
 	// add x-emby-authorization header
-	if ((tmp = jf_concat(9,
+	assert((tmp = jf_concat(9,
 			"x-emby-authorization: mediabrowser client=\"", g_options.client,
 			"\", device=\"", g_options.device, 
 			"\", deviceid=\"", g_options.deviceid,
 			"\", version=\"", g_options.version,
-			"\"")) == NULL ) {
-		return NULL;
-	}
-	if ((s_headers_POST = curl_slist_append(s_headers_POST, tmp)) == NULL) {
-		free(tmp);
-		jf_reply *reply;
-		if ((reply = jf_reply_new()) == NULL) {
-			return NULL;
-		}
-		reply->size = JF_REPLY_ERROR_X_EMBY_AUTH;
-		return reply;
-	}
+			"\"")) != NULL );
+	assert((s_headers_POST = curl_slist_append(s_headers_POST, tmp)) != NULL);
 	free(tmp);
 
 	// send request

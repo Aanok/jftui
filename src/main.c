@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
+#include <errno.h>
 #include <locale.h>
 #include <mpv/client.h>
 
@@ -23,15 +25,6 @@
 		jf_print_usage();														\
 		exit(EXIT_FAILURE);														\
 	} while (false)
-
-#define JF_MPV_FATAL(status)															\
-	do {																				\
-		if (status < 0) {																\
-			fprintf(stderr, "FATAL: mpv API error: %s\n", mpv_error_string(status));	\
-			mpv_terminate_destroy(g_mpv_ctx);											\
-			exit(EXIT_FAILURE);															\
-		}																				\
-	} while (false);
 /////////////////////////////////
 
 
@@ -48,9 +41,25 @@ static mpv_handle *jf_mpv_context_new(void);
 
 
 ////////// STATIC FUNCTIONS //////////
+static void aborter(int sig);
 static void jf_print_usage(void);
+static JF_FORCE_INLINE void jf_missing_arg(const char *arg);
+static JF_FORCE_INLINE void jf_mpv_assert(const int);
 static mpv_handle *jf_mpv_context_new(void);
 //////////////////////////////////////
+
+
+////////// MISCELLANEOUS GARBAGE //////////
+static void aborter(int sig)
+{
+	if (sig == SIGABRT) {
+		// perror is not async-signal-safe
+		// but what's the worst that can happen, a crash? :^)
+		perror("FATAL");
+	}
+	jf_disk_clear();
+	_exit(EXIT_FAILURE);
+}
 
 
 static void jf_print_usage() {
@@ -62,37 +71,50 @@ static void jf_print_usage() {
 }
 
 
+static JF_FORCE_INLINE void jf_missing_arg(const char *arg)
+{
+	fprintf(stderr, "FATAL: missing parameter for argument %s\n", arg);
+	jf_print_usage();
+}
+
+
+static JF_FORCE_INLINE void jf_mpv_assert(const int status)
+{
+	if (status < 0) {
+		fprintf(stderr, "FATAL: mpv API error: %s\n", mpv_error_string(status));
+		mpv_terminate_destroy(g_mpv_ctx);
+		abort();
+	}
+}
+
+
 static mpv_handle *jf_mpv_context_new()
 {
 	mpv_handle *ctx;
 	int mpv_flag_yes = 1;
 	char *x_emby_token;
 
-	if ((ctx = mpv_create()) == NULL) {
-		fprintf(stderr, "FATAL: failed to create mpv context.\n");
-		return NULL;
-	}
-	JF_MPV_FATAL(mpv_set_option(ctx, "config-dir", MPV_FORMAT_STRING, &g_state.config_dir));
-	JF_MPV_FATAL(mpv_set_option(ctx, "config", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_FATAL(mpv_set_option(ctx, "osc", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_FATAL(mpv_set_option(ctx, "input-default-bindings", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_FATAL(mpv_set_option(ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_FATAL(mpv_set_option(ctx, "input-terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_FATAL(mpv_set_option(ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	if ((x_emby_token = jf_concat(2, "x-emby-token: ", g_options.token)) == NULL) {
-		fprintf(stderr, "FATAL: jf_concat for x-emby-token header field for mpv requests returned NULL.\n");
-		exit(EXIT_FAILURE);
-	}
-	JF_MPV_FATAL(mpv_set_option_string(ctx, "http-header-fields", x_emby_token));
+	assert((ctx = mpv_create()) != NULL);
+	jf_mpv_assert(mpv_set_option(ctx, "config-dir", MPV_FORMAT_STRING, &g_state.config_dir));
+	jf_mpv_assert(mpv_set_option(ctx, "config", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	jf_mpv_assert(mpv_set_option(ctx, "osc", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	jf_mpv_assert(mpv_set_option(ctx, "input-default-bindings", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	jf_mpv_assert(mpv_set_option(ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	jf_mpv_assert(mpv_set_option(ctx, "input-terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	jf_mpv_assert(mpv_set_option(ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	assert((x_emby_token = jf_concat(2, "x-emby-token: ", g_options.token)) != NULL);
+	jf_mpv_assert(mpv_set_option_string(ctx, "http-header-fields", x_emby_token));
 	free(x_emby_token);
-	JF_MPV_FATAL(mpv_observe_property(ctx, 0, "time-pos", MPV_FORMAT_INT64));
+	jf_mpv_assert(mpv_observe_property(ctx, 0, "time-pos", MPV_FORMAT_INT64));
 
-	JF_MPV_FATAL(mpv_initialize(ctx));
+	jf_mpv_assert(mpv_initialize(ctx));
 
 	return ctx;
 }
+///////////////////////////////////////////
 
 
+////////// MAIN LOOP //////////
 int main(int argc, char *argv[])
 {
 	// VARIABLES
@@ -118,6 +140,8 @@ int main(int argc, char *argv[])
 	}
 	///////////////////////
 
+	signal(SIGABRT, aborter);
+	signal(SIGINT, aborter);
 
 	// SETUP OPTIONS
 	g_options = (jf_options){ 0 }; 
@@ -128,10 +152,7 @@ int main(int argc, char *argv[])
 
 	// SETUP GLOBAL STATE
 	g_state = (jf_global_state){ 0 };
-	if ((g_state.session_id = jf_generate_random_id(0)) == NULL) {
-		fprintf(stderr, "FATAL: jf_generate_random_id returned NULL.\n");
-		exit(EXIT_FAILURE);
-	}
+	assert((g_state.session_id = jf_generate_random_id(0)) != NULL);
 	atexit(jf_global_state_clear);
 	/////////////////////
 
@@ -144,12 +165,14 @@ int main(int argc, char *argv[])
 			exit(EXIT_SUCCESS);
 		} else if (strcmp(argv[i], "--config-dir") == 0) {
 			if (++i >= argc) {
-				JF_MISSING_ARG_FATAL("--config-dir");
+				jf_missing_arg("--config-dir");
+				exit(EXIT_FAILURE);
 			}
 			g_state.config_dir = strdup(argv[i]);
 		} else if (strcmp(argv[i], "--runtime-dir") == 0) {
 			if (++i >= argc) {
-				JF_MISSING_ARG_FATAL("--runtime-dir");
+				jf_missing_arg("--runtime-dir");
+				exit(EXIT_FAILURE);
 			}
 			g_state.runtime_dir = strdup(argv[i]);
 		} else if (strcmp(argv[i], "--login") == 0) {
@@ -165,11 +188,10 @@ int main(int argc, char *argv[])
 
 	// SETUP DISK
 	// apply runtime directory location default unless there was user override
-	if (g_state.runtime_dir == NULL) {
-		if ((g_state.runtime_dir = jf_disk_get_default_runtime_dir()) == NULL) {
-			fprintf(stderr, "FATAL: could not acquire runtime directory location. $HOME could not be read and --runtime-dir was not passed.\n");
-			exit(EXIT_FAILURE);
-		}
+	if (g_state.runtime_dir == NULL
+			&& (g_state.runtime_dir = jf_disk_get_default_runtime_dir()) == NULL) {
+		fprintf(stderr, "FATAL: could not acquire runtime directory location. $HOME could not be read and --runtime-dir was not passed.\n");
+		exit(EXIT_FAILURE);
 	}
 	jf_disk_init();
 	atexit(jf_disk_clear);
@@ -177,39 +199,29 @@ int main(int argc, char *argv[])
 
 
 	// INITIAL NETWORK SETUP
-	if (! jf_net_pre_init()) {
-		fprintf(stderr, "FATAL: could not pre-initialize network context.\n");
-		exit(EXIT_FAILURE);
-	}
+	jf_net_pre_init();
 	atexit(jf_net_clear);
 	////////////////
 	
 
 	// READ AND PARSE CONFIGURATION FILE
 	// apply config directory location default unless there was user override
-	if (g_state.config_dir == NULL) {
-		if ((g_state.config_dir = jf_config_get_default_dir()) == NULL) {
-			fprintf(stderr, "FATAL: could not acquire configuration directory location. $HOME could not be read and --config-dir was not passed.\n");
-			exit(EXIT_FAILURE);
-		}
-	}
-	// get expected location of config file
-	if ((config_path = jf_concat(2, g_state.config_dir, "/settings")) == NULL) {
-		fprintf(stderr, "FATAL: config path jf_concat returned NULL.\n");
+	if (g_state.config_dir == NULL
+			&& (g_state.config_dir = jf_config_get_default_dir()) == NULL) {
+		fprintf(stderr, "FATAL: could not acquire configuration directory location. $HOME could not be read and --config-dir was not passed.\n");
 		exit(EXIT_FAILURE);
 	}
+	// get expected location of config file
+	assert((config_path = jf_concat(2, g_state.config_dir, "/settings")) != NULL);
 
 	// check config file exists
 	if (access(config_path, F_OK) == 0) {
 		// it's there: read it
-		if (! jf_config_read(config_path)) {
-			free(config_path);
-			exit(EXIT_FAILURE);
-		}
+		jf_config_read(config_path);
 		// if fundamental fields are missing (file corrupted for some reason)
-		if (JF_OPTIONS_IS_INCOMPLETE()) {
+		if (g_options.server == NULL || g_options.userid == NULL
+				|| g_options.token == NULL) {
 			if (! jf_menu_user_ask_yn("Error: settings file missing fundamental fields. Would you like to go through manual configuration?")) {
-				free(config_path);
 				exit(EXIT_SUCCESS);
 			}
 			g_state.state = JF_STATE_STARTING_FULL_CONFIG;
@@ -217,29 +229,20 @@ int main(int argc, char *argv[])
 	} else if (errno == ENOENT || errno == ENOTDIR) {
 		// it's not there
 		if (! jf_menu_user_ask_yn("Settings file not found. Would you like to configure jftui?")) {
-			free(config_path);
 			exit(EXIT_SUCCESS);
 		}
 		g_state.state = JF_STATE_STARTING_FULL_CONFIG;
 	} else {
-		int access_errno = errno;
 		fprintf(stderr, "FATAL: access for settings file at location %s: %s.\n",
-			config_path, strerror(access_errno));
-		free(config_path);
+			config_path, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 
 	// interactive config if required
 	if (g_state.state == JF_STATE_STARTING_FULL_CONFIG) {
-		if (! jf_config_ask_user()) {
-			free(config_path);
-			exit(EXIT_FAILURE);
-		}
+		jf_config_ask_user();
 	} else if (g_state.state == JF_STATE_STARTING_LOGIN) {
-		if (! jf_config_ask_user_login()) {
-			free(config_path);
-			exit(EXIT_FAILURE);
-		}
+		jf_config_ask_user_login();
 	}
 	
 	// save to disk
@@ -249,18 +252,14 @@ int main(int argc, char *argv[])
 	
 
 	// FINALIZE NETWORK SETUP
-	if (! jf_net_refresh()) {
-		exit(EXIT_FAILURE);
-	}
+	jf_net_refresh();
 	// get server name and double check everything's fine
 	reply = jf_net_request("/system/info", JF_REQUEST_IN_MEMORY, NULL);
 	if (reply == NULL || JF_REPLY_PTR_HAS_ERROR(reply)) {
 		fprintf(stderr, "FATAL: could not reach server: %s.\n", jf_reply_error_string(reply));
 		exit(EXIT_FAILURE);
 	}
-	if (! jf_json_parse_server_info_response(reply->payload)) {
-		exit(EXIT_FAILURE);
-	}
+	jf_json_parse_server_info_response(reply->payload);
 	jf_reply_free(reply);
 	////////////////////////
 	
@@ -275,10 +274,7 @@ int main(int argc, char *argv[])
 	if (setlocale(LC_NUMERIC, "C") == NULL) {
 		fprintf(stderr, "Warning: could not set numeric locale to sane standard. mpv might refuse to work.\n");
 	}
-
-	if ((g_mpv_ctx = jf_mpv_context_new()) == NULL) {
-		exit(EXIT_FAILURE);
-	}
+	g_mpv_ctx = jf_mpv_context_new();
 	atexit(jf_mpv_clear);
 	////////////
 
@@ -362,9 +358,9 @@ int main(int argc, char *argv[])
 						} else {
 							// go into UI mode
 							g_state.state = JF_STATE_MENU_UI;
-							JF_MPV_FATAL(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_no));
+							jf_mpv_assert(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_no));
 							while (g_state.state == JF_STATE_MENU_UI) jf_menu_ui();
-							JF_MPV_FATAL(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+							jf_mpv_assert(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
 						}
 						break;
 					case MPV_EVENT_SHUTDOWN:
@@ -372,9 +368,7 @@ int main(int argc, char *argv[])
 						// (which is when mpv receives a "quit" command)
 						// is to comply and create a new context
 						mpv_terminate_destroy(g_mpv_ctx);
-						if ((g_mpv_ctx = jf_mpv_context_new()) == NULL) {
-							exit(EXIT_FAILURE);
-						}
+						g_mpv_ctx = jf_mpv_context_new();
 						break;
 					default:
 						// no-op on everything else
@@ -388,3 +382,4 @@ int main(int argc, char *argv[])
 	// never reached
 	exit(EXIT_SUCCESS);
 }
+///////////////////////////////
