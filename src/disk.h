@@ -1,90 +1,16 @@
 #ifndef _JF_DISK
 #define _JF_DISK
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <errno.h>
 #include <assert.h>
+#include <signal.h>
 
 #include "shared.h"
-
-////////// CODE MACROS //////////
-// #define JF_DISK_OPEN_FILE_FATAL(cache, kind)								\
-// 	do {																	\
-// 		tmp = jf_concat(2, g_state.runtime_dir, "/" #cache "_" #kind);		\
-// 		if ((cache.kind = fopen(tmp, "w+")) == NULL) {						\
-// 			int fopen_errno = errno;										\
-// 			fprintf(stderr, "FATAL: could not open file %s: %s.\n",			\
-// 					tmp, strerror(fopen_errno));							\
-// 			free(tmp);														\
-// 			return false;													\
-// 		}																	\
-// 		free(tmp);															\
-// 	} while (false)
-// 
-// #define JF_DISK_REOPEN_FILE_FATAL(cache, kind)								\
-// 	do {																	\
-// 		tmp = jf_concat(2, g_state.runtime_dir, "/" #cache "_" #kind);		\
-// 		if (fclose(cache.kind) != 0) {										\
-// 			int fclose_errno = errno;										\
-// 			fprintf(stderr, "FATAL: could not close file %s: %s.\n",		\
-// 					tmp, strerror(fclose_errno));							\
-// 			free(tmp);														\
-// 			return false;													\
-// 		}																	\
-// 		if ((cache.kind = fopen(tmp, "w+")) == NULL) {						\
-// 			int fopen_errno = errno;										\
-// 			fprintf(stderr, "FATAL: could not open file %s: %s.\n",			\
-// 					tmp, strerror(fopen_errno));							\
-// 			free(tmp);														\
-// 			return false;													\
-// 		}																	\
-// 		free(tmp);															\
-// 	} while (false)
-// 		
-// 
-// #define JF_DISK_CLOSE_DELETE_FILE(cache, kind)								\
-// 	do {																	\
-// 		fclose(cache.kind);													\
-// 		tmp = jf_concat(2, g_state.runtime_dir, "/" #cache "_" #kind);		\
-// 		if (unlink(tmp) != 0) {												\
-// 			int unlink_errno = errno;										\
-// 			fprintf(stderr, "Warning: could not delete file %s: %s.\n",		\
-// 					tmp, strerror(unlink_errno));							\
-// 		}																	\
-// 		free(tmp);															\
-// 	} while (false)
-// 
-// #define JF_DISK_OP_FATAL(op, expected, retval, error_msg, ...)		\
-// 	if (op != expected) {											\
-// 		int errno_backup = errno;									\
-// 		fprintf(stderr, "FATAL: " error_msg ": %s.", __VA_ARGS__,	\
-// 				strerror(errno_backup));							\
-// 		return retval;												\
-// 	}
-// 
-// #define JF_DISK_OP_SIMPLE_FATAL(op, expected, retval, error_msg)				\
-// 	if (op != expected) {														\
-// 		int errno_backup = errno;												\
-// 		fprintf(stderr, "FATAL: " error_msg ": %s.\n", strerror(errno_backup));	\
-// 		return retval;															\
-// 	}
-// 
-// #define JF_DISK_ALIGN_TO_FATAL(cache, nth)											\
-// 	do {																			\
-// 		long body_offset;															\
-// 		JF_DISK_OP_FATAL(fseek((cache)->header, (long)(((nth) - 1) * sizeof(long)),	\
-// 					SEEK_SET), 0, JF_ITEM_TYPE_NONE,								\
-// 				"could not seek to item %zu in " #cache "_header", nth);			\
-// 		JF_DISK_OP_FATAL(fread(&body_offset, sizeof(long), 1, (cache)->header), 1,	\
-// 				JF_ITEM_TYPE_NONE,													\
-// 				"could not read offset to item %zu in " #cache "_header", nth)		\
-// 		JF_DISK_OP_FATAL(fseek((cache)->body, body_offset, SEEK_SET), 0,			\
-// 				JF_ITEM_TYPE_NONE, "could not seek to item %zu in " #cache "_body",	\
-// 				nth);																\
-// 	} while (false)
-/////////////////////////////////
+#include "menu.h"
 
 
 ////////// CONSTANTS //////////

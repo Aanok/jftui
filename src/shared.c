@@ -14,9 +14,7 @@ jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children,
 {
 	jf_menu_item *menu_item;
 
-	if ((menu_item = malloc(sizeof(jf_menu_item))) == NULL) {
-		return NULL;
-	}
+	assert((menu_item = malloc(sizeof(jf_menu_item))) != NULL);
 
 	menu_item->type = type;
 	menu_item->children = children;
@@ -83,16 +81,15 @@ void jf_global_state_clear()
 
 
 ////////// THREAD BUFFER //////////
-bool jf_thread_buffer_init(jf_thread_buffer *tb)
+void jf_thread_buffer_init(jf_thread_buffer *tb)
 {
 	tb->used = 0;
 	tb->promiscuous_context = false;
 	tb->state = JF_THREAD_BUFFER_STATE_CLEAR;
 	tb->item_count = 0;
-	pthread_mutex_init(&tb->mut, NULL);
-	pthread_cond_init(&tb->cv_no_data, NULL);
-	pthread_cond_init(&tb->cv_has_data, NULL);
-	return true;
+	assert(pthread_mutex_init(&tb->mut, NULL) == 0);
+	assert(pthread_cond_init(&tb->cv_no_data, NULL) == 0);
+	assert(pthread_cond_init(&tb->cv_has_data, NULL) == 0);
 }
 ///////////////////////////////////
 
@@ -101,52 +98,40 @@ bool jf_thread_buffer_init(jf_thread_buffer *tb)
 jf_growing_buffer *jf_growing_buffer_new(const size_t size)
 {
 	jf_growing_buffer *buffer;
-
-	if ((buffer = malloc(sizeof(jf_growing_buffer))) == NULL) {
-		return NULL;
-	}
-
-	if ((buffer->buf = malloc(size > 0 ? size : 1024)) == NULL) {
-		free(buffer);
-		return NULL;
-	}
+	assert((buffer = malloc(sizeof(jf_growing_buffer))) != NULL);
+	assert((buffer->buf = malloc(size > 0 ? size : 1024)) != NULL);
 	buffer->size = size > 0 ? size : 1024;
 	buffer->used = 0;
-
 	return buffer;
 }
 
 
-bool jf_growing_buffer_append(jf_growing_buffer *buffer, const void *data, const size_t length)
+void jf_growing_buffer_append(jf_growing_buffer *buffer, const void *data,
+		const size_t length)
 {
+	size_t estimate;
+
 	if (buffer == NULL) {
-		return false;
+		return;
 	}
 
 	if (buffer->used + length > buffer->size) {
-		size_t new_size = 1.5 * (buffer->used + length);
-		new_size = new_size >= buffer->size * 2 ? new_size : buffer->size * 2;
-		void *tmp = realloc(buffer->buf, new_size);
-		if (tmp == NULL) {
-			return false;
-		}
-		buffer->buf = tmp;
-		buffer->size = new_size;
+		estimate = (buffer->used + length) / 2 * 3;
+		buffer->size = estimate >= buffer->size * 2 ? estimate : buffer->size * 2;
+		assert((buffer->buf = realloc(buffer->buf, buffer->size)) != NULL);
 	}
 	memcpy(buffer->buf + buffer->used, data, length);
 	buffer->used += length;
-	return true;
 }
 
 
-bool jf_growing_buffer_empty(jf_growing_buffer *buffer)
+void jf_growing_buffer_empty(jf_growing_buffer *buffer)
 {
 	if (buffer == NULL) {
-		return false;
+		return;
 	}
 	
 	buffer->used = 0;
-	return true;
 }
 
 
@@ -177,9 +162,7 @@ char *jf_concat(size_t n, ...)
 	size_t i;
 	va_list ap;
 
-	if ((argv_len = (size_t *)malloc(sizeof(size_t)* n)) == NULL) {
-		return (char *)NULL;
-	}
+	assert((argv_len = malloc(sizeof(size_t) * n)) != NULL);
 	va_start(ap, n);
 	for (i = 0; i < n; i++) {
 		argv_len[i] = strlen(va_arg(ap, char*));
@@ -187,10 +170,7 @@ char *jf_concat(size_t n, ...)
 	}
 	va_end(ap);
 
-	if ((buf = (char *)malloc(len + 1)) == NULL) {
-		free(argv_len);
-		return (char *)NULL;
-	}
+	assert((buf = malloc(len + 1)) != NULL);
 	len = 0;
 	va_start(ap, n);
 	for (i = 0; i < n; i++) {
@@ -213,7 +193,7 @@ void jf_print_zu(size_t n)
 		str[i++] = n % 10 + '0';
 	} while ((n /= 10) > 0);
 	while (i-- != 0) {
-		write(1, str + i, 1);
+		fwrite(str + i, 1, 1, stdout);
 	}
 }
 
@@ -225,14 +205,12 @@ char *jf_generate_random_id(size_t len)
 	// default length
 	len = len > 0 ? len : 10;
 
-	if ((rand_id = malloc(len + 1)) != NULL) {
-		rand_id[len] = '\0';
-		srand(time(NULL));
-		for (; len > 0; len--) {
-			rand_id[len - 1] = '0' + rand() % 10;
-		}
+	assert((rand_id = malloc(len + 1)) != NULL);
+	rand_id[len] = '\0';
+	srand((unsigned int)time(NULL));
+	for (; len > 0; len--) {
+		rand_id[len - 1] = '0' + rand() % 10;
 	}
-
 	return rand_id;
 }
 
@@ -254,10 +232,21 @@ char *jf_make_timestamp(const long long ticks)
 }
 
 
-JF_FORCE_INLINE size_t jf_clamp_zu(const size_t zu, const size_t min, const size_t max)
+JF_FORCE_INLINE size_t jf_clamp_zu(const size_t zu, const size_t min,
+		const size_t max)
 {
 	return zu < min ? min : zu > max ? max : zu;
 }
+
+
+JF_FORCE_INLINE void jf_clear_stdin()
+{
+	fcntl(0, F_SETFL, fcntl(0, F_GETFL)|O_NONBLOCK);
+	while (getchar() != EOF) ;
+	fcntl(0, F_SETFL, fcntl(0, F_GETFL)& ~O_NONBLOCK);
+}
+
+
 ///////////////////////////////////////////
 
 

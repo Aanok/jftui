@@ -146,6 +146,8 @@ static int jf_sax_items_end_map(void *ctx)
 					jf_growing_buffer_append(context->current_item_display_name,
 							context->name, context->name_len);
 					break;
+				default:
+					fprintf(stderr, "Warning: jf_sax_items_end_map: unexpected jf_item_type. This is a bug.\n");
 			}
 
 			// FINALIZE PRINT

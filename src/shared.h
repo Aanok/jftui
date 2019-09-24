@@ -9,6 +9,8 @@
 #include <stdarg.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <assert.h>
+#include <fcntl.h>
 
 #include <mpv/client.h>
 
@@ -90,8 +92,6 @@ typedef struct jf_menu_item {
 } jf_menu_item;
 
 
-// Function: jf_menu_item_new
-//
 // Allocates a jf_menu_item struct in dynamic memory.
 //
 // Parameters:
@@ -103,13 +103,12 @@ typedef struct jf_menu_item {
 // 	- playback_ticks: progress marker for partially viewed items measured in Jellyfin ticks.
 //
 // Returns:
-//  A pointer to the newly allocated struct on success or NULL on failure.
+//  A pointer to the newly allocated struct.
+// CAN FATAL.
 jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children,
 		const char *id, const char *name, const long long runtime_ticks,
 		const long long playback_ticks);
 
-// Function jf_menu_item_free
-//
 // Deallocates a jf_menu_item and all its descendants recursively, unless they are marked as persistent (as per JF_ITEM_TYPE_IS_PERSISTENT).
 //
 // Parameters:
@@ -131,20 +130,20 @@ typedef struct jf_growing_buffer {
 
 
 jf_growing_buffer *jf_growing_buffer_new(const size_t size);
-bool jf_growing_buffer_append(jf_growing_buffer *buffer, const void *data, const size_t length);
-bool jf_growing_buffer_empty(jf_growing_buffer *buffer);
+void jf_growing_buffer_append(jf_growing_buffer *buffer, const void *data, const size_t length);
+void jf_growing_buffer_empty(jf_growing_buffer *buffer);
 void jf_growing_buffer_free(jf_growing_buffer *buffer);
 ////////////////////////////////////
 
 
 ////////// THREAD_BUFFER //////////
-typedef unsigned char jf_thread_buffer_state;
-
-#define JF_THREAD_BUFFER_STATE_CLEAR			0
-#define JF_THREAD_BUFFER_STATE_AWAITING_DATA	1
-#define JF_THREAD_BUFFER_STATE_PENDING_DATA		2
-#define JF_THREAD_BUFFER_STATE_PARSER_ERROR		3
-#define JF_THREAD_BUFFER_STATE_PARSER_DEAD		4
+typedef enum jf_thread_buffer_state {
+	JF_THREAD_BUFFER_STATE_CLEAR = 0,
+	JF_THREAD_BUFFER_STATE_AWAITING_DATA = 1,
+	JF_THREAD_BUFFER_STATE_PENDING_DATA = 2,
+	JF_THREAD_BUFFER_STATE_PARSER_ERROR = 3,
+	JF_THREAD_BUFFER_STATE_PARSER_DEAD = 4
+} jf_thread_buffer_state;
 
 
 typedef struct jf_thread_buffer {
@@ -159,7 +158,7 @@ typedef struct jf_thread_buffer {
 } jf_thread_buffer;
 
 
-bool jf_thread_buffer_init(jf_thread_buffer *tb);
+void jf_thread_buffer_init(jf_thread_buffer *tb);
 ///////////////////////////////////
 
 
@@ -193,16 +192,12 @@ void jf_global_state_clear(void);
 
 
 ////////// MISCELLANEOUS GARBAGE //////////
-void jf_mpv_clear(void);
-
-
 // returns a NULL-terminated, malloc'd string result of the concatenation of its (expected char *) arguments past the first
 // the first argument is the number of following arguments
+// CAN FATAL.
 char *jf_concat(const size_t n, ...);
 
 
-// Function: jf_print_zu
-//
 // Prints an unsigned, base-10 number to stdout. The function is NEITHER reentrant NOR thread-safe.
 // IT WILL CAUSE UNDEFINED BEHAVIOUR if the base-10 representation of the argument is longer than 20 digits,
 // which means the binary representation of the number takes more than 64 bits.
@@ -213,8 +208,6 @@ char *jf_concat(const size_t n, ...);
 void jf_print_zu(size_t n);
 
 
-// Function jf_generate_random_id
-//
 // Generates malloc'd string of random digits of arbitrary length.
 //
 // Parameters:
@@ -225,9 +218,10 @@ void jf_print_zu(size_t n);
 char *jf_generate_random_id(size_t length);
 
 
+void jf_mpv_clear(void);
 char *jf_make_timestamp(const long long ticks);
-
 JF_FORCE_INLINE size_t jf_clamp_zu(const size_t zu, const size_t min, const size_t max);
+JF_FORCE_INLINE void jf_clear_stdin(void);
 ///////////////////////////////////////////
 
 

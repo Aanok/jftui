@@ -37,7 +37,6 @@ do {												\
 #define JF_CONFIG_DEVICEID_DEFAULT			"Linux"
 #define JF_CONFIG_VERSION_DEFAULT			JF_VERSION
 
-#define JF_OPTIONS_IS_INCOMPLETE() ()
 
 typedef struct jf_options {
 	char *server;

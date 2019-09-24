@@ -118,8 +118,6 @@ char *jf_disk_get_default_runtime_dir()
 
 void jf_disk_init()
 {
-	char *tmp;
-
 	if (access(g_state.runtime_dir, F_OK) != 0) {
 		assert(mkdir(g_state.runtime_dir, S_IRWXU) != -1);
 	}

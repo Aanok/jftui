@@ -10,6 +10,7 @@ extern jf_options g_options;
 static CURL *s_handle = NULL;
 static struct curl_slist *s_headers = NULL;
 static struct curl_slist *s_headers_POST = NULL;
+static char s_curl_errorbuffer[CURL_ERROR_SIZE];
 static jf_thread_buffer s_tb;
 //////////////////////////////////////
 
@@ -26,9 +27,7 @@ static void jf_net_make_headers(void);
 jf_reply *jf_reply_new()
 {
 	jf_reply *r;
-	if ((r = (jf_reply *)malloc(sizeof(jf_reply))) == NULL) {
-		return NULL;
-	}
+	assert((r = malloc(sizeof(jf_reply))) != NULL);
 	r->payload = NULL;
 	r->size = 0;
 	return r;
@@ -57,8 +56,6 @@ char *jf_reply_error_string(const jf_reply *r)
 	switch (r->size) {
 		case JF_REPLY_ERROR_STUB:
 			return "stub functionality";
-		case JF_REPLY_ERROR_UNINITIALIZED:
-			return "jf_network uninitialized";
 		case JF_REPLY_ERROR_HTTP_401:
 			return "http request returned error 401: unauthorized; you likely need to renew your auth token. Restart with --login";
 			break;
@@ -71,10 +68,9 @@ char *jf_reply_error_string(const jf_reply *r)
 		case JF_REPLY_ERROR_NETWORK:
 		case JF_REPLY_ERROR_HTTP_NOT_OK:
 		case JF_REPLY_ERROR_PARSER:
-		case JF_REPLY_ERROR_PARSER_DEAD:
 			return r->payload;
 		default:
-			return "unknown error (this is a bug)";
+			return "unknown error. This is a bug";
 	}
 }
 
@@ -83,13 +79,8 @@ static size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *
 {
 	size_t real_size = size * nmemb;
 	jf_reply *reply = (jf_reply *)userdata;
-	char *new_buf;
-	if (!(new_buf = realloc(reply->payload, (size_t)reply->size + real_size + 1))) { //NB reply->size >=0
-		free(reply->payload);
-		reply->size = JF_REPLY_ERROR_MALLOC;
-		return 0;
-	}
-	reply->payload = new_buf;
+	assert((reply->payload = realloc(reply->payload,
+					(size_t)reply->size + real_size + 1)) != NULL);
 	memcpy(reply->payload + reply->size, payload, real_size);
 	reply->size += real_size;
 	reply->payload[reply->size] = '\0';
@@ -136,10 +127,6 @@ size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, void 
 			r->payload = strndup(s_tb.data, s_tb.used);
 			r->size = JF_REPLY_ERROR_PARSER;
 			return 0;	
-		} else if (s_tb.state == JF_THREAD_BUFFER_STATE_PARSER_DEAD) {
-			r->payload = strndup(s_tb.data, s_tb.used);
-			r->size = JF_REPLY_ERROR_PARSER_DEAD;
-			return 0;
 		}
 		// send data
 		chunk_size = real_size - written_data < JF_THREAD_BUFFER_DATA_SIZE - 1 ? real_size - written_data : JF_THREAD_BUFFER_DATA_SIZE - 2;
@@ -174,16 +161,6 @@ void jf_thread_buffer_clear_error()
 
 
 ////////// NETWORK UNIT //////////
-static JF_FORCE_INLINE void jf_curl_assert(const CURLcode status)
-{
-	// TODO use ERRORBUFFER
-	if (status != CURLE_OK) {
-		fprintf(stderr, "FATAL: libcurl error: %s\n", curl_easy_strerror(status));
-		abort();
-	}
-}
-
-
 static void jf_net_make_headers()
 {
 	char *tmp;
@@ -191,7 +168,7 @@ static void jf_net_make_headers()
 	assert(s_handle != NULL);
 
 	if (g_options.token != NULL) {
-		assert((tmp = jf_concat(2, "x-emby-token: ", g_options.token)) != NULL);
+		tmp = jf_concat(2, "x-emby-token: ", g_options.token);
 		assert((s_headers = curl_slist_append(s_headers, tmp)) != NULL);
 		free(tmp);
 	}
@@ -211,12 +188,16 @@ void jf_net_pre_init()
 
 	assert((s_handle = curl_easy_init()) != NULL);
 
+	// tell curl where to write informative error messages
+	s_curl_errorbuffer[0] = '\0';
+	JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_ERRORBUFFER, s_curl_errorbuffer));
+
 	// ask for compression (all kinds supported)
-	jf_curl_assert(curl_easy_setopt(s_handle, CURLOPT_ACCEPT_ENCODING, ""));
+	JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_ACCEPT_ENCODING, ""));
 
 	// follow redirects and keep POST method if using it
-	jf_curl_assert(curl_easy_setopt(s_handle, CURLOPT_FOLLOWLOCATION, 1));
-	jf_curl_assert(curl_easy_setopt(s_handle, CURLOPT_POSTREDIR, CURL_REDIR_POST_ALL));
+	JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_FOLLOWLOCATION, 1));
+	JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_POSTREDIR, CURL_REDIR_POST_ALL));
 
 	// sax parser thread
 	jf_thread_buffer_init(&s_tb);
@@ -250,59 +231,49 @@ void jf_net_clear()
 
 
 ////////// NETWORKING //////////
-//TODO add error checks to all setopt's
 jf_reply *jf_net_request(const char *resource, jf_request_type request_type, const char *POST_payload)
 {
 	CURLcode result;
 	long status_code;
 	jf_reply *reply;
 	
-	if ((reply = jf_reply_new()) == NULL) {
-		return NULL;
-	}
+	reply = jf_reply_new();
 	
-	if (s_handle == NULL) {
-		reply->size = JF_REPLY_ERROR_UNINITIALIZED;
-		return reply;
-	}
+	assert(s_handle != NULL);
 
 	// url
 	{
-		char *url;
-		if ((url = jf_concat(2, g_options.server, resource)) == NULL) {
-			reply->size = JF_REPLY_ERROR_CONCAT;
-			return reply;
-		}
-		curl_easy_setopt(s_handle, CURLOPT_URL, url);
+		char *url = jf_concat(2, g_options.server, resource);
+		JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_URL, url));
 		free(url);
 	}
 
 	// POST and headers
 	if (POST_payload != NULL) {
-		curl_easy_setopt(s_handle, CURLOPT_POSTFIELDS, POST_payload);
-		curl_easy_setopt(s_handle, CURLOPT_HTTPHEADER, s_headers_POST);
+		JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_POSTFIELDS, POST_payload));
+		JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_HTTPHEADER, s_headers_POST));
 	} else {
-		curl_easy_setopt(s_handle, CURLOPT_HTTPGET, 1);
-		curl_easy_setopt(s_handle, CURLOPT_HTTPHEADER, s_headers);
+		JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_HTTPGET, 1));
+		JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_HTTPHEADER, s_headers));
 	}
 	
 	// request
 	switch (request_type) {
 		case JF_REQUEST_IN_MEMORY:
-			curl_easy_setopt(s_handle, CURLOPT_WRITEFUNCTION, jf_reply_callback);		
+			JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_WRITEFUNCTION, jf_reply_callback));
 			break;
 		case JF_REQUEST_SAX_PROMISCUOUS:
 			s_tb.promiscuous_context = true;
-			curl_easy_setopt(s_handle, CURLOPT_WRITEFUNCTION, jf_thread_buffer_callback);
+			JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_WRITEFUNCTION, jf_thread_buffer_callback));
 			break;
 		case JF_REQUEST_SAX:
 			s_tb.promiscuous_context = false;
-			curl_easy_setopt(s_handle, CURLOPT_WRITEFUNCTION, jf_thread_buffer_callback);
+			JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_WRITEFUNCTION, jf_thread_buffer_callback));
 			break;
 	}
-	curl_easy_setopt(s_handle, CURLOPT_WRITEDATA, (void *)reply);
+	JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_WRITEDATA, (void *)reply));
 	if ((result = curl_easy_perform(s_handle)) != CURLE_OK) {
-		// keep error messages we've already set ourselves
+		// don't overwrite error messages we've already set ourselves
 		if (! JF_REPLY_PTR_HAS_ERROR(reply)) {
 			free(reply->payload);
 			reply->payload = (char *)curl_easy_strerror(result);
@@ -313,7 +284,7 @@ jf_reply *jf_net_request(const char *resource, jf_request_type request_type, con
 			jf_thread_buffer_wait_parsing_done();
 		}
 		// request went well but check for http error
-		curl_easy_getinfo(s_handle, CURLINFO_RESPONSE_CODE, &status_code);
+		JF_CURL_ASSERT(curl_easy_getinfo(s_handle, CURLINFO_RESPONSE_CODE, &status_code));
 		switch (status_code) { 
 			case 200:
 			case 204:
@@ -323,10 +294,7 @@ jf_reply *jf_net_request(const char *resource, jf_request_type request_type, con
 				break;
 			default:
 				free(reply->payload);
-				if ((reply->payload = (char *)malloc(34)) == NULL) {
-					reply->size = JF_REPLY_ERROR_MALLOC;
-					return reply;
-				}
+				assert((reply->payload = malloc(34)) != NULL);
 				snprintf(reply->payload, 34, "http request returned status %ld", status_code);
 				reply->size = JF_REPLY_ERROR_HTTP_NOT_OK;
 				break;
@@ -344,12 +312,12 @@ jf_reply *jf_net_login_request(const char *POST_payload)
 	jf_net_make_headers();
 
 	// add x-emby-authorization header
-	assert((tmp = jf_concat(9,
+	tmp = jf_concat(9,
 			"x-emby-authorization: mediabrowser client=\"", g_options.client,
 			"\", device=\"", g_options.device, 
 			"\", deviceid=\"", g_options.deviceid,
 			"\", version=\"", g_options.version,
-			"\"")) != NULL );
+			"\"");
 	assert((s_headers_POST = curl_slist_append(s_headers_POST, tmp)) != NULL);
 	free(tmp);
 
@@ -363,21 +331,11 @@ jf_reply *jf_net_login_request(const char *POST_payload)
 char *jf_net_urlencode(const char *url)
 {
 	char *tmp, *retval;
-
-	if (s_handle == NULL) {
-		fprintf(stderr, "FATAL: jf_net_urlencode called before jf_net_pre_init. This is a bug.\n");
-		return NULL;
-	}
-	if ((tmp = curl_easy_escape(s_handle, url, 0)) == NULL) {
-		fprintf(stderr, "FATAL: jf_net_urlencode curl_easy_escape returned NULL.\n");
-		return NULL;
-	}
+	assert(s_handle != NULL);
+	assert((tmp = curl_easy_escape(s_handle, url, 0)) != NULL);
 	retval = strdup(tmp);
 	curl_free(tmp);
-	if (retval == NULL) {
-		fprintf(stderr, "FATAL: jf_net_urlencode strdup returned NULL.\n");
-		return NULL;
-	}
+	assert(retval != NULL);
 	return retval;
 }
 

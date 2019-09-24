@@ -19,12 +19,16 @@
 
 
 ////////// CODE MACROS //////////
-#define JF_MISSING_ARG_FATAL(arg)												\
-	do {																		\
-		fprintf(stderr, "FATAL: missing parameter for argument " #arg "\n");	\
-		jf_print_usage();														\
-		exit(EXIT_FAILURE);														\
-	} while (false)
+#define JF_MPV_ASSERT(_s)													\
+do {																		\
+	int _status = _s;														\
+	if (_status < 0) {														\
+		fprintf(stderr, "%s:%d: " #_s " failed.\n", __FILE__, __LINE__);	\
+		fprintf(stderr, "FATAL: mpv API error: %s\n",						\
+				mpv_error_string(_status));									\
+		exit(EXIT_FAILURE);													\
+	}																		\
+} while (false)
 /////////////////////////////////
 
 
@@ -41,23 +45,24 @@ static mpv_handle *jf_mpv_context_new(void);
 
 
 ////////// STATIC FUNCTIONS //////////
-static void aborter(int sig);
+static void jf_abort(int sig);
 static void jf_print_usage(void);
 static JF_FORCE_INLINE void jf_missing_arg(const char *arg);
-static JF_FORCE_INLINE void jf_mpv_assert(const int);
 static mpv_handle *jf_mpv_context_new(void);
+static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event);
 //////////////////////////////////////
 
 
 ////////// MISCELLANEOUS GARBAGE //////////
-static void aborter(int sig)
+static void jf_abort(int sig)
 {
+	// some of this is not async-signal-safe
+	// but what's the worst that can happen, a crash? :^)
 	if (sig == SIGABRT) {
-		// perror is not async-signal-safe
-		// but what's the worst that can happen, a crash? :^)
 		perror("FATAL");
 	}
 	jf_disk_clear();
+	jf_net_clear();
 	_exit(EXIT_FAILURE);
 }
 
@@ -78,14 +83,6 @@ static JF_FORCE_INLINE void jf_missing_arg(const char *arg)
 }
 
 
-static JF_FORCE_INLINE void jf_mpv_assert(const int status)
-{
-	if (status < 0) {
-		fprintf(stderr, "FATAL: mpv API error: %s\n", mpv_error_string(status));
-		mpv_terminate_destroy(g_mpv_ctx);
-		abort();
-	}
-}
 
 
 static mpv_handle *jf_mpv_context_new()
@@ -95,21 +92,113 @@ static mpv_handle *jf_mpv_context_new()
 	char *x_emby_token;
 
 	assert((ctx = mpv_create()) != NULL);
-	jf_mpv_assert(mpv_set_option(ctx, "config-dir", MPV_FORMAT_STRING, &g_state.config_dir));
-	jf_mpv_assert(mpv_set_option(ctx, "config", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	jf_mpv_assert(mpv_set_option(ctx, "osc", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	jf_mpv_assert(mpv_set_option(ctx, "input-default-bindings", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	jf_mpv_assert(mpv_set_option(ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	jf_mpv_assert(mpv_set_option(ctx, "input-terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	jf_mpv_assert(mpv_set_option(ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ASSERT(mpv_set_option(ctx, "config-dir", MPV_FORMAT_STRING, &g_state.config_dir));
+	JF_MPV_ASSERT(mpv_set_option(ctx, "config", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ASSERT(mpv_set_option(ctx, "osc", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ASSERT(mpv_set_option(ctx, "input-default-bindings", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ASSERT(mpv_set_option(ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ASSERT(mpv_set_option(ctx, "input-terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ASSERT(mpv_set_option(ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
 	assert((x_emby_token = jf_concat(2, "x-emby-token: ", g_options.token)) != NULL);
-	jf_mpv_assert(mpv_set_option_string(ctx, "http-header-fields", x_emby_token));
+	JF_MPV_ASSERT(mpv_set_option_string(ctx, "http-header-fields", x_emby_token));
 	free(x_emby_token);
-	jf_mpv_assert(mpv_observe_property(ctx, 0, "time-pos", MPV_FORMAT_INT64));
+	JF_MPV_ASSERT(mpv_observe_property(ctx, 0, "time-pos", MPV_FORMAT_INT64));
 
-	jf_mpv_assert(mpv_initialize(ctx));
+	JF_MPV_ASSERT(mpv_initialize(ctx));
 
 	return ctx;
+}
+
+
+static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
+{
+	char *progress_post;
+	int64_t playback_ticks;
+	jf_reply *reply;
+	int mpv_flag_yes = 1, mpv_flag_no = 0;
+
+// 	printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
+	switch (event->event_id) {
+		case MPV_EVENT_CLIENT_MESSAGE:
+			// playlist controls
+			if (((mpv_event_client_message *)event->data)->num_args > 0) {
+				if (strcmp(((mpv_event_client_message *)event->data)->args[0], "jftui-playlist-next") == 0) {
+					jf_menu_playlist_forward();
+				} else if (strcmp(((mpv_event_client_message *)event->data)->args[0], "jftui-playlist-prev") == 0) {
+					jf_menu_playlist_backward();
+				}
+			}
+			break;
+		case MPV_EVENT_END_FILE:
+			// tell server file playback stopped so it won't keep accruing progress
+			playback_ticks = mpv_get_property(g_mpv_ctx, "time-pos", MPV_FORMAT_INT64, &playback_ticks) == 0 ?
+				JF_SECS_TO_TICKS(playback_ticks) : g_state.now_playing.playback_ticks;
+			if ((progress_post = jf_json_generate_progress_post(g_state.now_playing.id, playback_ticks)) == NULL) {
+				fprintf(stderr, "Warning: session stop jf_json_generate_progress_post returned NULL.\n");
+			} else {
+				reply = jf_net_request("/sessions/playing/stopped", JF_REQUEST_IN_MEMORY, progress_post);
+				free(progress_post);
+				if (reply == NULL || JF_REPLY_PTR_HAS_ERROR(reply)) {
+					fprintf(stderr, "Warning: session stop jf_net_request: %s.\n", jf_reply_error_string(reply));
+				}
+				jf_reply_free(reply);
+			}
+			// move to next item in playlist, if any
+			if (((mpv_event_end_file *)event->data)->reason == MPV_END_FILE_REASON_EOF) {
+				if (jf_menu_playlist_forward()) {
+					g_state.state = JF_STATE_PLAYBACK_NAVIGATING;
+				}
+			}
+			break;
+		case MPV_EVENT_SEEK:
+			if (g_state.state == JF_STATE_PLAYBACK_START_MARK) {
+				mpv_set_property_string(g_mpv_ctx, "start", "none");
+				g_state.state = JF_STATE_PLAYBACK;
+			}
+			break;
+		case MPV_EVENT_PROPERTY_CHANGE:
+			if (strcmp("time-pos", ((mpv_event_property *)event->data)->name) != 0) break;
+			if (((mpv_event_property *)event->data)->format == MPV_FORMAT_NONE) break;
+			// event valid, check if need to update the server
+			playback_ticks = JF_SECS_TO_TICKS(*(int64_t *)((mpv_event_property *)event->data)->data);
+			if (llabs(playback_ticks - g_state.now_playing.playback_ticks) < JF_SECS_TO_TICKS(10)) break;
+			// good for update; note this will also start a playback session if none are there
+			if ((progress_post = jf_json_generate_progress_post(g_state.now_playing.id, playback_ticks)) == NULL) {
+				fprintf(stderr, "Warning: progress update jf_json_generate_progress_post returned NULL.\n");
+				break;
+			}
+			reply = jf_net_request("/sessions/playing/progress", JF_REQUEST_IN_MEMORY, progress_post);
+			free(progress_post);
+			if (reply == NULL || JF_REPLY_PTR_HAS_ERROR(reply)) {
+				fprintf(stderr, "Warning: progress update jf_net_request: %s.\n", jf_reply_error_string(reply));
+			} else {
+				g_state.now_playing.playback_ticks = playback_ticks;
+			}
+			jf_reply_free(reply);
+			break;
+		case MPV_EVENT_IDLE:
+			if (g_state.state == JF_STATE_PLAYBACK_NAVIGATING) {
+				// digest idle event while we move to the next track
+				g_state.state = JF_STATE_PLAYBACK;
+			} else {
+				// go into UI mode
+				g_state.state = JF_STATE_MENU_UI;
+				JF_MPV_ASSERT(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_no));
+				while (g_state.state == JF_STATE_MENU_UI) jf_menu_ui();
+				JF_MPV_ASSERT(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+			}
+			break;
+		case MPV_EVENT_SHUTDOWN:
+			// it is unfortunate, but the cleanest way to handle this case
+			// (which is when mpv receives a "quit" command)
+			// is to comply and create a new context
+			mpv_terminate_destroy(g_mpv_ctx);
+			g_mpv_ctx = jf_mpv_context_new();
+			break;
+		default:
+			// no-op on everything else
+			break;
+	}
 }
 ///////////////////////////////////////////
 
@@ -119,11 +208,14 @@ int main(int argc, char *argv[])
 {
 	// VARIABLES
 	int i;
-	char *config_path, *progress_post;
-	mpv_event *event;
-	int mpv_flag_yes = 1, mpv_flag_no = 0;
-	int64_t playback_ticks;
+	char *config_path;
 	jf_reply *reply;
+
+
+	// SIGNAL HANDLERS
+	assert(signal(SIGABRT, jf_abort) != SIG_ERR);
+	assert(signal(SIGINT, jf_abort) != SIG_ERR);
+	//////////////////
 
 
 	// LIBMPV VERSION CHECK
@@ -140,8 +232,6 @@ int main(int argc, char *argv[])
 	}
 	///////////////////////
 
-	signal(SIGABRT, aborter);
-	signal(SIGINT, aborter);
 
 	// SETUP OPTIONS
 	g_options = (jf_options){ 0 }; 
@@ -200,7 +290,7 @@ int main(int argc, char *argv[])
 
 	// INITIAL NETWORK SETUP
 	jf_net_pre_init();
-	atexit(jf_net_clear);
+ 	atexit(jf_net_clear);
 	////////////////
 	
 
@@ -266,7 +356,6 @@ int main(int argc, char *argv[])
 
 	// SETUP MENU
 	jf_menu_init();
-	atexit(jf_menu_clear);
 	/////////////////
 
 
@@ -282,98 +371,14 @@ int main(int argc, char *argv[])
 	////////// MAIN LOOP //////////
 	while (true) {
 		switch (g_state.state) {
-			// HANDLE SHUTDOWN
 			case JF_STATE_USER_QUIT:
 				exit(EXIT_SUCCESS);
 				break;
 			case JF_STATE_FAIL:
 				exit(EXIT_FAILURE);
 				break;
-			// RUNTIME: READ AND PROCESS EVENTS
 			default:
-				event = mpv_wait_event(g_mpv_ctx, -1);
-// 				printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
-				switch (event->event_id) {
-					case MPV_EVENT_CLIENT_MESSAGE:
-						// playlist controls
-						if (((mpv_event_client_message *)event->data)->num_args > 0) {
-							if (strcmp(((mpv_event_client_message *)event->data)->args[0], "jftui-playlist-next") == 0) {
-								jf_menu_playlist_forward();
-							} else if (strcmp(((mpv_event_client_message *)event->data)->args[0], "jftui-playlist-prev") == 0) {
-								jf_menu_playlist_backward();
-							}
-						}
-						break;
-					case MPV_EVENT_END_FILE:
-						// tell server file playback stopped so it won't keep accruing progress
-						playback_ticks = mpv_get_property(g_mpv_ctx, "time-pos", MPV_FORMAT_INT64, &playback_ticks) == 0 ?
-							JF_SECS_TO_TICKS(playback_ticks) : g_state.now_playing.playback_ticks;
-						if ((progress_post = jf_json_generate_progress_post(g_state.now_playing.id, playback_ticks)) == NULL) {
-							fprintf(stderr, "Warning: session stop jf_json_generate_progress_post returned NULL.\n");
-						} else {
-							reply = jf_net_request("/sessions/playing/stopped", JF_REQUEST_IN_MEMORY, progress_post);
-							free(progress_post);
-							if (reply == NULL || JF_REPLY_PTR_HAS_ERROR(reply)) {
-								fprintf(stderr, "Warning: session stop jf_net_request: %s.\n", jf_reply_error_string(reply));
-							}
-							jf_reply_free(reply);
-						}
-						// move to next item in playlist, if any
-						if (((mpv_event_end_file *)event->data)->reason == MPV_END_FILE_REASON_EOF) {
-							if (jf_menu_playlist_forward()) {
-								g_state.state = JF_STATE_PLAYBACK_NAVIGATING;
-							}
-						}
-						break;
-					case MPV_EVENT_SEEK:
-						if (g_state.state == JF_STATE_PLAYBACK_START_MARK) {
-							mpv_set_property_string(g_mpv_ctx, "start", "none");
-							g_state.state = JF_STATE_PLAYBACK;
-						}
-						break;
-					case MPV_EVENT_PROPERTY_CHANGE:
-						if (strcmp("time-pos", ((mpv_event_property *)event->data)->name) != 0) break;
-						if (((mpv_event_property *)event->data)->format == MPV_FORMAT_NONE) break;
-						// event valid, check if need to update the server
-						playback_ticks = JF_SECS_TO_TICKS(*(int64_t *)((mpv_event_property *)event->data)->data);
-						if (llabs(playback_ticks - g_state.now_playing.playback_ticks) < JF_SECS_TO_TICKS(10)) break;
-						// good for update; note this will also start a playback session if none are there
-						if ((progress_post = jf_json_generate_progress_post(g_state.now_playing.id, playback_ticks)) == NULL) {
-							fprintf(stderr, "Warning: progress update jf_json_generate_progress_post returned NULL.\n");
-							break;
-						}
-						reply = jf_net_request("/sessions/playing/progress", JF_REQUEST_IN_MEMORY, progress_post);
-						free(progress_post);
-						if (reply == NULL || JF_REPLY_PTR_HAS_ERROR(reply)) {
-							fprintf(stderr, "Warning: progress update jf_net_request: %s.\n", jf_reply_error_string(reply));
-						} else {
-							g_state.now_playing.playback_ticks = playback_ticks;
-						}
-						jf_reply_free(reply);
-						break;
-					case MPV_EVENT_IDLE:
-						if (g_state.state == JF_STATE_PLAYBACK_NAVIGATING) {
-							// digest idle event while we move to the next track
-							g_state.state = JF_STATE_PLAYBACK;
-						} else {
-							// go into UI mode
-							g_state.state = JF_STATE_MENU_UI;
-							jf_mpv_assert(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_no));
-							while (g_state.state == JF_STATE_MENU_UI) jf_menu_ui();
-							jf_mpv_assert(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
-						}
-						break;
-					case MPV_EVENT_SHUTDOWN:
-						// it is unfortunate, but the cleanest way to handle this case
-						// (which is when mpv receives a "quit" command)
-						// is to comply and create a new context
-						mpv_terminate_destroy(g_mpv_ctx);
-						g_mpv_ctx = jf_mpv_context_new();
-						break;
-					default:
-						// no-op on everything else
-						break;
-				}
+				jf_mpv_event_dispatch(mpv_wait_event(g_mpv_ctx, -1));
 		}
 	}
 	///////////////////////////////
