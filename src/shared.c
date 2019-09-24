@@ -252,6 +252,12 @@ char *jf_make_timestamp(const long long ticks)
 	snprintf(str, sizeof("xxx:xx:xx"), "%02u:%02u:%02u", hours, minutes, seconds);
 	return str;
 }
+
+
+JF_FORCE_INLINE size_t jf_clamp_zu(const size_t zu, const size_t min, const size_t max)
+{
+	return zu < min ? min : zu > max ? max : zu;
+}
 ///////////////////////////////////////////
 
 

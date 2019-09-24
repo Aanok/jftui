@@ -14,19 +14,19 @@
 #include "menu.h"
 
 ////////// STATE MACHINE //////////
-typedef char jf_cmd_parser_state;
+typedef enum jf_cmd_parser_state {
+	// make sure to start from 0 so memset init works
+	JF_CMD_VALIDATE_START = 0,
+	JF_CMD_VALIDATE_ATOMS = 1,
+	JF_CMD_VALIDATE_FOLDER = 2,
+	JF_CMD_VALIDATE_OK = 3,
+	JF_CMD_SPECIAL = 4,
+	JF_CMD_SUCCESS = 5,
 
-// make sure to start from 0 so memset init works
-#define JF_CMD_VALIDATE_START	0
-#define JF_CMD_VALIDATE_ATOMS	1
-#define JF_CMD_VALIDATE_FOLDER	2
-#define JF_CMD_VALIDATE_OK		3
-#define JF_CMD_SPECIAL			4
-#define JF_CMD_SUCCESS			5
-
-#define JF_CMD_FAIL_FOLDER		-1
-#define JF_CMD_FAIL_SYNTAX		-2
-#define JF_CMD_FAIL_DISPATCH	-3
+	JF_CMD_FAIL_FOLDER = -1,
+	JF_CMD_FAIL_SYNTAX = -2,
+	JF_CMD_FAIL_DISPATCH = -3
+} jf_cmd_parser_state;
 
 #define JF_CMD_IS_FAIL(state)	((state) < 0)
 ///////////////////////////////////
@@ -65,7 +65,7 @@ typedef struct _yycontext yycontext;
 jf_cmd_parser_state yy_cmd_get_parser_state(const yycontext *ctx);
 
 static void yy_cmd_digest(yycontext *ctx, const size_t n);
-static void yy_cmd_digest_range(yycontext *ctx, const size_t l, const size_t r);
+static void yy_cmd_digest_range(yycontext *ctx, size_t l, size_t r);
 static void yy_cmd_finalize(yycontext *ctx, const bool parse_ok);
 /////////////////////////////////////////
 
@@ -723,9 +723,7 @@ static void yy_cmd_digest(yycontext *ctx, size_t n)
 			}
 			break;
 		case JF_CMD_VALIDATE_FOLDER:
-			if (! JF_ITEM_TYPE_IS_FOLDER(item_type)) {
-				ctx->state = JF_CMD_FAIL_FOLDER;
-			}
+			ctx->state = JF_CMD_FAIL_FOLDER;
 			break;
 		case JF_CMD_VALIDATE_OK:
 			if (! jf_menu_child_dispatch(n)) {
@@ -733,18 +731,21 @@ static void yy_cmd_digest(yycontext *ctx, size_t n)
 			}
 			break;
 		default:
-			fprintf(stderr, "Error: yy_cmd_digest encountered unexpected state transition. This is a bug.\n");	
+			fprintf(stderr, "Error: yy_cmd_digest: unexpected state transition. This is a bug.\n");	
 			break;
 	}
 }
 
 
-static void yy_cmd_digest_range(yycontext *ctx, size_t l, const size_t r)
+static void yy_cmd_digest_range(yycontext *ctx, size_t l, size_t r)
 {
-	int step = l <= r ? 1 : -1;
+	// and now for our next trick: unsigned arithmetic!
+	size_t step = l <= r ? 1 : (size_t)-1;
+	l = jf_clamp_zu(l, 0, jf_menu_child_count()+1);
+	r = jf_clamp_zu(r, 0, jf_menu_child_count()+1);
 	while (true) {
 		yy_cmd_digest(ctx, l);
-		if (l == r || l == -1) break;
+		if (l == r) break;
 		l += step;
 	}
 }
@@ -769,7 +770,7 @@ static void yy_cmd_finalize(yycontext *ctx, const bool parse_ok)
 			case JF_CMD_FAIL_FOLDER:
 				break;
 			default:
-				fprintf(stderr, "Error: yy_cmd_finalize encountered unexpected state transition. This is a bug.\n");	
+				fprintf(stderr, "Error: yy_cmd_finalize: unexpected state transition. This is a bug.\n");	
 		}
 	}
 }

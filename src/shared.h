@@ -70,7 +70,7 @@ typedef enum __attribute__((__packed__)) jf_item_type {
 	JF_ITEM_TYPE_MENU_CONTINUE = -3,
 	JF_ITEM_TYPE_MENU_NEXT_UP = -4,
 	JF_ITEM_TYPE_MENU_LATEST = -5,
-	JF_ITEM_TYPE_MENU_LIBRARIES = -6,
+	JF_ITEM_TYPE_MENU_LIBRARIES = -6
 } jf_item_type;
 
 // Category macros. They're all expressions
@@ -226,6 +226,8 @@ char *jf_generate_random_id(size_t length);
 
 
 char *jf_make_timestamp(const long long ticks);
+
+JF_FORCE_INLINE size_t jf_clamp_zu(const size_t zu, const size_t min, const size_t max);
 ///////////////////////////////////////////
 
 
