@@ -24,7 +24,7 @@ do {																		\
 	int _status = _s;														\
 	if (_status < 0) {														\
 		fprintf(stderr, "%s:%d: " #_s " failed.\n", __FILE__, __LINE__);	\
-		fprintf(stderr, "FATAL: mpv API error: %s\n",						\
+		fprintf(stderr, "FATAL: mpv API error: %s.\n",						\
 				mpv_error_string(_status));									\
 		exit(EXIT_FAILURE);													\
 	}																		\
@@ -58,8 +58,8 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event);
 static JF_FORCE_INLINE void jf_mpv_version_check(void)
 {
 	unsigned long mpv_version = mpv_client_api_version();
-	if (mpv_version < MPV_MAKE_VERSION(1,23)) {
-		fprintf(stderr, "FATAL: found libmpv version %lu.%lu, but 1.23 or greater is required.\n",
+	if (mpv_version < MPV_MAKE_VERSION(1,24)) {
+		fprintf(stderr, "FATAL: found libmpv version %lu.%lu, but 1.24 or greater is required.\n",
 				mpv_version >> 16, mpv_version & 0xFFFF);
 		exit(EXIT_FAILURE);
 	}
@@ -100,8 +100,6 @@ static JF_FORCE_INLINE void jf_missing_arg(const char *arg)
 }
 
 
-
-
 static mpv_handle *jf_mpv_context_new()
 {
 	mpv_handle *ctx;
@@ -109,15 +107,15 @@ static mpv_handle *jf_mpv_context_new()
 	char *x_emby_token;
 
 	assert((ctx = mpv_create()) != NULL);
-	JF_MPV_ASSERT(mpv_set_option(ctx, "config-dir", MPV_FORMAT_STRING, &g_state.config_dir));
-	JF_MPV_ASSERT(mpv_set_option(ctx, "config", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ASSERT(mpv_set_option(ctx, "osc", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ASSERT(mpv_set_option(ctx, "input-default-bindings", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ASSERT(mpv_set_option(ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ASSERT(mpv_set_option(ctx, "input-terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ASSERT(mpv_set_option(ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ASSERT(mpv_set_property(ctx, "config-dir", MPV_FORMAT_STRING, &g_state.config_dir));
+	JF_MPV_ASSERT(mpv_set_property(ctx, "config", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ASSERT(mpv_set_property(ctx, "osc", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ASSERT(mpv_set_property(ctx, "input-default-bindings", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ASSERT(mpv_set_property(ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ASSERT(mpv_set_property(ctx, "input-terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ASSERT(mpv_set_property(ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
 	assert((x_emby_token = jf_concat(2, "x-emby-token: ", g_options.token)) != NULL);
-	JF_MPV_ASSERT(mpv_set_option_string(ctx, "http-header-fields", x_emby_token));
+	JF_MPV_ASSERT(mpv_set_property_string(ctx, "http-header-fields", x_emby_token));
 	free(x_emby_token);
 	JF_MPV_ASSERT(mpv_observe_property(ctx, 0, "time-pos", MPV_FORMAT_INT64));
 
