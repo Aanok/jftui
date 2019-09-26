@@ -138,7 +138,7 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 			} else {
 				reply = jf_net_request("/sessions/playing/stopped", JF_REQUEST_IN_MEMORY, progress_post);
 				free(progress_post);
-				if (reply == NULL || JF_REPLY_PTR_HAS_ERROR(reply)) {
+				if (JF_REPLY_PTR_HAS_ERROR(reply)) {
 					fprintf(stderr, "Warning: session stop jf_net_request: %s.\n", jf_reply_error_string(reply));
 				}
 				jf_reply_free(reply);
@@ -169,7 +169,7 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 			}
 			reply = jf_net_request("/sessions/playing/progress", JF_REQUEST_IN_MEMORY, progress_post);
 			free(progress_post);
-			if (reply == NULL || JF_REPLY_PTR_HAS_ERROR(reply)) {
+			if (JF_REPLY_PTR_HAS_ERROR(reply)) {
 				fprintf(stderr, "Warning: progress update jf_net_request: %s.\n", jf_reply_error_string(reply));
 			} else {
 				g_state.now_playing.playback_ticks = playback_ticks;
@@ -345,7 +345,7 @@ int main(int argc, char *argv[])
 	jf_net_refresh();
 	// get server name and double check everything's fine
 	reply = jf_net_request("/system/info", JF_REQUEST_IN_MEMORY, NULL);
-	if (reply == NULL || JF_REPLY_PTR_HAS_ERROR(reply)) {
+	if (JF_REPLY_PTR_HAS_ERROR(reply)) {
 		fprintf(stderr, "FATAL: could not reach server: %s.\n", jf_reply_error_string(reply));
 		exit(EXIT_FAILURE);
 	}

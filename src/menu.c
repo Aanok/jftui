@@ -19,6 +19,7 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
 			&(jf_menu_item){
 				JF_ITEM_TYPE_MENU_FAVORITES,
 				NULL,
+				0,
 				"",
 				"Favorites",
 				0, 0
@@ -26,6 +27,7 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
 			&(jf_menu_item){
 				JF_ITEM_TYPE_MENU_CONTINUE,
 				NULL,
+				0,
 				"",
 				"Continue Watching",
 				0, 0
@@ -33,6 +35,7 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
 			&(jf_menu_item){
 				JF_ITEM_TYPE_MENU_NEXT_UP,
 				NULL,
+				0,
 				"",
 				"Next Up",
 				0, 0
@@ -40,6 +43,7 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
 			&(jf_menu_item){
 				JF_ITEM_TYPE_MENU_LATEST,
 				NULL,
+				0,
 				"",
 				"Latest Added",
 				0, 0
@@ -47,12 +51,13 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
 			&(jf_menu_item){
 				JF_ITEM_TYPE_MENU_LIBRARIES,
 				NULL,
+				0,
 				"",
 				"User Views",
 				0, 0
-			},
-			NULL
+			}
 		},
+		5,
 		"",
 		"",
 		0, 0
@@ -206,7 +211,7 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 
 static jf_menu_item *jf_menu_child_get(size_t n)
 {
-	jf_menu_item **child;
+// 	jf_menu_item **child;
 
 	if (s_context == NULL) {
 		return NULL;
@@ -214,13 +219,8 @@ static jf_menu_item *jf_menu_child_get(size_t n)
 	if (JF_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(s_context->type)) {
 		return jf_disk_payload_get_item(n);
 	} else {
-		child = s_context->children;
-		while (--n > 0) {
-			if (*(++child) == NULL) {
-				return NULL;
-			}
-		}
-		return *child;
+		return n - 1 <= s_context->children_count ? s_context->children[n - 1]
+			: NULL;
 	}
 }
 
@@ -280,12 +280,8 @@ static bool jf_menu_print_context()
 		// PERSISTENT FOLDERS
 		case JF_ITEM_TYPE_MENU_ROOT:
 			printf("\n===== %s =====\n", s_context->name);
-			child = s_context->children;
-			i = 1;
-			while (*child) {
-				printf("D %zu. %s\n", i, (*child)->name);
-				child++;
-				i++;
+			for (i = 0; i < s_context->children_count; i++) {
+				printf("D %zu. %s\n", i + 1, s_context->children[i]->name);
 			}
 			// push on stack to allow backtracking
 			jf_menu_stack_push(s_context);
@@ -381,13 +377,8 @@ jf_item_type jf_menu_child_get_type(size_t n)
 	if (JF_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(s_context->type)) {
 		return jf_disk_payload_get_type(n);
 	} else {
-		child = s_context->children;
-		while (--n > 0) {
-			if (*(++child) == NULL) {
-				return JF_ITEM_TYPE_NONE;
-			}
-		}
-		return (*child)->type;
+		return n - 1 <= s_context->children_count ?
+			s_context->children[n - 1]->type : JF_ITEM_TYPE_NONE;
 	}
 }
 
@@ -440,8 +431,8 @@ bool jf_menu_child_dispatch(size_t n)
 
 size_t jf_menu_child_count()
 {
-	jf_menu_item **child;
-	size_t n = 0;
+// 	jf_menu_item **child;
+// 	size_t n = 0;
 
 	if (s_context == NULL) {
 		return 0;
@@ -449,11 +440,7 @@ size_t jf_menu_child_count()
 	if (JF_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(s_context->type)) {
 		return jf_disk_payload_item_count();
 	} else {
-		child = s_context->children;
-		while (*(child++) != NULL) {
-			n++;
-		}
-		return n;
+		return s_context->children_count;
 	}
 }
 

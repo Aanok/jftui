@@ -18,17 +18,25 @@ jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children,
 
 	menu_item->type = type;
 	menu_item->children = children;
+	menu_item->children_count = 0;
+	if (children != NULL) {
+		while (menu_item->children != NULL) {
+			menu_item->children_count++;
+			menu_item->children++;
+		}
+		assert((menu_item->children =
+				malloc(menu_item->children_count * sizeof(jf_menu_item *))) != NULL);
+		memcpy(children, menu_item->children,
+				menu_item->children_count * sizeof(jf_menu_item *));
+		menu_item->children = children;
+	}
 	if (id == NULL) {
 		menu_item->id[0] = '\0';
 	} else {
 		strncpy(menu_item->id, id, JF_ID_LENGTH);
 		menu_item->id[JF_ID_LENGTH] = '\0';
 	}
-	if (name == NULL) {
-		menu_item->name = NULL;
-	} else {
-		menu_item->name = strdup(name);
-	}
+	menu_item->name = name == NULL ? NULL : strdup(name);
 	menu_item->runtime_ticks = runtime_ticks;
 	menu_item->playback_ticks = playback_ticks;
 	
@@ -38,20 +46,17 @@ jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children,
 
 void jf_menu_item_free(jf_menu_item *menu_item)
 {
-	jf_menu_item **child;
+	size_t i;
 
 	if (menu_item == NULL) {
 		return;
 	}
 
 	if (! (JF_ITEM_TYPE_IS_PERSISTENT(menu_item->type))) {
-		if ((child = menu_item->children) != NULL) {
-			while (*child != NULL) {
-				jf_menu_item_free(*child);
-				child++;
-			}
-			free(menu_item->children);
+		for (i = 0; i < menu_item->children_count; i++) {
+			jf_menu_item_free(menu_item->children[i]);
 		}
+		free(menu_item->children);
 		free(menu_item->name);
 		free(menu_item);
 	}
@@ -63,6 +68,7 @@ jf_menu_item *jf_menu_item_static_copy(jf_menu_item *dest, const jf_menu_item *s
 	if (dest != NULL) {
 		memcpy(dest, src, sizeof(jf_menu_item));
 		dest->children = NULL;
+		dest->children_count = 0;
 	}
 	return dest;
 }
@@ -245,8 +251,6 @@ JF_FORCE_INLINE void jf_clear_stdin()
 	while (getchar() != EOF) ;
 	fcntl(0, F_SETFL, fcntl(0, F_GETFL)& ~O_NONBLOCK);
 }
-
-
 ///////////////////////////////////////////
 
 

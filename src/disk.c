@@ -53,6 +53,7 @@ static bool jf_disk_add_item(jf_file_cache *cache, const jf_menu_item *item)
 
 	// body
 	assert(fwrite(&(item->type), sizeof(jf_item_type), 1, cache->body) == 1);
+	// skip children and children_count
 	assert(fwrite(item->id, 1, sizeof(item->id), cache->body) == sizeof(item->id));
 	name_length = item->name == NULL ? 0 : strlen(item->name);
 	assert(fwrite(item->name, 1, name_length, cache->body) == name_length);
@@ -81,6 +82,7 @@ static jf_menu_item *jf_disk_get_item(jf_file_cache *cache, const size_t n)
 	assert(fread(&(item->type), sizeof(jf_item_type), 1, cache->body) == 1);
 	assert(fread(item->id, 1, sizeof(item->id), cache->body) == sizeof(item->id));
 	item->children = NULL;
+	item->children_count = 0;
 	jf_growing_buffer_empty(s_buffer);
 	while (true) {
 		assert(fread(tmp, 1, 1, cache->body) == 1);

@@ -84,7 +84,8 @@ typedef enum __attribute__((__packed__)) jf_item_type {
 
 typedef struct jf_menu_item {
 	jf_item_type type;
-	struct jf_menu_item **children; // NULL-terminated
+	struct jf_menu_item **children;
+	size_t children_count;
 	char id[JF_ID_LENGTH +1];
 	char *name;
 	long long playback_ticks;
