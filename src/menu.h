@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <errno.h>
 #include <mpv/client.h>
 
 #include "linenoise.h"
