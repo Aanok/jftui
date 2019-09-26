@@ -342,6 +342,7 @@ char *jf_net_urlencode(const char *url)
 	
 bool jf_net_url_is_valid(const char *url)
 {
+#if LIBCURL_VERSION_MAJOR >= 7 && LIBCURL_VERSION_MINOR >= 62
 	CURLU *curlu;
 
 	if ((curlu = curl_url()) == NULL) {
@@ -357,5 +358,10 @@ bool jf_net_url_is_valid(const char *url)
 		curl_url_cleanup(curlu);
 		return false;
 	}
+#else
+	fprintf(stderr, "Warning: the libcurl version jftui was compiled against will defer URL validation to the first network request.\n");
+	fprintf(stderr, "If the URL you have entered turns out to be invalid, repeat the login process by passing --login to try again.\n");
+	return true;
+#endif
 }
 ////////////////////////////////////////////

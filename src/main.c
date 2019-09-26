@@ -45,6 +45,7 @@ static mpv_handle *jf_mpv_context_new(void);
 
 
 ////////// STATIC FUNCTIONS //////////
+static JF_FORCE_INLINE void jf_mpv_version_check(void);
 static void jf_abort(int sig);
 static void jf_print_usage(void);
 static JF_FORCE_INLINE void jf_missing_arg(const char *arg);
@@ -54,6 +55,22 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event);
 
 
 ////////// MISCELLANEOUS GARBAGE //////////
+static JF_FORCE_INLINE void jf_mpv_version_check(void)
+{
+	unsigned long mpv_version = mpv_client_api_version();
+	if (mpv_version < MPV_MAKE_VERSION(1,23)) {
+		fprintf(stderr, "FATAL: found libmpv version %lu.%lu, but 1.23 or greater is required.\n",
+				mpv_version >> 16, mpv_version & 0xFFFF);
+		exit(EXIT_FAILURE);
+	}
+	// future proofing
+	if (mpv_version >= MPV_MAKE_VERSION(2,0)) {
+		fprintf(stderr, "Warning: found libmpv version %lu.%lu, but jftui expects 1.xx. mpv will probably not work.\n",
+				mpv_version >> 16, mpv_version & 0xFFFF);
+	}
+}
+
+
 static void jf_abort(int sig)
 {
 	// some of this is not async-signal-safe
@@ -220,16 +237,7 @@ int main(int argc, char *argv[])
 
 	// LIBMPV VERSION CHECK
 	// required for "osc" option
-	if (MPV_CLIENT_API_VERSION < MPV_MAKE_VERSION(1,23)) {
-		fprintf(stderr, "FATAL: found libmpv version %lu.%lu, but 1.23 or greater is required.\n",
-				MPV_CLIENT_API_VERSION >> 16, MPV_CLIENT_API_VERSION & 0xFFFF);
-		exit(EXIT_FAILURE);
-	}
-	// future proofing
-	if (MPV_CLIENT_API_VERSION >= MPV_MAKE_VERSION(2,0)) {
-		fprintf(stderr, "Warning: found libmpv version %lu.%lu, but jftui expects 1.xx. mpv will probably not work.\n",
-				MPV_CLIENT_API_VERSION >> 16, MPV_CLIENT_API_VERSION & 0xFFFF);
-	}
+	jf_mpv_version_check();
 	///////////////////////
 
 
