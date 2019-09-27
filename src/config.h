@@ -9,8 +9,6 @@
 #include <unistd.h>
 #include <assert.h>
 
-#include "linenoise.h"
-
 #include "shared.h"
 #include "net.h"
 

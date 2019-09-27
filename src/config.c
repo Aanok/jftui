@@ -166,7 +166,8 @@ void jf_config_ask_user_login()
 
 	while (true) {
 		printf("Please enter your username.\n");
-		username = linenoise("> ");
+		errno = 0;
+		username = jf_menu_linenoise("> ");
 		printf("Please enter your password.\n> ");
 		tcgetattr(STDIN_FILENO, &old);
 		new = old;
@@ -191,7 +192,7 @@ void jf_config_ask_user_login()
 		if (JF_REPLY_PTR_ERROR_IS(login_reply, JF_REPLY_ERROR_HTTP_401)) {
 			jf_reply_free(login_reply);
 			if (! jf_menu_user_ask_yn("Error: invalid login credentials. Would you like to try again?")) {
-				exit(EXIT_FAILURE);
+				exit(EXIT_SUCCESS);
 			}
 		} else {
 			fprintf(stderr, "FATAL: could not login: %s.\n", jf_reply_error_string(login_reply));
@@ -207,16 +208,11 @@ void jf_config_ask_user_login()
 
 void jf_config_ask_user()
 {
-	// critical network stuff: must be configured before network init
-	if (jf_menu_user_ask_yn("Do you need jftui to ignore hostname validation (required e.g. if you're using Jellyfin's built-in SSL certificate)?")) {
-		g_options.ssl_verifyhost = false;
-	}
-
 	// login user input
 	printf("Please enter the encoded URL of your Jellyfin server. Example: http://foo%%20bar.baz:8096/jf\n");
 	printf("(note: unless specified, ports will be the protocol's defaults, i.e. 80 for HTTP and 443 for HTTPS)\n");
 	while (true) {
-		g_options.server = linenoise("> ");
+		g_options.server = jf_menu_linenoise("> ");
 		if (jf_net_url_is_valid(g_options.server)) {
 			g_options.server_len = g_options.server == NULL ? 0 : strlen(g_options.server);
 			break;
@@ -224,6 +220,11 @@ void jf_config_ask_user()
 			fprintf(stderr, "Error: malformed URL. Please try again.\n");
 			free(g_options.server);
 		}
+	}
+
+	// critical network stuff: must be configured before network init
+	if (jf_menu_user_ask_yn("Do you need jftui to ignore hostname validation (required e.g. if you're using Jellyfin's built-in SSL certificate)?")) {
+		g_options.ssl_verifyhost = false;
 	}
 
 	jf_config_ask_user_login();

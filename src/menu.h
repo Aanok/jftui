@@ -57,6 +57,7 @@ bool jf_menu_init(void);
 // regardless of their persistency bit.
 void jf_menu_clear(void);
 
+char *jf_menu_linenoise(const char *prompt);
 bool jf_menu_user_ask_yn(const char *question);
 ///////////////////////////////////
 

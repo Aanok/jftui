@@ -555,14 +555,7 @@ void jf_menu_ui()
 			switch (yy_cmd_get_parser_state(&yy)) {
 				case JF_CMD_VALIDATE_START:
 					// read input and do first pass (validation)
-					errno = 0;
-					if ((line = linenoise("> ")) == NULL) {
-						if (errno == EAGAIN) {
-							// linenoise caught ctrl-c, consider SIGINT
-							exit(EXIT_FAILURE);
-						}
-						return;
-					}
+					line = jf_menu_linenoise("> ");
 					yy.input = line;
 					yyparse(&yy);
 					break;
@@ -638,6 +631,18 @@ void jf_menu_clear()
 	}
 }
 
+
+char *jf_menu_linenoise(const char *prompt)
+{
+	char *str;
+	if ((str = linenoise(prompt)) == NULL) {
+		if (errno != EAGAIN) {
+			perror("FATAL: jf_menu_linenoise");
+		}
+		exit(EXIT_FAILURE);
+	}
+	return str;
+}
 
 bool jf_menu_user_ask_yn(const char *question)
 {

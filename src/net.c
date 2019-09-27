@@ -21,8 +21,6 @@ static pthread_cond_t s_async_cv;
 ////////// STATIC FUNCTIONS //////////
 static void jf_net_init(void);
 
-static void jf_make_headers(void);
-
 static void jf_thread_buffer_wait_parsing_done(void);
 
 static size_t jf_reply_callback(char *payload,
@@ -197,37 +195,7 @@ void jf_thread_buffer_clear_error()
 
 
 ////////// NETWORK UNIT //////////
-static void jf_make_headers(void)
-{
-	char *tmp;
-
-	// safe with NULL arg
-// 	curl_slist_free_all(s_headers_POST);
-
-	assert((s_headers = curl_slist_append(s_headers,
-					"accept: application/json; charset=utf-8")) != NULL);
-	if (g_options.token == NULL) {
-		// the only thing we can do is a POST for login
-		tmp = jf_concat(9,
-				"x-emby-authorization: mediabrowser client=\"", g_options.client,
-				"\", device=\"", g_options.device, 
-				"\", deviceid=\"", g_options.deviceid,
-				"\", version=\"", g_options.version,
-				"\"");
-		assert((s_headers_POST = curl_slist_append(s_headers, tmp)) != NULL);
-	} else {
-		// main behaviour
-		tmp = jf_concat(2, "x-emby-token: ", g_options.token);
-		assert((s_headers = curl_slist_append(s_headers, tmp)) != NULL);
-	}
-	free(tmp);
-	assert((s_headers_POST = curl_slist_append(s_headers_POST == NULL ?
-					s_headers : s_headers_POST,
-					"content-type: application/json; charset=utf-8")) != NULL);
-}
-
-
-void jf_net_init()
+static void jf_net_init()
 {
 	char *tmp;
 	pthread_t sax_parser_thread;
