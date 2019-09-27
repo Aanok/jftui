@@ -252,13 +252,13 @@ int main(int argc, char *argv[])
 				jf_missing_arg("--config-dir");
 				exit(EXIT_FAILURE);
 			}
-			g_state.config_dir = strdup(argv[i]);
+			assert((g_state.config_dir = strdup(argv[i])) != NULL);
 		} else if (strcmp(argv[i], "--runtime-dir") == 0) {
 			if (++i >= argc) {
 				jf_missing_arg("--runtime-dir");
 				exit(EXIT_FAILURE);
 			}
-			g_state.runtime_dir = strdup(argv[i]);
+			assert((g_state.runtime_dir = strdup(argv[i])) != NULL);
 		} else if (strcmp(argv[i], "--login") == 0) {
 			g_state.state = JF_STATE_STARTING_LOGIN;
 		} else {
@@ -297,11 +297,15 @@ int main(int argc, char *argv[])
 		// it's there: read it
 		jf_config_read(config_path);
 		// if fundamental fields are missing (file corrupted for some reason)
-		if (g_options.server == NULL || g_options.userid == NULL
+		if (g_options.server == NULL
+				|| g_options.userid == NULL
 				|| g_options.token == NULL) {
 			if (! jf_menu_user_ask_yn("Error: settings file missing fundamental fields. Would you like to go through manual configuration?")) {
 				exit(EXIT_SUCCESS);
 			}
+			free(g_options.server);
+			free(g_options.userid);
+			free(g_options.token);
 			g_state.state = JF_STATE_STARTING_FULL_CONFIG;
 		}
 	} else if (errno == ENOENT || errno == ENOTDIR) {
