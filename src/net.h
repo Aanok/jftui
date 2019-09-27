@@ -60,9 +60,11 @@ typedef enum jf_request_type {
 	JF_REQUEST_SAX = 1,
 	JF_REQUEST_SAX_PROMISCUOUS = 2,
 
-	JF_REQUEST_ASYNC_IN_MEMORY = 10,
-	JF_REQUEST_ASYNC_DETACH = 11
+	JF_REQUEST_ASYNC_IN_MEMORY = -1,
+	JF_REQUEST_ASYNC_DETACH = -2 
 } jf_request_type;
+
+#define JF_REQUEST_TYPE_IS_ASYNC(_t) ((_t) < 0)
 ///////////////////////////////////
 
 
@@ -129,7 +131,7 @@ jf_reply *jf_net_login_request(const char *POST_payload);
 ////////////////////////////////
 
 
-////////// ASYNC REQUEST //////////
+////////// ASYNC NETWORKING //////////
 typedef struct jf_async_request {
 	jf_reply *reply;
 	char *resource;
@@ -137,21 +139,17 @@ typedef struct jf_async_request {
 	char *POST_payload;
 } jf_async_request;
 
+
 jf_async_request *jf_async_request_new(const char *resource,
 		jf_request_type request_type,
 		const char *POST_payload);
 
+
 // NB DOES NOT FREE a_r->reply!!!
 void jf_async_request_free(jf_async_request *a_r);
-///////////////////////////////////
 
 
-////////// ASYNC NETWORKING //////////
-jf_reply *jf_net_async_request(const char *resource,
-		jf_request_type request_type,
-		const char *POST_payload);
-
-jf_reply *jf_net_async_await(jf_reply *r);
+jf_reply *jf_net_await(jf_reply *r);
 //////////////////////////////////////
 
 

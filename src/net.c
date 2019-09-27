@@ -112,6 +112,7 @@ static size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *
 {
 	size_t real_size = size * nmemb;
 	jf_reply *reply = (jf_reply *)userdata;
+	assert(reply != NULL);
 	assert((reply->payload = realloc(reply->payload,
 					(size_t)reply->size + real_size + 1)) != NULL);
 	memcpy(reply->payload + reply->size, payload, real_size);
@@ -196,6 +197,7 @@ void jf_thread_buffer_clear_error()
 ////////// NETWORK UNIT //////////
 static void jf_net_make_headers()
 {
+	// TODO
 	char *tmp;
 
 	assert(s_handle != NULL);
@@ -326,7 +328,7 @@ static void jf_net_handle_prepare_for_request(CURL *handle,
 			JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, jf_detach_callback));
 			break;
 	}
-	JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_WRITEDATA, (void *)reply));
+	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_WRITEDATA, (void *)reply));
 }
 
 
@@ -379,21 +381,28 @@ jf_reply *jf_net_request(const char *resource,
 		const char *POST_payload)
 {
 	jf_reply *reply;
+	jf_async_request *a_r;
 	
 	assert(s_handle != NULL);
 
-	reply = request_type == JF_REQUEST_ASYNC_DETACH ? NULL : jf_reply_new();
-
-	jf_net_handle_prepare_for_request(s_handle,
-			resource,
-			request_type,
-			POST_payload,
-			reply);
-
-	jf_net_finalize_request(s_handle,
-			curl_easy_perform(s_handle),
-			request_type,
-			reply);
+	if (JF_REQUEST_TYPE_IS_ASYNC(request_type)) {
+		a_r = jf_async_request_new(resource,
+				request_type,
+				POST_payload);
+		reply = a_r->reply;
+		jf_synced_queue_enqueue(s_async_queue, a_r);
+	} else {
+		reply = jf_reply_new();
+		jf_net_handle_prepare_for_request(s_handle,
+				resource,
+				request_type,
+				POST_payload,
+				reply);
+		jf_net_finalize_request(s_handle,
+				curl_easy_perform(s_handle),
+				request_type,
+				reply);
+	}
 
 	return reply;
 }
@@ -412,7 +421,9 @@ jf_reply *jf_net_login_request(const char *POST_payload)
 			"\", deviceid=\"", g_options.deviceid,
 			"\", version=\"", g_options.version,
 			"\"");
+	// TODO this should go under a rwlock
 	assert((s_headers_POST = curl_slist_append(s_headers_POST, tmp)) != NULL);
+
 	free(tmp);
 
 	// send request
@@ -421,7 +432,7 @@ jf_reply *jf_net_login_request(const char *POST_payload)
 ///////////////////////////////////
 
 
-////////// ASYNC REQUEST //////////
+////////// ASYNC NETWORKING //////////
 jf_async_request *jf_async_request_new(const char *resource,
 		jf_request_type request_type,
 		const char *POST_payload)
@@ -429,7 +440,7 @@ jf_async_request *jf_async_request_new(const char *resource,
 	jf_async_request *a_r;
 
 	assert((a_r = malloc(sizeof(jf_async_request))) != NULL);
-	a_r->reply = jf_reply_new();
+	a_r->reply = request_type == JF_REQUEST_ASYNC_DETACH ? NULL : jf_reply_new();
 	assert((a_r->resource = strdup(resource)) != NULL);
 	a_r->type = request_type;
 	if (POST_payload == NULL) {
@@ -448,19 +459,6 @@ void jf_async_request_free(jf_async_request *a_r)
 	free(a_r->resource);
 	free(a_r->POST_payload);
 	free(a_r);
-}
-///////////////////////////////////
-
-////////// ASYNC NETWORKING //////////
-jf_reply *jf_net_async_request(const char *resource,
-		jf_request_type request_type,
-		const char *POST_payload)
-{
-	jf_async_request *a_r = jf_async_request_new(resource,
-			request_type,
-			POST_payload);
-	jf_synced_queue_enqueue(s_async_queue, a_r);
-	return a_r->reply;
 }
 
 
@@ -508,12 +506,9 @@ static void *jf_net_async_worker_thread(void *arg)
 }
 
 
-jf_reply *jf_net_async_await(jf_reply *reply)
+jf_reply *jf_net_await(jf_reply *reply)
 {
-	if (reply == NULL) {
-		return reply;
-	}
-
+	assert(reply != NULL);
 	pthread_mutex_lock(&s_async_mut);
 	while (reply->is_resolved == false) {
 		pthread_cond_wait(&s_async_cv, &s_async_mut);
