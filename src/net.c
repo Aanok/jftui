@@ -437,17 +437,17 @@ void jf_async_request_free(jf_async_request *a_r)
 }
 
 
-static size_t jf_detach_callback(char *payload,
+static size_t jf_detach_callback(__attribute__((unused)) char *payload,
 		size_t size,
 		size_t nmemb,
-		void *userdata)
+		__attribute__((unused)) void *userdata)
 {
 	// discard everything
 	return size * nmemb;
 }
 
 
-static void *jf_net_async_worker_thread(void *arg)
+static void *jf_net_async_worker_thread(__attribute__((unused)) void *arg)
 {
 	CURL *handle;
 	char errorbuffer[CURL_ERROR_SIZE];

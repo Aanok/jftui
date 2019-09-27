@@ -227,7 +227,6 @@ static jf_menu_item *jf_menu_child_get(size_t n)
 
 static bool jf_menu_print_context()
 {
-	jf_menu_item **child;
 	size_t i;
 	jf_request_type request_type = JF_REQUEST_SAX;
 	jf_reply *reply;
@@ -369,11 +368,7 @@ static void jf_menu_try_play()
 
 jf_item_type jf_menu_child_get_type(size_t n)
 {
-	jf_menu_item **child;
-
-	if (s_context == NULL) {
-		return JF_ITEM_TYPE_NONE;
-	}
+	if (s_context == NULL) return JF_ITEM_TYPE_NONE;
 	if (JF_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(s_context->type)) {
 		return jf_disk_payload_get_type(n);
 	} else {
@@ -387,9 +382,7 @@ bool jf_menu_child_dispatch(size_t n)
 {
 	jf_menu_item *child = jf_menu_child_get(n);
 
-	if (child == NULL) {
-		return true;
-	}
+	if (child == NULL) return true;
 
 	switch (child->type) {
 		// ATOMS: add to playlist
