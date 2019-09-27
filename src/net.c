@@ -19,6 +19,10 @@ static pthread_cond_t s_async_cv;
 
 
 ////////// STATIC FUNCTIONS //////////
+static void jf_net_init(void);
+
+static void jf_make_headers(void);
+
 static void jf_thread_buffer_wait_parsing_done(void);
 
 static size_t jf_reply_callback(char *payload,
@@ -193,15 +197,45 @@ void jf_thread_buffer_clear_error()
 
 
 ////////// NETWORK UNIT //////////
+static void jf_make_headers(void)
+{
+	char *tmp;
+
+	// safe with NULL arg
+// 	curl_slist_free_all(s_headers_POST);
+
+	assert((s_headers = curl_slist_append(s_headers,
+					"accept: application/json; charset=utf-8")) != NULL);
+	if (g_options.token == NULL) {
+		// the only thing we can do is a POST for login
+		tmp = jf_concat(9,
+				"x-emby-authorization: mediabrowser client=\"", g_options.client,
+				"\", device=\"", g_options.device, 
+				"\", deviceid=\"", g_options.deviceid,
+				"\", version=\"", g_options.version,
+				"\"");
+		assert((s_headers_POST = curl_slist_append(s_headers, tmp)) != NULL);
+	} else {
+		// main behaviour
+		tmp = jf_concat(2, "x-emby-token: ", g_options.token);
+		assert((s_headers = curl_slist_append(s_headers, tmp)) != NULL);
+	}
+	free(tmp);
+	assert((s_headers_POST = curl_slist_append(s_headers_POST == NULL ?
+					s_headers : s_headers_POST,
+					"content-type: application/json; charset=utf-8")) != NULL);
+}
+
+
 void jf_net_init()
 {
-	// TODO check libcurl version
-	
 	char *tmp;
 	pthread_t sax_parser_thread;
 	pthread_t async_threads[3];
 	int i;
 
+	// TODO check libcurl version
+	
 	// global config stuff
 	assert(curl_global_init(CURL_GLOBAL_ALL | CURL_GLOBAL_SSL) == 0);
 	// security bypass
@@ -209,14 +243,26 @@ void jf_net_init()
 		curl_easy_setopt(s_handle, CURLOPT_SSL_VERIFYHOST, 0);
 	}
 	// headers
-	if (g_options.token != NULL) {
+	assert((s_headers = curl_slist_append(s_headers,
+					"accept: application/json; charset=utf-8")) != NULL);
+	if (g_options.token == NULL) {
+		// the only thing we can do is a POST for login
+		tmp = jf_concat(9,
+				"x-emby-authorization: mediabrowser client=\"", g_options.client,
+				"\", device=\"", g_options.device, 
+				"\", deviceid=\"", g_options.deviceid,
+				"\", version=\"", g_options.version,
+				"\"");
+		assert((s_headers_POST = curl_slist_append(s_headers, tmp)) != NULL);
+	} else {
+		// main behaviour
 		tmp = jf_concat(2, "x-emby-token: ", g_options.token);
 		assert((s_headers = curl_slist_append(s_headers, tmp)) != NULL);
-		free(tmp);
 	}
-	assert((s_headers = curl_slist_append(s_headers, "accept: application/json; charset=utf-8")) != NULL);
-	// headers for POST: second list
-	assert((s_headers_POST = curl_slist_append(s_headers, "content-type: application/json; charset=utf-8")) != NULL);
+	free(tmp);
+	assert((s_headers_POST = curl_slist_append(s_headers_POST == NULL ?
+					s_headers : s_headers_POST,
+					"content-type: application/json; charset=utf-8")) != NULL);
 
 	// setup handle for blocking requests
 	assert((s_handle = curl_easy_init()) != NULL);
@@ -359,7 +405,9 @@ jf_reply *jf_net_request(const char *resource,
 	jf_reply *reply;
 	jf_async_request *a_r;
 	
-	assert(s_handle != NULL);
+	if (s_handle == NULL) {
+		jf_net_init();
+	}
 
 	if (JF_REQUEST_TYPE_IS_ASYNC(request_type)) {
 		a_r = jf_async_request_new(resource,
@@ -383,23 +431,25 @@ jf_reply *jf_net_request(const char *resource,
 	return reply;
 }
 
-
 jf_reply *jf_net_login_request(const char *POST_payload)
 {
+	static bool already_ran = false;
 	char *tmp;
 
 	assert(s_handle != NULL);
 
-	// add x-emby-authorization header
-	tmp = jf_concat(9,
-			"x-emby-authorization: mediabrowser client=\"", g_options.client,
-			"\", device=\"", g_options.device, 
-			"\", deviceid=\"", g_options.deviceid,
-			"\", version=\"", g_options.version,
-			"\"");
-	assert((s_headers_POST = curl_slist_append(s_headers_POST, tmp)) != NULL);
-
-	free(tmp);
+	if (already_ran == false) {
+		// add x-emby-authorization header
+		tmp = jf_concat(9,
+				"x-emby-authorization: mediabrowser client=\"", g_options.client,
+				"\", device=\"", g_options.device, 
+				"\", deviceid=\"", g_options.deviceid,
+				"\", version=\"", g_options.version,
+				"\"");
+		assert((s_headers_POST = curl_slist_append(s_headers_POST, tmp)) != NULL);
+		free(tmp);
+		already_ran = true;
+	}
 
 	// send request
 	return jf_net_request("/emby/Users/authenticatebyname", 0, POST_payload);

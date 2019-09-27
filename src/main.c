@@ -228,8 +228,7 @@ int main(int argc, char *argv[])
 
 
 	// SETUP OPTIONS
-	g_options = (jf_options){ 0 }; 
-	g_options.ssl_verifyhost = JF_CONFIG_SSL_VERIFYHOST_DEFAULT;
+	jf_options_init();
 	atexit(jf_options_clear);
 	////////////////
 
@@ -237,7 +236,7 @@ int main(int argc, char *argv[])
 	// SETUP GLOBAL STATE
 	g_state = (jf_global_state){ 0 };
 	assert((g_state.session_id = jf_generate_random_id(0)) != NULL);
-	atexit(jf_global_state_clear);
+// 	atexit(jf_global_state_clear);
 	/////////////////////
 
 
@@ -323,8 +322,8 @@ int main(int argc, char *argv[])
 
 
 	// NETWORK SETUP
-	jf_net_init();
- 	atexit(jf_net_clear);
+	// network init is automatic upon first jf_net_request
+	atexit(jf_net_clear);
 	////////////////
 	
 

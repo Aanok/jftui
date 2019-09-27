@@ -18,11 +18,12 @@
 ////////// CODE MACROS //////////
 #define JF_CONFIG_KEY_IS(key) strncmp(line, key, JF_STATIC_STRLEN(key)) == 0
 
-#define JF_CONFIG_FILL_VALUE(key)					\
-do {												\
-	value_len = strlen(value);						\
-	if (value[value_len - 1] == '\n') value_len--;	\
-	g_options.key = strndup(value, value_len);		\
+#define JF_CONFIG_FILL_VALUE(key)										\
+do {																	\
+	value_len = strlen(value);											\
+	if (value[value_len - 1] == '\n') value_len--;						\
+	free(g_options.key);												\
+	assert((g_options.key = strndup(value, value_len)) != NULL);		\
 } while (false)
 
 #define JF_CONFIG_WRITE_VALUE(key) fprintf(config_file, #key "=%s\n", g_options.key)
@@ -51,6 +52,7 @@ typedef struct jf_options {
 } jf_options;
 
 
+void jf_options_init(void);
 void jf_options_clear(void);
 ////////////////////////////////
 

@@ -29,6 +29,14 @@ static void jf_options_complete_with_defaults()
 }
 
 
+void jf_options_init(void)
+{
+	g_options = (jf_options){ 0 };
+	g_options.ssl_verifyhost = JF_CONFIG_SSL_VERIFYHOST_DEFAULT;
+	jf_options_complete_with_defaults();
+}
+
+
 void jf_options_clear()
 {
 	free(g_options.server);
@@ -154,37 +162,55 @@ void jf_config_ask_user_login()
 	jf_reply *login_reply;
 	int c;
 
-	assert((password = jf_growing_buffer_new(128)) != NULL);
+	password = jf_growing_buffer_new(128);
 
-	printf("Please enter your username.\n");
-	username = linenoise("> ");
-	printf("Please enter your password.\n> ");
-	tcgetattr(STDIN_FILENO, &old);
-	new = old;
-	new.c_lflag &= (unsigned int)~ECHO;
-	tcsetattr(STDIN_FILENO, TCSANOW, &new);
-	while ((c = getchar()) != '\n' && c != EOF) {
-		jf_growing_buffer_append(password, &c, 1);
+	while (true) {
+		printf("Please enter your username.\n");
+		username = linenoise("> ");
+		printf("Please enter your password.\n> ");
+		tcgetattr(STDIN_FILENO, &old);
+		new = old;
+		new.c_lflag &= (unsigned int)~ECHO;
+		tcsetattr(STDIN_FILENO, TCSANOW, &new);
+		while ((c = getchar()) != '\n' && c != EOF) {
+			jf_growing_buffer_append(password, &c, 1);
+		}
+		jf_growing_buffer_append(password, "", 1);
+		tcsetattr(STDIN_FILENO, TCSANOW, &old);
+		putchar('\n');
+		
+		login_post = jf_json_generate_login_request(username, password->buf);
+		free(username);
+		memset(password->buf, 0, password->used);
+		jf_growing_buffer_empty(password);
+		login_reply = jf_net_request("/emby/Users/authenticatebyname",
+				JF_REQUEST_IN_MEMORY,
+				login_post);
+		free(login_post);
+		if (! JF_REPLY_PTR_HAS_ERROR(login_reply)) break;
+		if (JF_REPLY_PTR_ERROR_IS(login_reply, JF_REPLY_ERROR_HTTP_401)) {
+			jf_reply_free(login_reply);
+			if (! jf_menu_user_ask_yn("Error: invalid login credentials. Would you like to try again?")) {
+				exit(EXIT_FAILURE);
+			}
+		} else {
+			fprintf(stderr, "FATAL: could not login: %s.\n", jf_reply_error_string(login_reply));
+			jf_reply_free(login_reply);
+			exit(EXIT_FAILURE);
+		}
 	}
-	jf_growing_buffer_append(password, "", 1);
-	tcsetattr(STDIN_FILENO, TCSANOW, &old);
-	putchar('\n');
-	
-	login_post = jf_json_generate_login_request(username, password->buf);
-	free(username);
-	memset(password->buf, 0, password->used);
-	jf_growing_buffer_free(password);
-	login_reply = jf_net_login_request(login_post);
-	free(login_post);
 	jf_json_parse_login_response(login_reply->payload);
 	jf_reply_free(login_reply);
+	jf_growing_buffer_free(password);
 }
 
 
 void jf_config_ask_user()
 {
-	// setup
-	jf_options_complete_with_defaults();
+	// critical network stuff: must be configured before network init
+	if (jf_menu_user_ask_yn("Do you need jftui to ignore hostname validation (required e.g. if you're using Jellyfin's built-in SSL certificate)?")) {
+		g_options.ssl_verifyhost = false;
+	}
 
 	// login user input
 	printf("Please enter the encoded URL of your Jellyfin server. Example: http://foo%%20bar.baz:8096/jf\n");
@@ -201,11 +227,6 @@ void jf_config_ask_user()
 	}
 
 	jf_config_ask_user_login();
-
-	// misc config user input
-	if (jf_menu_user_ask_yn("Do you need jftui to ignore hostname validation (required e.g. if you're using Jellyfin's built-in SSL certificate)?")) {
-		g_options.ssl_verifyhost = false;
-	}
 
 	printf("Configuration and login successful.\n");
 }
