@@ -12,14 +12,46 @@ static struct curl_slist *s_headers = NULL;
 static struct curl_slist *s_headers_POST = NULL;
 static char s_curl_errorbuffer[CURL_ERROR_SIZE];
 static jf_thread_buffer s_tb;
+static jf_synced_queue *s_async_queue = NULL;
+static pthread_mutex_t s_async_mut;
+static pthread_cond_t s_async_cv;
 //////////////////////////////////////
 
 
 ////////// STATIC FUNCTIONS //////////
 static void jf_thread_buffer_wait_parsing_done(void);
-static size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *userdata);
-static size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, void *userdata);
+
+static size_t jf_reply_callback(char *payload,
+		size_t size,
+		size_t nmemb,
+		void *userdata);
+
+static size_t jf_thread_buffer_callback(char *payload,
+		size_t size,
+		size_t nmemb,
+		void *userdata);
+
+static size_t jf_detach_callback(char *payload,
+		size_t size,
+		size_t nmemb,
+		void *userdata);
+
 static void jf_net_make_headers(void);
+
+static void jf_net_handle_init(CURL *handle);
+
+static void jf_net_handle_prepare_for_request(CURL *handle,
+		const char *resource,
+		jf_request_type request_type,
+		const char *POST_payload,
+		const jf_reply *reply);
+
+static void jf_net_finalize_request(CURL *handle,
+		const CURLcode result,
+		const jf_request_type request_type,
+		jf_reply *reply);
+
+static void *jf_net_async_worker_thread(void *arg);
 //////////////////////////////////////
 
 
@@ -30,16 +62,16 @@ jf_reply *jf_reply_new()
 	assert((r = malloc(sizeof(jf_reply))) != NULL);
 	r->payload = NULL;
 	r->size = 0;
+	r->is_resolved = false;
 	return r;
 }
 
 
 void jf_reply_free(jf_reply *r)
 {
-	if (r != NULL) {
-		free(r->payload);
-		free(r);
-	}
+	if (r == NULL) return;
+	free(r->payload);
+	free(r);
 }
 
 
@@ -69,6 +101,7 @@ char *jf_reply_error_string(const jf_reply *r)
 		case JF_REPLY_ERROR_HTTP_NOT_OK:
 		case JF_REPLY_ERROR_PARSER:
 			return r->payload;
+		// TODO ASYNC ERRORS!!
 		default:
 			return "unknown error. This is a bug";
 	}
@@ -183,8 +216,11 @@ void jf_net_pre_init()
 {
 	// TODO check libcurl version
 	
-	assert(curl_global_init(CURL_GLOBAL_ALL | CURL_GLOBAL_SSL) == 0);
 	pthread_t sax_parser_thread;
+	pthread_t async_threads[3];
+	int i;
+
+	assert(curl_global_init(CURL_GLOBAL_ALL | CURL_GLOBAL_SSL) == 0);
 
 	assert((s_handle = curl_easy_init()) != NULL);
 
@@ -192,17 +228,23 @@ void jf_net_pre_init()
 	s_curl_errorbuffer[0] = '\0';
 	JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_ERRORBUFFER, s_curl_errorbuffer));
 
-	// ask for compression (all kinds supported)
-	JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_ACCEPT_ENCODING, ""));
-
-	// follow redirects and keep POST method if using it
-	JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_FOLLOWLOCATION, 1));
-	JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_POSTREDIR, CURL_REDIR_POST_ALL));
+	// general networking options and curl_share optimizations
+	jf_net_handle_init(s_handle);
 
 	// sax parser thread
 	jf_thread_buffer_init(&s_tb);
 	assert(pthread_create(&sax_parser_thread, NULL, jf_json_sax_thread, (void *)&(s_tb)) != -1);
 	assert(pthread_detach(sax_parser_thread) == 0);
+
+	// async networking
+	s_async_queue = jf_synced_queue_new(10);
+	assert(pthread_mutex_init(&s_async_mut, NULL) == 0);
+	assert(pthread_cond_init(&s_async_cv, NULL) == 0);
+
+	for (i = 0; i < 3; i++) {
+		assert(pthread_create(async_threads + i, NULL, jf_net_async_worker_thread, NULL) != -1);
+		assert(pthread_detach(async_threads[i]) == 0);
+	}
 }
 
 
@@ -231,48 +273,76 @@ void jf_net_clear()
 
 
 ////////// NETWORKING //////////
-jf_reply *jf_net_request(const char *resource, jf_request_type request_type, const char *POST_payload)
+static void jf_net_handle_init(CURL *handle)
 {
-	CURLcode result;
-	long status_code;
-	jf_reply *reply;
-	
-	reply = jf_reply_new();
-	
-	assert(s_handle != NULL);
+	// TODO curl_share bollocks
+
+	// ask for compression (all kinds supported)
+	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_ACCEPT_ENCODING, ""));
+
+	// follow redirects and keep POST method if using it
+	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1));
+	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_POSTREDIR, CURL_REDIR_POST_ALL));
+}
+
+
+static void jf_net_handle_prepare_for_request(CURL *handle,
+		const char *resource,
+		const jf_request_type request_type,
+		const char *POST_payload,
+		const jf_reply *reply)
+{
+	char *url;
 
 	// url
-	{
-		char *url = jf_concat(2, g_options.server, resource);
-		JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_URL, url));
-		free(url);
-	}
+	url = jf_concat(2, g_options.server, resource);
+	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_URL, url));
+	free(url);
 
 	// POST and headers
 	if (POST_payload != NULL) {
-		JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_POSTFIELDS, POST_payload));
-		JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_HTTPHEADER, s_headers_POST));
+		JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_POSTFIELDS, POST_payload));
+		JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HTTPHEADER, s_headers_POST));
 	} else {
-		JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_HTTPGET, 1));
-		JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_HTTPHEADER, s_headers));
+		JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HTTPGET, 1));
+		JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HTTPHEADER, s_headers));
 	}
 	
 	// request
 	switch (request_type) {
 		case JF_REQUEST_IN_MEMORY:
-			JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_WRITEFUNCTION, jf_reply_callback));
+		case JF_REQUEST_ASYNC_IN_MEMORY:
+			JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, jf_reply_callback));
 			break;
 		case JF_REQUEST_SAX_PROMISCUOUS:
 			s_tb.promiscuous_context = true;
-			JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_WRITEFUNCTION, jf_thread_buffer_callback));
+			JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, jf_thread_buffer_callback));
 			break;
 		case JF_REQUEST_SAX:
 			s_tb.promiscuous_context = false;
-			JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_WRITEFUNCTION, jf_thread_buffer_callback));
+			JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, jf_thread_buffer_callback));
+			break;
+		case JF_REQUEST_ASYNC_DETACH:
+			JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, jf_detach_callback));
 			break;
 	}
 	JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_WRITEDATA, (void *)reply));
-	if ((result = curl_easy_perform(s_handle)) != CURLE_OK) {
+}
+
+
+static void jf_net_finalize_request(CURL *handle,
+		const CURLcode result,
+		const jf_request_type request_type,
+		jf_reply *reply)
+{
+	long status_code;
+
+	if (request_type == JF_REQUEST_ASYNC_DETACH || reply == NULL) {
+		jf_reply_free(reply);
+		return;
+	}
+
+	if (result != CURLE_OK) {
 		// don't overwrite error messages we've already set ourselves
 		if (! JF_REPLY_PTR_HAS_ERROR(reply)) {
 			free(reply->payload);
@@ -284,7 +354,7 @@ jf_reply *jf_net_request(const char *resource, jf_request_type request_type, con
 			jf_thread_buffer_wait_parsing_done();
 		}
 		// request went well but check for http error
-		JF_CURL_ASSERT(curl_easy_getinfo(s_handle, CURLINFO_RESPONSE_CODE, &status_code));
+		JF_CURL_ASSERT(curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, &status_code));
 		switch (status_code) { 
 			case 200:
 			case 204:
@@ -300,6 +370,30 @@ jf_reply *jf_net_request(const char *resource, jf_request_type request_type, con
 				break;
 		}
 	}
+	reply->is_resolved = true;
+}
+
+
+jf_reply *jf_net_request(const char *resource,
+		const jf_request_type request_type,
+		const char *POST_payload)
+{
+	jf_reply *reply;
+	
+	assert(s_handle != NULL);
+
+	reply = request_type == JF_REQUEST_ASYNC_DETACH ? NULL : jf_reply_new();
+
+	jf_net_handle_prepare_for_request(s_handle,
+			resource,
+			request_type,
+			POST_payload,
+			reply);
+
+	jf_net_finalize_request(s_handle,
+			curl_easy_perform(s_handle),
+			request_type,
+			reply);
 
 	return reply;
 }
@@ -324,7 +418,110 @@ jf_reply *jf_net_login_request(const char *POST_payload)
 	// send request
 	return jf_net_request("/emby/Users/authenticatebyname", 0, POST_payload);
 }
-////////////////////////////////
+///////////////////////////////////
+
+
+////////// ASYNC REQUEST //////////
+jf_async_request *jf_async_request_new(const char *resource,
+		jf_request_type request_type,
+		const char *POST_payload)
+{
+	jf_async_request *a_r;
+
+	assert((a_r = malloc(sizeof(jf_async_request))) != NULL);
+	a_r->reply = jf_reply_new();
+	assert((a_r->resource = strdup(resource)) != NULL);
+	a_r->type = request_type;
+	if (POST_payload == NULL) {
+		a_r->POST_payload = NULL;
+	} else {
+		assert((a_r->POST_payload = strdup(POST_payload)) != NULL);
+	}
+
+	return a_r;
+}
+
+
+void jf_async_request_free(jf_async_request *a_r)
+{
+	if (a_r == NULL) return;
+	free(a_r->resource);
+	free(a_r->POST_payload);
+	free(a_r);
+}
+///////////////////////////////////
+
+////////// ASYNC NETWORKING //////////
+jf_reply *jf_net_async_request(const char *resource,
+		jf_request_type request_type,
+		const char *POST_payload)
+{
+	jf_async_request *a_r = jf_async_request_new(resource,
+			request_type,
+			POST_payload);
+	jf_synced_queue_enqueue(s_async_queue, a_r);
+	return a_r->reply;
+}
+
+
+static size_t jf_detach_callback(char *payload,
+		size_t size,
+		size_t nmemb,
+		void *userdata)
+{
+	// discard everything
+	return size * nmemb;
+}
+
+
+static void *jf_net_async_worker_thread(void *arg)
+{
+	CURL *handle;
+	char errorbuffer[CURL_ERROR_SIZE];
+	jf_async_request *request;
+
+	assert((handle = curl_easy_init()) != NULL);
+
+	// tell curl where to write informative error messages
+	s_curl_errorbuffer[0] = '\0';
+	JF_CURL_ASSERT(curl_easy_setopt(handle,
+				CURLOPT_ERRORBUFFER,
+				errorbuffer));
+
+	// generic networking options and curl_share optimizations
+	jf_net_handle_init(handle);
+
+	while (true) {
+		request = (jf_async_request *)jf_synced_queue_dequeue(s_async_queue);
+		jf_net_handle_prepare_for_request(handle,
+				request->resource,
+				request->type,
+				request->POST_payload,
+				request->reply);
+		jf_net_finalize_request(handle,
+				curl_easy_perform(handle),
+				request->type,
+				request->reply);
+		jf_async_request_free(request);
+		assert(pthread_cond_broadcast(&s_async_cv) == 0);
+	}
+}
+
+
+jf_reply *jf_net_async_await(jf_reply *reply)
+{
+	if (reply == NULL) {
+		return reply;
+	}
+
+	pthread_mutex_lock(&s_async_mut);
+	while (reply->is_resolved == false) {
+		pthread_cond_wait(&s_async_cv, &s_async_mut);
+	}
+	pthread_mutex_unlock(&s_async_mut);
+	return reply;
+}
+//////////////////////////////////////
 
 
 ////////// MISCELLANEOUS GARBAGE ///////////
@@ -342,7 +539,7 @@ char *jf_net_urlencode(const char *url)
 	
 bool jf_net_url_is_valid(const char *url)
 {
-#if LIBCURL_VERSION_MAJOR >= 7 && LIBCURL_VERSION_MINOR >= 62
+#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 62
 	CURLU *curlu;
 
 	if ((curlu = curl_url()) == NULL) {

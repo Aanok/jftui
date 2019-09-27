@@ -192,6 +192,25 @@ void jf_global_state_clear(void);
 //////////////////////////////////////////////
 
 
+////////// SYNCED QUEUE //////////
+typedef struct jf_synced_queue {
+	const void **slots;
+	size_t slot_count;
+	size_t current;
+	size_t next;
+	pthread_mutex_t mut;
+	pthread_cond_t cv_is_empty;
+	pthread_cond_t cv_is_full;
+} jf_synced_queue;
+
+jf_synced_queue *jf_synced_queue_new(const size_t slot_count);
+void jf_synced_queue_free(jf_synced_queue *q); // NB will NOT deallocate the contents of the queue! make sure it's empty beforehand to avoid leaks
+void jf_synced_queue_enqueue(jf_synced_queue *q, const void *payload);
+void *jf_synced_queue_dequeue(jf_synced_queue *q);
+bool jf_synced_queue_is_empty(const jf_synced_queue *q);
+//////////////////////////////////
+
+
 ////////// MISCELLANEOUS GARBAGE //////////
 // returns a NULL-terminated, malloc'd string result of the concatenation of its (expected char *) arguments past the first
 // the first argument is the number of following arguments
@@ -224,23 +243,4 @@ char *jf_make_timestamp(const long long ticks);
 JF_FORCE_INLINE size_t jf_clamp_zu(const size_t zu, const size_t min, const size_t max);
 JF_FORCE_INLINE void jf_clear_stdin(void);
 ///////////////////////////////////////////
-
-
-// UNUSED FOR NOW
-// typedef struct jf_synced_queue {
-// 	const void **slots;
-// 	size_t slot_count;
-// 	size_t current;
-// 	size_t next;
-// 	pthread_mutex_t mut;
-// 	pthread_cond_t cv_is_empty;
-// 	pthread_cond_t cv_is_full;
-// } jf_synced_queue;
-//
-// jf_synced_queue *jf_synced_queue_new(const size_t slot_count);
-// void jf_synced_queue_free(jf_synced_queue *q); // NB will NOT deallocate the contents of the queue! make sure it's empty beforehand to avoid leaks
-// void jf_synced_queue_enqueue(jf_synced_queue *q, const void *payload);
-// void *jf_synced_queue_dequeue(jf_synced_queue *q);
-// size_t jf_synced_queue_is_empty(const jf_synced_queue *q);
-
 #endif

@@ -129,7 +129,6 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 {
 	char *progress_post;
 	int64_t playback_ticks;
-	jf_reply *reply;
 	int mpv_flag_yes = 1, mpv_flag_no = 0;
 
 // 	printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
@@ -151,12 +150,8 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 			if ((progress_post = jf_json_generate_progress_post(g_state.now_playing.id, playback_ticks)) == NULL) {
 				fprintf(stderr, "Warning: session stop jf_json_generate_progress_post returned NULL.\n");
 			} else {
-				reply = jf_net_request("/sessions/playing/stopped", JF_REQUEST_IN_MEMORY, progress_post);
+				jf_net_request("/sessions/playing/stopped", JF_REQUEST_ASYNC_DETACH, progress_post);
 				free(progress_post);
-				if (JF_REPLY_PTR_HAS_ERROR(reply)) {
-					fprintf(stderr, "Warning: session stop jf_net_request: %s.\n", jf_reply_error_string(reply));
-				}
-				jf_reply_free(reply);
 			}
 			// move to next item in playlist, if any
 			if (((mpv_event_end_file *)event->data)->reason == MPV_END_FILE_REASON_EOF) {
@@ -182,14 +177,9 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 				fprintf(stderr, "Warning: progress update jf_json_generate_progress_post returned NULL.\n");
 				break;
 			}
-			reply = jf_net_request("/sessions/playing/progress", JF_REQUEST_IN_MEMORY, progress_post);
+			jf_net_request("/sessions/playing/progress", JF_REQUEST_ASYNC_DETACH, progress_post);
 			free(progress_post);
-			if (JF_REPLY_PTR_HAS_ERROR(reply)) {
-				fprintf(stderr, "Warning: progress update jf_net_request: %s.\n", jf_reply_error_string(reply));
-			} else {
-				g_state.now_playing.playback_ticks = playback_ticks;
-			}
-			jf_reply_free(reply);
+			g_state.now_playing.playback_ticks = playback_ticks;
 			break;
 		case MPV_EVENT_IDLE:
 			if (g_state.state == JF_STATE_PLAYBACK_NAVIGATING) {
