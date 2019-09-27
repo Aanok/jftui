@@ -147,12 +147,9 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 			// tell server file playback stopped so it won't keep accruing progress
 			playback_ticks = mpv_get_property(g_mpv_ctx, "time-pos", MPV_FORMAT_INT64, &playback_ticks) == 0 ?
 				JF_SECS_TO_TICKS(playback_ticks) : g_state.now_playing.playback_ticks;
-			if ((progress_post = jf_json_generate_progress_post(g_state.now_playing.id, playback_ticks)) == NULL) {
-				fprintf(stderr, "Warning: session stop jf_json_generate_progress_post returned NULL.\n");
-			} else {
-				jf_net_request("/sessions/playing/stopped", JF_REQUEST_ASYNC_DETACH, progress_post);
-				free(progress_post);
-			}
+			progress_post = jf_json_generate_progress_post(g_state.now_playing.id, playback_ticks);
+			jf_net_request("/sessions/playing/stopped", JF_REQUEST_ASYNC_DETACH, progress_post);
+			free(progress_post);
 			// move to next item in playlist, if any
 			if (((mpv_event_end_file *)event->data)->reason == MPV_END_FILE_REASON_EOF) {
 				if (jf_menu_playlist_forward()) {
@@ -173,10 +170,7 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 			playback_ticks = JF_SECS_TO_TICKS(*(int64_t *)((mpv_event_property *)event->data)->data);
 			if (llabs(playback_ticks - g_state.now_playing.playback_ticks) < JF_SECS_TO_TICKS(10)) break;
 			// good for update; note this will also start a playback session if none are there
-			if ((progress_post = jf_json_generate_progress_post(g_state.now_playing.id, playback_ticks)) == NULL) {
-				fprintf(stderr, "Warning: progress update jf_json_generate_progress_post returned NULL.\n");
-				break;
-			}
+			progress_post = jf_json_generate_progress_post(g_state.now_playing.id, playback_ticks);
 			jf_net_request("/sessions/playing/progress", JF_REQUEST_ASYNC_DETACH, progress_post);
 			free(progress_post);
 			g_state.now_playing.playback_ticks = playback_ticks;
@@ -194,6 +188,10 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 			}
 			break;
 		case MPV_EVENT_SHUTDOWN:
+			// tell jellyfin playback stopped
+			progress_post = jf_json_generate_progress_post(g_state.now_playing.id, g_state.now_playing.playback_ticks);
+			jf_net_request("/sessions/playing/stopped", JF_REQUEST_ASYNC_DETACH, progress_post);
+			free(progress_post);
 			// it is unfortunate, but the cleanest way to handle this case
 			// (which is when mpv receives a "quit" command)
 			// is to comply and create a new context
