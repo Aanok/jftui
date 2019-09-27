@@ -36,17 +36,15 @@ static size_t jf_detach_callback(char *payload,
 		size_t nmemb,
 		void *userdata);
 
-static void jf_net_make_headers(void);
-
 static void jf_net_handle_init(CURL *handle);
 
-static void jf_net_handle_prepare_for_request(CURL *handle,
+static void jf_net_handle_before_perform(CURL *handle,
 		const char *resource,
 		jf_request_type request_type,
 		const char *POST_payload,
 		const jf_reply *reply);
 
-static void jf_net_finalize_request(CURL *handle,
+static void jf_net_handle_after_perform(CURL *handle,
 		const CURLcode result,
 		const jf_request_type request_type,
 		jf_reply *reply);
@@ -195,42 +193,35 @@ void jf_thread_buffer_clear_error()
 
 
 ////////// NETWORK UNIT //////////
-static void jf_net_make_headers()
+void jf_net_init()
 {
-	// TODO
+	// TODO check libcurl version
+	
 	char *tmp;
+	pthread_t sax_parser_thread;
+	pthread_t async_threads[3];
+	int i;
 
-	assert(s_handle != NULL);
-
+	// global config stuff
+	assert(curl_global_init(CURL_GLOBAL_ALL | CURL_GLOBAL_SSL) == 0);
+	// security bypass
+	if (! g_options.ssl_verifyhost) {
+		curl_easy_setopt(s_handle, CURLOPT_SSL_VERIFYHOST, 0);
+	}
+	// headers
 	if (g_options.token != NULL) {
 		tmp = jf_concat(2, "x-emby-token: ", g_options.token);
 		assert((s_headers = curl_slist_append(s_headers, tmp)) != NULL);
 		free(tmp);
 	}
 	assert((s_headers = curl_slist_append(s_headers, "accept: application/json; charset=utf-8")) != NULL);
-
 	// headers for POST: second list
 	assert((s_headers_POST = curl_slist_append(s_headers, "content-type: application/json; charset=utf-8")) != NULL);
-}
 
-
-void jf_net_pre_init()
-{
-	// TODO check libcurl version
-	
-	pthread_t sax_parser_thread;
-	pthread_t async_threads[3];
-	int i;
-
-	assert(curl_global_init(CURL_GLOBAL_ALL | CURL_GLOBAL_SSL) == 0);
-
+	// setup handle for blocking requests
 	assert((s_handle = curl_easy_init()) != NULL);
-
-	// tell curl where to write informative error messages
 	s_curl_errorbuffer[0] = '\0';
 	JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_ERRORBUFFER, s_curl_errorbuffer));
-
-	// general networking options and curl_share optimizations
 	jf_net_handle_init(s_handle);
 
 	// sax parser thread
@@ -247,21 +238,6 @@ void jf_net_pre_init()
 		assert(pthread_create(async_threads + i, NULL, jf_net_async_worker_thread, NULL) != -1);
 		assert(pthread_detach(async_threads[i]) == 0);
 	}
-}
-
-
-void jf_net_refresh()
-{
-	// security bypass stuff
-	if (! g_options.ssl_verifyhost) {
-		curl_easy_setopt(s_handle, CURLOPT_SSL_VERIFYHOST, 0);
-	}
-
-	// headers
-	curl_slist_free_all(s_headers_POST); // no-op if arg is NULL
-	s_headers = NULL;
-	s_headers_POST = NULL;
-	jf_net_make_headers();
 }
 
 
@@ -288,7 +264,7 @@ static void jf_net_handle_init(CURL *handle)
 }
 
 
-static void jf_net_handle_prepare_for_request(CURL *handle,
+static void jf_net_handle_before_perform(CURL *handle,
 		const char *resource,
 		const jf_request_type request_type,
 		const char *POST_payload,
@@ -332,7 +308,7 @@ static void jf_net_handle_prepare_for_request(CURL *handle,
 }
 
 
-static void jf_net_finalize_request(CURL *handle,
+static void jf_net_handle_after_perform(CURL *handle,
 		const CURLcode result,
 		const jf_request_type request_type,
 		jf_reply *reply)
@@ -393,12 +369,12 @@ jf_reply *jf_net_request(const char *resource,
 		jf_synced_queue_enqueue(s_async_queue, a_r);
 	} else {
 		reply = jf_reply_new();
-		jf_net_handle_prepare_for_request(s_handle,
+		jf_net_handle_before_perform(s_handle,
 				resource,
 				request_type,
 				POST_payload,
 				reply);
-		jf_net_finalize_request(s_handle,
+		jf_net_handle_after_perform(s_handle,
 				curl_easy_perform(s_handle),
 				request_type,
 				reply);
@@ -412,7 +388,7 @@ jf_reply *jf_net_login_request(const char *POST_payload)
 {
 	char *tmp;
 
-	jf_net_make_headers();
+	assert(s_handle != NULL);
 
 	// add x-emby-authorization header
 	tmp = jf_concat(9,
@@ -421,7 +397,6 @@ jf_reply *jf_net_login_request(const char *POST_payload)
 			"\", deviceid=\"", g_options.deviceid,
 			"\", version=\"", g_options.version,
 			"\"");
-	// TODO this should go under a rwlock
 	assert((s_headers_POST = curl_slist_append(s_headers_POST, tmp)) != NULL);
 
 	free(tmp);
@@ -491,12 +466,12 @@ static void *jf_net_async_worker_thread(void *arg)
 
 	while (true) {
 		request = (jf_async_request *)jf_synced_queue_dequeue(s_async_queue);
-		jf_net_handle_prepare_for_request(handle,
+		jf_net_handle_before_perform(handle,
 				request->resource,
 				request->type,
 				request->POST_payload,
 				request->reply);
-		jf_net_finalize_request(handle,
+		jf_net_handle_after_perform(handle,
 				curl_easy_perform(handle),
 				request->type,
 				request->reply);

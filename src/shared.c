@@ -296,9 +296,7 @@ char *jf_make_timestamp(const long long ticks)
 	hours = (unsigned char)(ticks / 10000000 / 60 / 60);
 
 	// allocate with overestimate. we shan't cry
-	if ((str = malloc(sizeof("xxx:xx:xx"))) == NULL) {
-		return NULL;
-	}
+	assert((str = malloc(sizeof("xxx:xx:xx"))) != NULL);
 	snprintf(str, sizeof("xxx:xx:xx"), "%02u:%02u:%02u", hours, minutes, seconds);
 	return str;
 }

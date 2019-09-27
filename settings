@@ -1,0 +1,8 @@
+server=https://aanok.net/jellyfin
+token=a31855b567a049ceb6ff50391e6fb22e
+userid=b8664437c69e4eb2802fc0a0eda8f852
+ssl_verifyhost=true
+client=jftui
+device=PC
+deviceid=desktop-linux
+version=prealpha

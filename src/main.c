@@ -282,12 +282,6 @@ int main(int argc, char *argv[])
 	/////////////
 
 
-	// INITIAL NETWORK SETUP
-	jf_net_pre_init();
- 	atexit(jf_net_clear);
-	////////////////
-	
-
 	// READ AND PARSE CONFIGURATION FILE
 	// apply config directory location default unless there was user override
 	if (g_state.config_dir == NULL
@@ -296,7 +290,7 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 	// get expected location of config file
-	assert((config_path = jf_concat(2, g_state.config_dir, "/settings")) != NULL);
+	config_path = jf_concat(2, g_state.config_dir, "/settings");
 
 	// check config file exists
 	if (access(config_path, F_OK) == 0) {
@@ -321,8 +315,16 @@ int main(int argc, char *argv[])
 			config_path, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
+	////////////////////////////////////
 
-	// interactive config if required
+
+	// NETWORK SETUP
+	jf_net_init();
+ 	atexit(jf_net_clear);
+	////////////////
+	
+
+	// INTERACTIVE CONFIG
 	if (g_state.state == JF_STATE_STARTING_FULL_CONFIG) {
 		jf_config_ask_user();
 	} else if (g_state.state == JF_STATE_STARTING_LOGIN) {
@@ -332,12 +334,16 @@ int main(int argc, char *argv[])
 	// save to disk
 	jf_config_write(config_path);
 	free(config_path);
-	////////////////////////////////////
+
+	if (g_state.state != JF_STATE_STARTING) {
+		printf("Please restart to apply the new settings.\n");
+		exit(EXIT_SUCCESS);
+	}
+	/////////////////////
 	
 
-	// FINALIZE NETWORK SETUP
-	jf_net_refresh();
-	// get server name and double check everything's fine
+	// SERVER NAME
+	// this doubles up as a check for connectivity and correct login parameters
 	reply = jf_net_request("/system/info", JF_REQUEST_IN_MEMORY, NULL);
 	if (JF_REPLY_PTR_HAS_ERROR(reply)) {
 		fprintf(stderr, "FATAL: could not reach server: %s.\n", jf_reply_error_string(reply));
@@ -345,7 +351,7 @@ int main(int argc, char *argv[])
 	}
 	jf_json_parse_server_info_response(reply->payload);
 	jf_reply_free(reply);
-	////////////////////////
+	//////////////
 	
 
 	// SETUP MENU

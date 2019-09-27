@@ -75,8 +75,7 @@ void jf_thread_buffer_clear_error(void);
 
 
 ////////// NETWORK UNIT //////////
-void jf_net_pre_init(void);
-void jf_net_refresh(void);
+void jf_net_init(void);
 void jf_net_clear(void);
 //////////////////////////////////
 
