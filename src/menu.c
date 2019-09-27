@@ -645,8 +645,8 @@ bool jf_menu_user_ask_yn(const char *question)
 	while (reply != 'y' && reply != 'Y' && reply != 'n' && reply != 'N') {
 		printf("%s [y/n]\n", question);
 		reply = fgetc(stdin);
+		jf_clear_stdin();
 	}
-	jf_clear_stdin();
 
 	return reply == 'y' || reply == 'Y';
 }
