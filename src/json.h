@@ -16,12 +16,11 @@
 
 
 ////////// CODE MACROS //////////
-#define JF_JSON_GEN_FATAL(prod)			\
-do {									\
-	if ((prod) != yajl_gen_status_ok) {	\
-			yajl_gen_free(gen);			\
-			return NULL;				\
-	}									\
+#define JF_SAX_BAD_STATE()												\
+do {																	\
+	fprintf(stderr, "%s:%d: JF_SAX_BAD_STATE.\n", __FILE__, __LINE__);	\
+	fprintf(stderr, "This is a bug.\n");								\
+	return 0;															\
 } while (false)
 
 #define JF_SAX_ITEM_FILL(field)						\
@@ -62,33 +61,32 @@ do {																				\
 /////////////////////////////////
 
 
-////////// SAX PARSER STATE MACHINE //////////
-typedef unsigned char jf_sax_parser_state;
-
-#define JF_SAX_NO_STATE							0
-#define JF_SAX_IDLE								1
-#define JF_SAX_IN_LATEST_ARRAY					2
-#define JF_SAX_IN_QUERYRESULT_MAP				3
-#define JF_SAX_IN_ITEMS_VALUE					4
-#define JF_SAX_IN_ITEMS_ARRAY					5
-#define JF_SAX_IN_ITEM_MAP						6
-#define JF_SAX_IN_ITEM_TYPE_VALUE				7
-#define JF_SAX_IN_ITEM_COLLECTION_TYPE_VALUE	8
-#define JF_SAX_IN_ITEM_NAME_VALUE				9
-#define JF_SAX_IN_ITEM_ID_VALUE					10
-#define JF_SAX_IN_ITEM_ARTISTS_ARRAY			11
-#define JF_SAX_IN_ITEM_ARTISTS_VALUE			12
-#define JF_SAX_IN_ITEM_ALBUM_VALUE				13
-#define JF_SAX_IN_ITEM_SERIES_VALUE				14
-#define JF_SAX_IN_ITEM_YEAR_VALUE				15
-#define JF_SAX_IN_ITEM_INDEX_VALUE				16
-#define JF_SAX_IN_ITEM_PARENT_INDEX_VALUE		17
-#define JF_SAX_IN_ITEM_RUNTIME_TICKS_VALUE		18
-#define JF_SAX_IN_USERDATA_MAP					19
-#define JF_SAX_IN_USERDATA_VALUE				20
-#define JF_SAX_IN_USERDATA_TICKS_VALUE			21
-#define JF_SAX_IGNORE							255
-//////////////////////////////////////////////
+////////// SAX PARSER //////////
+typedef enum jf_sax_parser_state {
+	JF_SAX_NO_STATE = 0,
+	JF_SAX_IDLE = 1,
+	JF_SAX_IN_LATEST_ARRAY = 2,
+	JF_SAX_IN_QUERYRESULT_MAP = 3,
+	JF_SAX_IN_ITEMS_VALUE = 4,
+	JF_SAX_IN_ITEMS_ARRAY = 5,
+	JF_SAX_IN_ITEM_MAP = 6,
+	JF_SAX_IN_ITEM_TYPE_VALUE = 7,
+	JF_SAX_IN_ITEM_COLLECTION_TYPE_VALUE = 8,
+	JF_SAX_IN_ITEM_NAME_VALUE = 9,
+	JF_SAX_IN_ITEM_ID_VALUE = 10,
+	JF_SAX_IN_ITEM_ARTISTS_ARRAY = 11,
+	JF_SAX_IN_ITEM_ARTISTS_VALUE = 12,
+	JF_SAX_IN_ITEM_ALBUM_VALUE = 13,
+	JF_SAX_IN_ITEM_SERIES_VALUE = 14,
+	JF_SAX_IN_ITEM_YEAR_VALUE = 15,
+	JF_SAX_IN_ITEM_INDEX_VALUE = 16,
+	JF_SAX_IN_ITEM_PARENT_INDEX_VALUE = 17,
+	JF_SAX_IN_ITEM_RUNTIME_TICKS_VALUE = 18,
+	JF_SAX_IN_USERDATA_MAP = 19,
+	JF_SAX_IN_USERDATA_VALUE = 20,
+	JF_SAX_IN_USERDATA_TICKS_VALUE = 21,
+	JF_SAX_IGNORE = 127
+} jf_sax_parser_state;
 
 
 #define JF_PARSER_ERROR_BUFFER_SIZE 1024
@@ -118,11 +116,14 @@ typedef struct jf_sax_context {
 
 
 void *jf_json_sax_thread(void *arg);
+////////////////////////////////
 
+
+////////// MISCELLANEOUS GARBAGE //////////
 char *jf_json_error_string(void);
 void jf_json_parse_login_response(const char *payload);
 char *jf_json_generate_login_request(const char *username, const char *password);
 void jf_json_parse_server_info_response(const char *payload);
 char *jf_json_generate_progress_post(const char *id, const long long ticks);
-
+///////////////////////////////////////////
 #endif

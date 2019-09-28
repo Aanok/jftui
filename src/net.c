@@ -51,6 +51,13 @@ static void jf_net_handle_after_perform(CURL *handle,
 		const jf_request_type request_type,
 		jf_reply *reply);
 
+static jf_async_request *jf_async_request_new(const char *resource,
+		jf_request_type request_type,
+		const char *POST_payload);
+
+// NB DOES NOT FREE a_r->reply!!!
+static void jf_async_request_free(jf_async_request *a_r);
+
 static void *jf_net_async_worker_thread(void *arg);
 //////////////////////////////////////
 
@@ -101,7 +108,6 @@ char *jf_reply_error_string(const jf_reply *r)
 		case JF_REPLY_ERROR_HTTP_NOT_OK:
 		case JF_REPLY_ERROR_PARSER:
 			return r->payload;
-		// TODO ASYNC ERRORS!!
 		default:
 			return "unknown error. This is a bug";
 	}
@@ -163,7 +169,8 @@ size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, void 
 			return 0;	
 		}
 		// send data
-		chunk_size = real_size - written_data < JF_THREAD_BUFFER_DATA_SIZE - 1 ? real_size - written_data : JF_THREAD_BUFFER_DATA_SIZE - 2;
+		chunk_size = real_size - written_data < JF_THREAD_BUFFER_DATA_SIZE - 1 ?
+			real_size - written_data : JF_THREAD_BUFFER_DATA_SIZE - 2;
 		memcpy(s_tb.data, payload + written_data, chunk_size);
 	    written_data += chunk_size;
 		s_tb.data[chunk_size + 1] = '\0';
@@ -398,35 +405,11 @@ jf_reply *jf_net_request(const char *resource,
 
 	return reply;
 }
-
-jf_reply *jf_net_login_request(const char *POST_payload)
-{
-	static bool already_ran = false;
-	char *tmp;
-
-	assert(s_handle != NULL);
-
-	if (already_ran == false) {
-		// add x-emby-authorization header
-		tmp = jf_concat(9,
-				"x-emby-authorization: mediabrowser client=\"", g_options.client,
-				"\", device=\"", g_options.device, 
-				"\", deviceid=\"", g_options.deviceid,
-				"\", version=\"", g_options.version,
-				"\"");
-		assert((s_headers_POST = curl_slist_append(s_headers_POST, tmp)) != NULL);
-		free(tmp);
-		already_ran = true;
-	}
-
-	// send request
-	return jf_net_request("/emby/Users/authenticatebyname", 0, POST_payload);
-}
 ///////////////////////////////////
 
 
 ////////// ASYNC NETWORKING //////////
-jf_async_request *jf_async_request_new(const char *resource,
+static jf_async_request *jf_async_request_new(const char *resource,
 		jf_request_type request_type,
 		const char *POST_payload)
 {
@@ -446,7 +429,7 @@ jf_async_request *jf_async_request_new(const char *resource,
 }
 
 
-void jf_async_request_free(jf_async_request *a_r)
+static void jf_async_request_free(jf_async_request *a_r)
 {
 	if (a_r == NULL) return;
 	free(a_r->resource);

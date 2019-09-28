@@ -42,7 +42,6 @@ typedef struct jf_reply {
 #define JF_REPLY_ERROR_CONCAT			-6
 #define JF_REPLY_ERROR_X_EMBY_AUTH		-7
 #define JF_REPLY_ERROR_PARSER			-8
-#define JF_REPLY_ERROR_ASYNC_NULL		-9
 
 #define JF_REPLY_PTR_HAS_ERROR(_p)	((_p)->size < 0)
 #define JF_REPLY_PTR_GET_ERROR(_p)	((_p)->size)
@@ -123,9 +122,6 @@ void jf_net_clear(void);
 jf_reply *jf_net_request(const char *resource,
 		jf_request_type request_type,
 		const char *POST_payload);
-
-// on its own because it requires setting a special header
-jf_reply *jf_net_login_request(const char *POST_payload);
 ////////////////////////////////
 
 
@@ -136,15 +132,6 @@ typedef struct jf_async_request {
 	jf_request_type type;
 	char *POST_payload;
 } jf_async_request;
-
-
-jf_async_request *jf_async_request_new(const char *resource,
-		jf_request_type request_type,
-		const char *POST_payload);
-
-
-// NB DOES NOT FREE a_r->reply!!!
-void jf_async_request_free(jf_async_request *a_r);
 
 
 jf_reply *jf_net_await(jf_reply *r);

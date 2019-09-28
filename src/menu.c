@@ -72,17 +72,17 @@ static size_t s_playlist_current = 0;
 // Pushes a jf_menu_item on the global menu stack. No-op if NULL is passed.
 //
 // Parameters:
-// 	menu_item - A pointer to the item to be pushed.
+// 	menu_item - A pointer to the item to be pushed (if NULL, no-op).
+// CAN FATAL.
 static JF_FORCE_INLINE void jf_menu_stack_push(jf_menu_item *menu_item);
 
 
-// Function: jf_menu_stack_pop
-//
 // Pops the top item out of the global menu stack.
 // The caller assumes ownership of the popped item (i.e. will have to free it).
 //
 // Returns:
 // 	A pointer to the item popped or NULL if the stack is empty.
+// CAN'T FAIL.
 static JF_FORCE_INLINE jf_menu_item *jf_menu_stack_pop(void);
 
 
@@ -90,6 +90,7 @@ static JF_FORCE_INLINE jf_menu_item *jf_menu_stack_pop(void);
 //
 // Returns:
 // 	A const pointer to the item on top of the stack or NULL if the stack is empty.
+// CAN'T FAIL.
 static JF_FORCE_INLINE const jf_menu_item *jf_menu_stack_peek(void);
 
 
@@ -111,7 +112,8 @@ static JF_FORCE_INLINE void jf_menu_stack_push(jf_menu_item *menu_item)
 	assert(s_menu_stack.items != NULL);
 	if (s_menu_stack.size == s_menu_stack.used) {
 		s_menu_stack.size *= 2;
-		assert((s_menu_stack.items = realloc(s_menu_stack.items, s_menu_stack.size * sizeof(jf_menu_item *))) != NULL);
+		assert((s_menu_stack.items = realloc(s_menu_stack.items,
+						s_menu_stack.size * sizeof(jf_menu_item *))) != NULL);
 	}
 	s_menu_stack.items[s_menu_stack.used++] = menu_item;
 }
@@ -165,36 +167,68 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 		case JF_ITEM_TYPE_SEASON:
 		case JF_ITEM_TYPE_SERIES:
 			if ((parent = jf_menu_stack_peek()) != NULL && parent->type == JF_ITEM_TYPE_MENU_LATEST) {
-				return jf_concat(5, "/users/", g_options.userid, "/items/latest?parentid=",
-						item->id, "&groupitems=false");
+				return jf_concat(4,
+						"/users/",
+						g_options.userid,
+						"/items/latest?groupitems=false&parentid=",
+						item->id);
 			} else {
-				return jf_concat(5, "/users/", g_options.userid, "/items?parentid=",
-						item->id, "&sortby=isfolder,sortname");
+				return jf_concat(4,
+						"/users/",
+						g_options.userid,
+						"/items?sortby=isfolder,sortname&parentid=",
+						item->id);
 			}
 		case JF_ITEM_TYPE_COLLECTION_MUSIC:
 			if ((parent = jf_menu_stack_peek()) != NULL && parent->type == JF_ITEM_TYPE_FOLDER) {
 				// we are inside a "by folders" view
-				return jf_concat(5, "/users/", g_options.userid, "/items?parentid=",
-						item->id, "&sortby=isfolder,sortname");
+				return jf_concat(4,
+						"/users/",
+						g_options.userid,
+						"/items?sortby=isfolder,sortname&parentid=",
+						item->id);
 			} else {
-				return jf_concat(4, "/artists?parentid=", item->id, "&userid=", g_options.userid);
+				return jf_concat(4,
+						"/artists?parentid=",
+						item->id,
+						"&userid=",
+						g_options.userid);
 			}
 		case JF_ITEM_TYPE_COLLECTION_SERIES:
-			return jf_concat(5, "/users/", g_options.userid, "/items?parentid=",
-					item->id, "&includeitemtypes=series&recursive=true&sortby=isfolder,sortname");
+			return jf_concat(4,
+					"/users/",
+					g_options.userid,
+					"/items?includeitemtypes=series&recursive=true&sortby=isfolder,sortname&parentid=",
+					item->id);
 		case JF_ITEM_TYPE_COLLECTION_MOVIES:
-			return jf_concat(5, "/users/", g_options.userid, "/items?parentid=",
-					item->id, "&includeitemtypes=Movie&recursive=true&sortby=isfolder,sortname");
+			return jf_concat(4,
+					"/users/",
+					g_options.userid,
+					"/items?includeitemtypes=Movie&recursive=true&sortby=isfolder,sortname&parentid=",
+					item->id);
 		case JF_ITEM_TYPE_ARTIST:
-			return jf_concat(5, "/users/", g_options.userid, "/items?albumartistids=",
-					item->id, "&recursive=true&includeitemtypes=musicalbum&sortby=isfolder,sortname&sortorder=ascending");
+			return jf_concat(4,
+					"/users/",
+					g_options.userid,
+					"/items?recursive=true&includeitemtypes=musicalbum&sortby=isfolder,sortname&sortorder=ascending&albumartistids=",
+					item->id);
 		case JF_ITEM_TYPE_SEARCH_RESULT:
-			return jf_concat(4, "/users/", g_options.userid, "/items?recursive=true&searchterm=", item->name);
+			return jf_concat(4,
+					"/users/",
+					g_options.userid,
+					"/items?recursive=true&searchterm=",
+					item->name);
 		// Persistent folders
 		case JF_ITEM_TYPE_MENU_FAVORITES:
-			return jf_concat(3, "/users/", g_options.userid, "/items?filters=isfavorite&recursive=true&sortby=sortname");
+			return jf_concat(3,
+					"/users/",
+					g_options.userid,
+					"/items?filters=isfavorite&recursive=true&sortby=sortname");
 		case JF_ITEM_TYPE_MENU_CONTINUE:
-			return jf_concat(3, "/users/", g_options.userid, "/items/resume?recursive=true");
+			return jf_concat(3,
+					"/users/",
+					g_options.userid,
+					"/items/resume?recursive=true");
 		case JF_ITEM_TYPE_MENU_NEXT_UP:
 			return jf_concat(3, "/shows/nextup?userid=", g_options.userid, "&limit=15");
 		case JF_ITEM_TYPE_MENU_LATEST:
@@ -203,7 +237,9 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 		case JF_ITEM_TYPE_MENU_LIBRARIES:
 			return jf_concat(3, "/users/", g_options.userid, "/views");
 		default:
-			fprintf(stderr, "Error: get_request_url was called on an unsupported item_type (%d).\n", item->type);
+			fprintf(stderr,
+					"Error: get_request_url was called on an unsupported item_type (%d). This is a bug.\n",
+					item->type);
 			return NULL;
 	}
 }
@@ -211,11 +247,8 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 
 static jf_menu_item *jf_menu_child_get(size_t n)
 {
-// 	jf_menu_item **child;
+	if (s_context == NULL) return NULL;
 
-	if (s_context == NULL) {
-		return NULL;
-	}
 	if (JF_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(s_context->type)) {
 		return jf_disk_payload_get_item(n);
 	} else {
@@ -263,7 +296,7 @@ static bool jf_menu_print_context()
 				jf_menu_item_free(s_context);
 				return false;
 			}
-			printf("DEBUG: request_url = %s\n", request_url);
+// 			printf("DEBUG: request_url = %s\n", request_url);
 			reply = jf_net_request(request_url, request_type, NULL);
 			free(request_url);
 			if (JF_REPLY_PTR_HAS_ERROR(reply)) {
@@ -286,7 +319,8 @@ static bool jf_menu_print_context()
 			jf_menu_stack_push(s_context);
 			break;
 		default:
-			fprintf(stderr, "Error: jf_menu_dispatch_context unsupported menu item type (%d). This is a bug.\n",
+			fprintf(stderr,
+					"Error: jf_menu_dispatch_context unsupported menu item type (%d). This is a bug.\n",
 					s_context->type);
 			jf_menu_item_free(s_context);
 			return false;
@@ -316,18 +350,13 @@ static void jf_menu_play_item(const jf_menu_item *item)
 				return;
 			}
 			if (item->playback_ticks != 0) {
-				if ((timestamp = jf_make_timestamp(item->playback_ticks)) == NULL) {
-					fprintf(stderr, "Error: %s resume jf_make_timestamp failure.\n", item->name);
-					free(request_url);
-					return;
-				}
-				if ((question = jf_concat(5, "Would you like to resume ",
-								item->name, " at the ", timestamp, " mark?")) == NULL) {
-					fprintf(stderr, "Error: %s resume jf_concat allocation failure.\n", item->name);
-					free(request_url);
-					free(timestamp);
-					return;
-				}
+				timestamp = jf_make_timestamp(item->playback_ticks);
+				question = jf_concat(5,
+								"Would you like to resume ",
+								item->name,
+								" at the ",
+								timestamp,
+								" mark?");
 				if (jf_menu_user_ask_yn(question)) {
 					mpv_set_property_string(g_mpv_ctx, "start", timestamp);
 					g_state.state = JF_STATE_PLAYBACK_START_MARK;
@@ -345,7 +374,8 @@ static void jf_menu_play_item(const jf_menu_item *item)
 			printf("Error: jf_menu_play_item video types not yet supported.\n");
 			break;
 		default:
-			fprintf(stderr, "Error: jf_menu_play_item unsupported item type (%d). This is a bug.\n",
+			fprintf(stderr,
+					"Error: jf_menu_play_item unsupported item type (%d). This is a bug.\n",
 					item->type);
 			break;
 	}
@@ -369,6 +399,7 @@ static void jf_menu_try_play()
 jf_item_type jf_menu_child_get_type(size_t n)
 {
 	if (s_context == NULL) return JF_ITEM_TYPE_NONE;
+
 	if (JF_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(s_context->type)) {
 		return jf_disk_payload_get_type(n);
 	} else {
@@ -424,12 +455,8 @@ bool jf_menu_child_dispatch(size_t n)
 
 size_t jf_menu_child_count()
 {
-// 	jf_menu_item **child;
-// 	size_t n = 0;
+	if (s_context == NULL) return 0;
 
-	if (s_context == NULL) {
-		return 0;
-	}
 	if (JF_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(s_context->type)) {
 		return jf_disk_payload_item_count();
 	} else {
@@ -440,14 +467,15 @@ size_t jf_menu_child_count()
 
 void jf_menu_dotdot()
 {
-	jf_menu_item *menu_item;
-	if ((menu_item = jf_menu_stack_pop()) != NULL) {
-		if (menu_item->type == JF_ITEM_TYPE_MENU_ROOT) {
-			// root entry should be pushed back to not cause memory leaks due to its children
-			jf_menu_stack_push(menu_item);
-		} else {
-			jf_menu_item_free(menu_item);
-		}
+	jf_menu_item *menu_item = jf_menu_stack_pop();
+
+	if (menu_item == NULL) return;
+
+	if (menu_item->type == JF_ITEM_TYPE_MENU_ROOT) {
+		// root entry should be pushed back to not cause memory leaks due to its children
+		jf_menu_stack_push(menu_item);
+	} else {
+		jf_menu_item_free(menu_item);
 	}
 }
 
@@ -463,39 +491,19 @@ void jf_menu_search(const char *s)
 	jf_menu_item *menu_item;
 	char *escaped;
 
-	if ((escaped = jf_net_urlencode(s)) == NULL) {
-		fprintf(stderr, "Warning: jf_menu_search jf_net_urlencode returned NULL. Search will not be performed.\n");
-		return;
-	}
-
+	escaped = jf_net_urlencode(s);
 	menu_item = jf_menu_item_new(JF_ITEM_TYPE_SEARCH_RESULT, NULL, NULL, escaped, 0, 0);
 	free(escaped);
-	if (menu_item == NULL) {
-		fprintf(stderr, "Warning: jf_menu_search jf_menu_item_new returned NULL. Search will not be performed.\n");
-		return;
-	}
 	jf_menu_stack_push(menu_item);
 }
 
 
-bool jf_menu_mark_played(const jf_menu_item *item)
+void jf_menu_mark_played(const jf_menu_item *item)
 {
 	char *url;
-	jf_reply *reply;
-	if ((url = jf_concat(4, "/users/", g_options.userid, "/playeditems/", item->id)) == NULL) {
-		fprintf(stderr, "Error: jf_menu_mark_played jf_concat returned NULL.\n");
-		return false;
-	}
-	reply = jf_net_request(url, JF_REQUEST_IN_MEMORY, "");
+	url = jf_concat(4, "/users/", g_options.userid, "/playeditems/", item->id);
+	jf_net_request(url, JF_REQUEST_ASYNC_DETACH, "");
 	free(url);
-	if (reply == NULL || JF_REPLY_PTR_HAS_ERROR(reply)) {
-		fprintf(stderr, "Error: could not mark item %s as played: %s.\n", item->name,
-				jf_reply_error_string(reply));
-		jf_reply_free(reply);
-		return false;
-	}
-	jf_reply_free(reply);
-	return true;
 }
 
 
@@ -604,7 +612,7 @@ void jf_menu_ui()
 
 
 ////////// MISCELLANEOUS //////////
-bool jf_menu_init()
+void jf_menu_init()
 {
 	// all linenoise setup
 	linenoiseHistorySetMaxLen(10);
@@ -613,13 +621,9 @@ bool jf_menu_init()
 	s_root_menu->name = g_state.server_name;
 
 	// init menu stack
-	if ((s_menu_stack.items = malloc(10 * sizeof(jf_menu_item *))) == NULL) {
-		return false;
-	}
+	assert((s_menu_stack.items = malloc(10 * sizeof(jf_menu_item *))) != NULL);
 	s_menu_stack.size = 10;
 	s_menu_stack.used = 0;
-
-	return true;
 }
 
 

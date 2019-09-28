@@ -136,16 +136,19 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 		case MPV_EVENT_CLIENT_MESSAGE:
 			// playlist controls
 			if (((mpv_event_client_message *)event->data)->num_args > 0) {
-				if (strcmp(((mpv_event_client_message *)event->data)->args[0], "jftui-playlist-next") == 0) {
+				if (strcmp(((mpv_event_client_message *)event->data)->args[0],
+							"jftui-playlist-next") == 0) {
 					jf_menu_playlist_forward();
-				} else if (strcmp(((mpv_event_client_message *)event->data)->args[0], "jftui-playlist-prev") == 0) {
+				} else if (strcmp(((mpv_event_client_message *)event->data)->args[0],
+							"jftui-playlist-prev") == 0) {
 					jf_menu_playlist_backward();
 				}
 			}
 			break;
 		case MPV_EVENT_END_FILE:
 			// tell server file playback stopped so it won't keep accruing progress
-			playback_ticks = mpv_get_property(g_mpv_ctx, "time-pos", MPV_FORMAT_INT64, &playback_ticks) == 0 ?
+			playback_ticks =
+				mpv_get_property(g_mpv_ctx, "time-pos", MPV_FORMAT_INT64, &playback_ticks) == 0 ?
 				JF_SECS_TO_TICKS(playback_ticks) : g_state.now_playing.playback_ticks;
 			progress_post = jf_json_generate_progress_post(g_state.now_playing.id, playback_ticks);
 			jf_net_request("/sessions/playing/stopped", JF_REQUEST_ASYNC_DETACH, progress_post);
@@ -189,6 +192,7 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 			break;
 		case MPV_EVENT_SHUTDOWN:
 			// tell jellyfin playback stopped
+			// NB we can't call mpv_get_property because mpv core has aborted!
 			progress_post = jf_json_generate_progress_post(g_state.now_playing.id, g_state.now_playing.playback_ticks);
 			jf_net_request("/sessions/playing/stopped", JF_REQUEST_ASYNC_DETACH, progress_post);
 			free(progress_post);
@@ -236,7 +240,6 @@ int main(int argc, char *argv[])
 	// SETUP GLOBAL STATE
 	g_state = (jf_global_state){ 0 };
 	assert((g_state.session_id = jf_generate_random_id(0)) != NULL);
-// 	atexit(jf_global_state_clear);
 	/////////////////////
 
 

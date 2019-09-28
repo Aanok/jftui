@@ -32,7 +32,7 @@ bool jf_menu_child_dispatch(const size_t n);
 void jf_menu_dotdot(void);
 void jf_menu_quit(void);
 void jf_menu_search(const char *s);
-bool jf_menu_mark_played(const jf_menu_item *item);
+void jf_menu_mark_played(const jf_menu_item *item);
 
 bool jf_menu_playlist_forward(void);
 bool jf_menu_playlist_backward(void);
@@ -42,23 +42,29 @@ void jf_menu_ui(void);
 
 
 ////////// MISCELLANEOUS //////////
-// Procedure: jf_menu_init
-//
 // Initializes linenoise history and the static menu stack struct.
-//
-// Returns:
-// 	true on success, false on failure.
-bool jf_menu_init(void);
+// CAN FATAL.
+void jf_menu_init(void);
 
 
-// Procedure: jf_menu_clear
-//
 // Clears the contents of the static menu stack, forcibly deallocating all items
 // regardless of their persistency bit.
+// CAN'T FAIL.
 void jf_menu_clear(void);
 
+
+// Wrapper. Takes care of Ctrl-C (SIGINT) and other IO errors.
+// CAN FATAL.
 char *jf_menu_linenoise(const char *prompt);
+
+
+// Prompts user for a question meant for a binary answer and reads reply from
+// stdin.
+//
+// Returns:
+// 	- true if reply starts with 'y' or 'Y';
+// 	- false if reply starts with 'n' or 'N'.
+// CAN'T FAIL.
 bool jf_menu_user_ask_yn(const char *question);
 ///////////////////////////////////
-
 #endif

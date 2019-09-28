@@ -164,18 +164,18 @@ void jf_thread_buffer_init(jf_thread_buffer *tb);
 
 
 ////////// GLOBAL APPLICATION STATE //////////
-typedef char jf_jftui_state;
+typedef enum jf_jftui_state {
+	JF_STATE_STARTING = 0,
+	JF_STATE_STARTING_FULL_CONFIG = 1,
+	JF_STATE_STARTING_LOGIN = 2,
+	JF_STATE_MENU_UI = 3,
+	JF_STATE_PLAYBACK = 4,
+	JF_STATE_PLAYBACK_NAVIGATING = 5,
+	JF_STATE_PLAYBACK_START_MARK = 6,
 
-#define JF_STATE_STARTING				0
-#define JF_STATE_STARTING_FULL_CONFIG	1
-#define JF_STATE_STARTING_LOGIN			2
-#define JF_STATE_MENU_UI				3
-#define JF_STATE_PLAYBACK				4
-#define JF_STATE_PLAYBACK_NAVIGATING	5
-#define JF_STATE_PLAYBACK_START_MARK	6
-
-#define JF_STATE_USER_QUIT	-1
-#define JF_STATE_FAIL		-2
+	JF_STATE_USER_QUIT = -1,
+	JF_STATE_FAIL = -2
+} jf_jftui_state;
 
 
 typedef struct jf_global_state {
@@ -186,9 +186,6 @@ typedef struct jf_global_state {
 	jf_jftui_state state;
 	jf_menu_item now_playing;
 } jf_global_state;
-
-
-void jf_global_state_clear(void);
 //////////////////////////////////////////////
 
 
@@ -204,31 +201,49 @@ typedef struct jf_synced_queue {
 } jf_synced_queue;
 
 jf_synced_queue *jf_synced_queue_new(const size_t slot_count);
-void jf_synced_queue_free(jf_synced_queue *q); // NB will NOT deallocate the contents of the queue! make sure it's empty beforehand to avoid leaks
+
+// Deallocates the queue but NOT its contents.
+//
+// Parameters:
+// 	- q: pointer to the jf_synced_queue to deallocate (if NULL, no-op).
+// CAN'T FAIL.
+void jf_synced_queue_free(jf_synced_queue *q); 
+
 void jf_synced_queue_enqueue(jf_synced_queue *q, const void *payload);
+
 void *jf_synced_queue_dequeue(jf_synced_queue *q);
-bool jf_synced_queue_is_empty(const jf_synced_queue *q);
 //////////////////////////////////
 
 
 ////////// MISCELLANEOUS GARBAGE //////////
-// returns a NULL-terminated, malloc'd string result of the concatenation of its (expected char *) arguments past the first
-// the first argument is the number of following arguments
+// Concatenates any amount of NULL-terminated strings. The result will be
+// dynamically allocated and will need to be free'd.
+//
+// Parameters:
+// 	- n: the number of following arguments, i.e. strings to concatenate.
+// 	- varargs: a variadic sequence of (const char *) pointing to NULL-terminated
+// 		strings to be concatenated.
+//
+// Returns:
+// 	char * pointing to the malloc'd result.
 // CAN FATAL.
 char *jf_concat(const size_t n, ...);
 
 
-// Prints an unsigned, base-10 number to stdout. The function is NEITHER reentrant NOR thread-safe.
-// IT WILL CAUSE UNDEFINED BEHAVIOUR if the base-10 representation of the argument is longer than 20 digits,
-// which means the binary representation of the number takes more than 64 bits.
+// Prints an unsigned, base-10 number to stdout. The function is NEITHER
+// reentrant NOR thread-safe.
+// IT WILL CAUSE UNDEFINED BEHAVIOUR if the base-10 representation of the
+// argument is longer than 20 digits, which means the binary representation of
+// the number takes more than 64 bits.
 //
 // Parameters:
-// 	- n: The number to print. It is always treated as unsigned and base-10. Regardless of the system's
-// 		 implementation of size_t, it must fit into 64 bits for the internal buffer not to overflow.
+// 	- n: The number to print. It is always treated as unsigned and base-10.
+// 		Regardless of the system's implementation of size_t, it must fit into
+// 		64 bits for the internal buffer not to overflow.
 void jf_print_zu(size_t n);
 
 
-// Generates malloc'd string of random digits of arbitrary length.
+// Generates a malloc'd string of arbitrary length of random digits.
 //
 // Parameters:
 // 	- len: length of the random string. If 0, a default of 10 will be applied.

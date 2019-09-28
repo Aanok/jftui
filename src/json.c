@@ -33,6 +33,7 @@ static int jf_sax_items_number(void *ctx, const char *string, size_t strins_len)
 // 	The yajl_handle of the new parser.
 static JF_FORCE_INLINE yajl_handle jf_sax_yajl_parser_new(yajl_callbacks *callbacks, jf_sax_context *context);
 
+static JF_FORCE_INLINE void jf_sax_current_item_make_and_print_name(jf_sax_context *context);
 static JF_FORCE_INLINE void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb);
 static JF_FORCE_INLINE void jf_sax_context_current_item_clear(jf_sax_context *context);
 static JF_FORCE_INLINE void jf_sax_context_current_item_copy(jf_sax_context *context);
@@ -68,6 +69,8 @@ static int jf_sax_items_start_map(void *ctx)
 		case JF_SAX_IGNORE:
 			context->maps_ignoring++;
 			break;
+		default:
+			JF_SAX_BAD_STATE();
 	}
 	return 1;
 }
@@ -88,76 +91,14 @@ static int jf_sax_items_end_map(void *ctx)
 			break;
 		case JF_SAX_IN_ITEM_MAP:
 			context->tb->item_count++;
-			jf_growing_buffer_empty(context->current_item_display_name);
-			switch (context->current_item_type) {
-				case JF_ITEM_TYPE_AUDIO:
-				case JF_ITEM_TYPE_AUDIOBOOK:
-					JF_SAX_PRINT_LEADER("T");
-					if (context->tb->promiscuous_context) {
-						JF_SAX_TRY_APPEND_NAME("", artist, " - ");
-						JF_SAX_TRY_APPEND_NAME("", album, " - ");
-					}
-					jf_growing_buffer_append(context->current_item_display_name,
-							context->name, context->name_len);
-					break;
-				case JF_ITEM_TYPE_ALBUM:
-					JF_SAX_PRINT_LEADER("D");
-					if (context->tb->promiscuous_context) {
-						JF_SAX_TRY_APPEND_NAME("", artist, " - ");
-					}
-					jf_growing_buffer_append(context->current_item_display_name,
-							context->name, context->name_len);
-					JF_SAX_TRY_APPEND_NAME(" (", year, ")");
-					break;
-				case JF_ITEM_TYPE_EPISODE:
-					JF_SAX_PRINT_LEADER("V");
-					if (context->tb->promiscuous_context) {
-						JF_SAX_TRY_APPEND_NAME("", series, " - ");
-						JF_SAX_TRY_APPEND_NAME("S", parent_index, "");
-						JF_SAX_TRY_APPEND_NAME("E", index, " ");
-					}
-					jf_growing_buffer_append(context->current_item_display_name,
-							context->name, context->name_len);
-					break;
-				case JF_ITEM_TYPE_SEASON:
-					JF_SAX_PRINT_LEADER("D");
-					if (context->tb->promiscuous_context) {
-						JF_SAX_TRY_APPEND_NAME("", series, " - ");
-					}
-					jf_growing_buffer_append(context->current_item_display_name,
-							context->name, context->name_len);
-					break;
-				case JF_ITEM_TYPE_MOVIE:
-					JF_SAX_PRINT_LEADER("V");
-					jf_growing_buffer_append(context->current_item_display_name,
-							context->name, context->name_len);
-					JF_SAX_TRY_APPEND_NAME(" (", year, ")");
-					break;
-				case JF_ITEM_TYPE_ARTIST:
-				case JF_ITEM_TYPE_SERIES:
-				case JF_ITEM_TYPE_PLAYLIST:
-				case JF_ITEM_TYPE_FOLDER:
-				case JF_ITEM_TYPE_COLLECTION:
-				case JF_ITEM_TYPE_COLLECTION_MUSIC:
-				case JF_ITEM_TYPE_COLLECTION_SERIES:
-				case JF_ITEM_TYPE_COLLECTION_MOVIES:
-				case JF_ITEM_TYPE_USER_VIEW:
-					JF_SAX_PRINT_LEADER("D");
-					jf_growing_buffer_append(context->current_item_display_name,
-							context->name, context->name_len);
-					break;
-				default:
-					fprintf(stderr, "Warning: jf_sax_items_end_map: unexpected jf_item_type. This is a bug.\n");
-			}
+			jf_sax_current_item_make_and_print_name(context);
 
-			// FINALIZE PRINT
-			jf_growing_buffer_append(context->current_item_display_name, "", 1);
-			printf("%s\n", context->current_item_display_name->buf);
-
-			// SAVE AND CLEAR ITEM
-			jf_menu_item *item = jf_menu_item_new(context->current_item_type, NULL,
-					(const char*)context->id, context->current_item_display_name->buf,
-					context->runtime_ticks, context->playback_ticks);
+			jf_menu_item *item = jf_menu_item_new(context->current_item_type,
+					NULL,
+					(const char*)context->id,
+					context->current_item_display_name->buf,
+					context->runtime_ticks,
+					context->playback_ticks);
 			jf_disk_payload_add_item(item);
 			jf_menu_item_free(item);
 			jf_sax_context_current_item_clear(context);
@@ -175,6 +116,8 @@ static int jf_sax_items_end_map(void *ctx)
 				context->parser_state = context->state_to_resume;
 				context->state_to_resume = JF_SAX_NO_STATE;
 			}
+		default:
+			break;
 	}
 	return 1;
 }
@@ -220,6 +163,8 @@ static int jf_sax_items_map_key(void *ctx, const unsigned char *key, size_t key_
 			if (JF_SAX_KEY_IS("PlaybackPositionTicks")) {
 				context->parser_state = JF_SAX_IN_USERDATA_TICKS_VALUE;
 			}
+		default:
+			break;
 	}
 	return 1;
 }
@@ -247,6 +192,8 @@ static int jf_sax_items_start_array(void *ctx)
 		case JF_SAX_IGNORE:
 			context->arrays_ignoring++;
 			break;
+		default:
+			JF_SAX_BAD_STATE();
 	}
 	return 1;
 }
@@ -272,6 +219,8 @@ static int jf_sax_items_end_array(void *ctx)
 				context->state_to_resume = JF_SAX_NO_STATE;
 			}
 			break;
+		default:
+			JF_SAX_BAD_STATE();
 	}
 	return 1;
 }
@@ -341,6 +290,8 @@ static int jf_sax_items_string(void *ctx, const unsigned char *string, size_t st
 			JF_SAX_ITEM_FILL(series);
 			context->parser_state = JF_SAX_IN_ITEM_MAP;
 			break;
+		default:
+			break;
 	}
 	return 1;
 }
@@ -370,10 +321,83 @@ static int jf_sax_items_number(void *ctx, const char *string, size_t string_len)
 			JF_SAX_ITEM_FILL(parent_index);
 			context->parser_state = JF_SAX_IN_ITEM_MAP;
 			break;
+		default:
+			// ignore everything else
+			break;
 	}
 	return 1;
 }
 //////////////////////////////////////////
+
+
+////////// SAX PARSER //////////
+static JF_FORCE_INLINE void jf_sax_current_item_make_and_print_name(jf_sax_context *context)
+{
+	jf_growing_buffer_empty(context->current_item_display_name);
+	switch (context->current_item_type) {
+		case JF_ITEM_TYPE_AUDIO:
+		case JF_ITEM_TYPE_AUDIOBOOK:
+			JF_SAX_PRINT_LEADER("T");
+			if (context->tb->promiscuous_context) {
+				JF_SAX_TRY_APPEND_NAME("", artist, " - ");
+				JF_SAX_TRY_APPEND_NAME("", album, " - ");
+			}
+			jf_growing_buffer_append(context->current_item_display_name,
+					context->name, context->name_len);
+			break;
+		case JF_ITEM_TYPE_ALBUM:
+			JF_SAX_PRINT_LEADER("D");
+			if (context->tb->promiscuous_context) {
+				JF_SAX_TRY_APPEND_NAME("", artist, " - ");
+			}
+			jf_growing_buffer_append(context->current_item_display_name,
+					context->name, context->name_len);
+			JF_SAX_TRY_APPEND_NAME(" (", year, ")");
+			break;
+		case JF_ITEM_TYPE_EPISODE:
+			JF_SAX_PRINT_LEADER("V");
+			if (context->tb->promiscuous_context) {
+				JF_SAX_TRY_APPEND_NAME("", series, " - ");
+				JF_SAX_TRY_APPEND_NAME("S", parent_index, "");
+				JF_SAX_TRY_APPEND_NAME("E", index, " ");
+			}
+			jf_growing_buffer_append(context->current_item_display_name,
+					context->name, context->name_len);
+			break;
+		case JF_ITEM_TYPE_SEASON:
+			JF_SAX_PRINT_LEADER("D");
+			if (context->tb->promiscuous_context) {
+				JF_SAX_TRY_APPEND_NAME("", series, " - ");
+			}
+			jf_growing_buffer_append(context->current_item_display_name,
+					context->name, context->name_len);
+			break;
+		case JF_ITEM_TYPE_MOVIE:
+			JF_SAX_PRINT_LEADER("V");
+			jf_growing_buffer_append(context->current_item_display_name,
+					context->name, context->name_len);
+			JF_SAX_TRY_APPEND_NAME(" (", year, ")");
+			break;
+		case JF_ITEM_TYPE_ARTIST:
+		case JF_ITEM_TYPE_SERIES:
+		case JF_ITEM_TYPE_PLAYLIST:
+		case JF_ITEM_TYPE_FOLDER:
+		case JF_ITEM_TYPE_COLLECTION:
+		case JF_ITEM_TYPE_COLLECTION_MUSIC:
+		case JF_ITEM_TYPE_COLLECTION_SERIES:
+		case JF_ITEM_TYPE_COLLECTION_MOVIES:
+		case JF_ITEM_TYPE_USER_VIEW:
+			JF_SAX_PRINT_LEADER("D");
+			jf_growing_buffer_append(context->current_item_display_name,
+					context->name, context->name_len);
+			break;
+		default:
+			fprintf(stderr, "Warning: jf_sax_items_end_map: unexpected jf_item_type. This is a bug.\n");
+	}
+
+	jf_growing_buffer_append(context->current_item_display_name, "", 1);
+	printf("%s\n", context->current_item_display_name->buf);
+}
 
 
 static JF_FORCE_INLINE yajl_handle jf_sax_yajl_parser_new(yajl_callbacks *callbacks, jf_sax_context *context)
@@ -388,22 +412,13 @@ static JF_FORCE_INLINE yajl_handle jf_sax_yajl_parser_new(yajl_callbacks *callba
 
 static JF_FORCE_INLINE void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb)
 {
+	*context = (jf_sax_context){ 0 };
 	context->parser_state = JF_SAX_IDLE;
 	context->state_to_resume = JF_SAX_NO_STATE;
-	context->maps_ignoring = 0;
-	context->arrays_ignoring = 0;
 	context->latest_array = false;
 	context->tb = tb;
 	context->current_item_type = JF_ITEM_TYPE_NONE;
-	context->copy_buffer = NULL;
 	context->current_item_display_name = jf_growing_buffer_new(0);
-	context->name = context->id = context->artist = context->album = NULL;
-	context->series = context->year = context->index = context->parent_index = NULL;
-	context->name_len = context->id_len = context->artist_len = 0;
-	context->album_len = context->series_len = context->year_len = 0;
-	context->index_len = context->parent_index_len = 0;
-	context->runtime_ticks = 0;
-	context->playback_ticks = 0;
 }
 
 
@@ -432,9 +447,9 @@ static JF_FORCE_INLINE void jf_sax_context_current_item_copy(jf_sax_context *con
 	// then update the context pointers to point within it
 	size_t item_size;
 	size_t used = 0;
-	item_size = (size_t)(context->name_len + context->id_len + context->artist_len
-		+ context->album_len + context->series_len + context->year_len +
-		context->index_len + context->parent_index_len);
+	item_size = (size_t)(context->name_len + context->id_len
+			+ context->artist_len + context->album_len + context->series_len
+			+ context->year_len + context->index_len + context->parent_index_len);
 	assert((context->copy_buffer = malloc(item_size)) != NULL);
 	JF_SAX_CONTEXT_COPY(name);
 	JF_SAX_CONTEXT_COPY(id);
@@ -447,8 +462,6 @@ static JF_FORCE_INLINE void jf_sax_context_current_item_copy(jf_sax_context *con
 }
 
 
-// NB all data created by the thread itself is allocated on the stack,
-// so it is safe to detach it
 void *jf_json_sax_thread(void *arg)
 {
 	jf_sax_context context;
@@ -467,6 +480,7 @@ void *jf_json_sax_thread(void *arg)
 		.yajl_start_array = jf_sax_items_start_array,
 		.yajl_end_array = jf_sax_items_end_array
 	};
+	unsigned char *error_str;
 
 	jf_sax_context_init(&context, (jf_thread_buffer *)arg);
 
@@ -478,7 +492,7 @@ void *jf_json_sax_thread(void *arg)
 			pthread_cond_wait(&context.tb->cv_no_data, &context.tb->mut);
 		}
 		if ((status = yajl_parse(parser, (unsigned char*)context.tb->data, context.tb->used)) != yajl_status_ok) {
-			unsigned char *error_str = yajl_get_error(parser, 1, (unsigned char*)context.tb->data, context.tb->used);
+			error_str = yajl_get_error(parser, 1, (unsigned char*)context.tb->data, context.tb->used);
 			strcpy(context.tb->data, "yajl_parse error: ");
 			strncat(context.tb->data, (char *)error_str, JF_PARSER_ERROR_BUFFER_SIZE - strlen(context.tb->data));
 			context.tb->state = JF_THREAD_BUFFER_STATE_PARSER_ERROR;
@@ -505,8 +519,10 @@ void *jf_json_sax_thread(void *arg)
 		pthread_cond_signal(&context.tb->cv_has_data);
 	}
 }
+////////////////////////////////
 
 
+////////// MISCELLANEOUS GARBAGE //////////
 char *jf_json_error_string()
 {
 	return s_error_buffer;
@@ -604,3 +620,4 @@ char *jf_json_generate_progress_post(const char *id, const long long ticks)
 	yajl_gen_free(gen);
 	return json;
 }
+///////////////////////////////////////////

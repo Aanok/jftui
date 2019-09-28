@@ -16,8 +16,12 @@ static void jf_options_complete_with_defaults(void);
 ////////// JF_OPTIONS //////////
 static void jf_options_complete_with_defaults()
 {
-	if (g_options.client == NULL) assert((g_options.client = strdup(JF_CONFIG_CLIENT_DEFAULT)) != NULL);
-	if (g_options.device == NULL) assert((g_options.device = strdup(JF_CONFIG_DEVICE_DEFAULT)) != NULL);
+	if (g_options.client == NULL) {
+		assert((g_options.client = strdup(JF_CONFIG_CLIENT_DEFAULT)) != NULL);
+	}
+	if (g_options.device == NULL) {
+		assert((g_options.device = strdup(JF_CONFIG_DEVICE_DEFAULT)) != NULL);
+	}
 	if (g_options.deviceid[0] == '\0') {
 		if (gethostname(g_options.deviceid, JF_CONFIG_DEVICEID_MAX_LEN) == 0) {
 			g_options.deviceid[JF_CONFIG_DEVICEID_MAX_LEN] = '\0';
@@ -25,7 +29,9 @@ static void jf_options_complete_with_defaults()
 			strcpy(g_options.deviceid, JF_CONFIG_DEVICEID_DEFAULT);
 		}
 	}
-	if (g_options.version == NULL) assert((g_options.version = strdup(JF_CONFIG_VERSION_DEFAULT)) != NULL);
+	if (g_options.version == NULL) {
+		assert((g_options.version = strdup(JF_CONFIG_VERSION_DEFAULT)) != NULL);
+	}
 }
 
 
@@ -86,7 +92,9 @@ void jf_config_read(const char *config_path)
 		assert(line != NULL);
 		if ((value = strchr(line, '=')) == NULL) {
 			// the line is malformed; issue a warning and skip it
-			fprintf(stderr, "Warning: skipping malformed settings file line: %s.\n", line);
+			fprintf(stderr,
+					"Warning: skipping malformed settings file line: %s.\n",
+					line);
 			continue;
 		}
 		value += 1; // digest '='
@@ -100,13 +108,17 @@ void jf_config_read(const char *config_path)
 		} else if (JF_CONFIG_KEY_IS("userid")) {
 			JF_CONFIG_FILL_VALUE(userid);
 		} else if (JF_CONFIG_KEY_IS("ssl_verifyhost")) {
-			if (strncmp(value, "false", JF_STATIC_STRLEN("false")) == 0) g_options.ssl_verifyhost = false;
+			if (strncmp(value, "false", JF_STATIC_STRLEN("false")) == 0) {
+				g_options.ssl_verifyhost = false;
+			}
 		} else if (JF_CONFIG_KEY_IS("client")) {
 			JF_CONFIG_FILL_VALUE(client);
 		} else if (JF_CONFIG_KEY_IS("deviceid")) {
 			value_len = strlen(value);
 			if (value[value_len - 1] == '\n') value_len--;
-			if (value_len > JF_CONFIG_DEVICEID_MAX_LEN - 1) value_len = JF_CONFIG_DEVICEID_MAX_LEN - 1;
+			if (value_len > JF_CONFIG_DEVICEID_MAX_LEN - 1) {
+				value_len = JF_CONFIG_DEVICEID_MAX_LEN - 1;
+			}
 			strncpy(g_options.deviceid, value, value_len);
 			g_options.deviceid[value_len] = '\0';
 		} else if (JF_CONFIG_KEY_IS("device")) {
@@ -115,7 +127,9 @@ void jf_config_read(const char *config_path)
 			JF_CONFIG_FILL_VALUE(version);
 		} else {
 			// option key was not recognized; print a warning and go on
-			fprintf(stderr, "Warning: unrecognized option key in settings file line: %s.\n", line);
+			fprintf(stderr,
+					"Warning: unrecognized option key in settings file line: %s.\n",
+					line);
 		}
 	}
 
@@ -135,7 +149,8 @@ void jf_config_write(const char *config_path)
 		JF_CONFIG_WRITE_VALUE(server);
 		JF_CONFIG_WRITE_VALUE(token);
 		JF_CONFIG_WRITE_VALUE(userid);
-		fprintf(config_file, "ssl_verifyhost=%s\n", g_options.ssl_verifyhost ? "true" : "false" );
+		fprintf(config_file, "ssl_verifyhost=%s\n",
+				g_options.ssl_verifyhost ? "true" : "false" );
 		JF_CONFIG_WRITE_VALUE(client);
 		JF_CONFIG_WRITE_VALUE(device);
 		JF_CONFIG_WRITE_VALUE(deviceid);
@@ -185,8 +200,7 @@ void jf_config_ask_user_login()
 		memset(password->buf, 0, password->used);
 		jf_growing_buffer_empty(password);
 		login_reply = jf_net_request("/emby/Users/authenticatebyname",
-				JF_REQUEST_IN_MEMORY,
-				login_post);
+				JF_REQUEST_IN_MEMORY, login_post);
 		free(login_post);
 		if (! JF_REPLY_PTR_HAS_ERROR(login_reply)) break;
 		if (JF_REPLY_PTR_ERROR_IS(login_reply, JF_REPLY_ERROR_HTTP_401)) {
@@ -195,7 +209,9 @@ void jf_config_ask_user_login()
 				exit(EXIT_SUCCESS);
 			}
 		} else {
-			fprintf(stderr, "FATAL: could not login: %s.\n", jf_reply_error_string(login_reply));
+			fprintf(stderr,
+					"FATAL: could not login: %s.\n",
+					jf_reply_error_string(login_reply));
 			jf_reply_free(login_reply);
 			exit(EXIT_FAILURE);
 		}

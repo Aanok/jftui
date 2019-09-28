@@ -75,17 +75,6 @@ jf_menu_item *jf_menu_item_static_copy(jf_menu_item *dest, const jf_menu_item *s
 //////////////////////////////////
 
 
-////////// GLOBAL APPLICATION STATE //////////
-void jf_global_state_clear()
-{
-	free(g_state.config_dir);
-	free(g_state.runtime_dir);
-	free(g_state.session_id);
-	free(g_state.server_name);
-}
-//////////////////////////////////////////////
-
-
 ////////// THREAD BUFFER //////////
 void jf_thread_buffer_init(jf_thread_buffer *tb)
 {
@@ -117,9 +106,7 @@ void jf_growing_buffer_append(jf_growing_buffer *buffer, const void *data,
 {
 	size_t estimate;
 
-	if (buffer == NULL) {
-		return;
-	}
+	if (buffer == NULL) return;
 
 	if (buffer->used + length > buffer->size) {
 		estimate = (buffer->used + length) / 2 * 3;
@@ -133,9 +120,7 @@ void jf_growing_buffer_append(jf_growing_buffer *buffer, const void *data,
 
 void jf_growing_buffer_empty(jf_growing_buffer *buffer)
 {
-	if (buffer == NULL) {
-		return;
-	}
+	if (buffer == NULL) return;
 	
 	buffer->used = 0;
 }
@@ -143,9 +128,7 @@ void jf_growing_buffer_empty(jf_growing_buffer *buffer)
 
 void jf_growing_buffer_free(jf_growing_buffer *buffer)
 {
-	if (buffer == NULL) {
-		return;
-	}
+	if (buffer == NULL) return;
 
 	free(buffer->buf);
 	free(buffer);
@@ -172,8 +155,6 @@ jf_synced_queue *jf_synced_queue_new(const size_t slots)
 
 void jf_synced_queue_free(jf_synced_queue *q)
 {
-	if (q == NULL) return;
-
 	free(q);
 }
 
@@ -181,6 +162,7 @@ void jf_synced_queue_free(jf_synced_queue *q)
 void jf_synced_queue_enqueue(jf_synced_queue *q, const void *payload)
 {
 	if (payload == NULL) return;
+
 	pthread_mutex_lock(&q->mut);
 	while (q->slots[q->next] != NULL) {
 		pthread_cond_wait(&q->cv_is_full, &q->mut);
@@ -208,14 +190,6 @@ void *jf_synced_queue_dequeue(jf_synced_queue *q)
 
 	return payload;
 }
-
-
-bool jf_synced_queue_is_empty(const jf_synced_queue *q)
-{
-	// NB it makes no sense to acquire lock because things may change at any time anyways
-	// i.e. a better function name would be "_is_probably_empty" :p
-	return q->slots[q->current] == NULL;
-}
 //////////////////////////////////
 
 
@@ -237,7 +211,7 @@ char *jf_concat(size_t n, ...)
 	assert((argv_len = malloc(sizeof(size_t) * n)) != NULL);
 	va_start(ap, n);
 	for (i = 0; i < n; i++) {
-		argv_len[i] = strlen(va_arg(ap, char*));
+		argv_len[i] = strlen(va_arg(ap, const char*));
 		len += argv_len[i];
 	}
 	va_end(ap);
@@ -246,7 +220,7 @@ char *jf_concat(size_t n, ...)
 	len = 0;
 	va_start(ap, n);
 	for (i = 0; i < n; i++) {
-		memcpy(buf + len, va_arg(ap, char*), argv_len[i]);
+		memcpy(buf + len, va_arg(ap, const char*), argv_len[i]);
 		len += argv_len[i];
 	}
 	buf[len] = '\0';
