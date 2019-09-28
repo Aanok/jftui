@@ -87,6 +87,7 @@ static void jf_abort(int sig)
 static void jf_print_usage() {
 	printf("Usage:\n");
 	printf("\t--help\n");
+	printf("\t--version\n");
 	printf("\t--config-dir <directory> (default: $XDG_CONFIG_HOME/jftui)\n");
 	printf("\t--runtime-dir <directory> (default: $XDG_DATA_HOME/jftui)\n");
 	printf("\t--login.\n");
@@ -266,6 +267,9 @@ int main(int argc, char *argv[])
 			g_state.state = JF_STATE_STARTING_LOGIN;
 		} else if (strcmp(argv[i], "--no-check-updates") == 0) {
 			g_options.check_updates = false;
+		} else if (strcmp(argv[i], "--version") == 0) {
+			printf("%s\n", g_options.version);
+			exit(EXIT_SUCCESS);
 		} else {
 			fprintf(stderr, "FATAL: unrecognized argument %s.\n", argv[i]);
 			jf_print_usage();
