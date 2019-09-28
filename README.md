@@ -1,7 +1,5 @@
 jftui is a minimalistic, lightweight command line client for the open source [Jellyfin](http://jellyfin.org/) media server. It is developed for the GNU/Linux OS only, although it may be possible to make it run on BSD's.
 
-***DISCLAIMER***: I work on this program in my spare time and to my own personal preference. Absolutely no guarantees are provided on its safety or behavior.
-
 # Installation
 ## Dependencies
 - [libcurl](https://curl.haxx.se/libcurl/) (runtime)
@@ -9,12 +7,15 @@ jftui is a minimalistic, lightweight command line client for the open source [Je
 - [YAJL](https://lloyd.github.io/yajl/) >= 2.0 (runtime)
 - [PEG](http://piumarta.com/software/peg/) (development only)
 
+For Arch Linux users, there is an AUR [package](https://aur.archlinux.org/packages/jftui-git/) that will build from source.
+
+
 ## Building
-Make sure to checkout a release; master is not guaranteed to compile or indeed work at all times.
+Make sure to checkout a release as the master branch is not guaranteed to compile or indeed work at all times.
 
-Have a look at the Makefile: you may want to swap the default `clang` compiler for `gcc`.
+Then have a look at the Makefile: you may want to swap the default `clang` compiler for `gcc`.
 
-Then, run
+Finally, run
 ```
 make && sudo make install
 ```
