@@ -15,7 +15,7 @@
 #include <mpv/client.h>
 
 
-#define JF_FORCE_INLINE __attribute__((always_inline))
+#define JF_FORCE_INLINE __attribute__((always_inline)) inline
 
 
 ////////// CODE MACROS //////////
@@ -255,7 +255,7 @@ char *jf_generate_random_id(size_t length);
 
 void jf_mpv_clear(void);
 char *jf_make_timestamp(const long long ticks);
-JF_FORCE_INLINE size_t jf_clamp_zu(const size_t zu, const size_t min, const size_t max);
-JF_FORCE_INLINE void jf_clear_stdin(void);
+size_t jf_clamp_zu(const size_t zu, const size_t min, const size_t max);
+void jf_clear_stdin(void);
 ///////////////////////////////////////////
 #endif

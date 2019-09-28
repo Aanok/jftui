@@ -1,8 +1,8 @@
 CC=clang
 OFLAGS=-O2 -march=native
 WFLAGS=-Wall -Wpedantic -Wextra -Wconversion -Wstrict-prototypes -Werror=implicit-function-declaration -Werror=implicit-int -Werror=incompatible-pointer-types -Werror=int-conversion
-CFLAGS=`pkg-config --cflags libcurl yajl mpv` -pthread
-LFLAGS=`pkg-config --libs libcurl yajl mpv`
+CFLAGS=`pkg-config --cflags libcurl yajl mpv`
+LFLAGS=`pkg-config --libs libcurl yajl mpv` -pthread
 DFLAGS=-g -O1 -fno-omit-frame-pointer -fno-optimize-sibling-calls -fsanitize=address -fsanitize=undefined
 
 SOURCES=src/linenoise.c src/shared.c src/config.c src/disk.c src/json.c src/menu.c src/net.c src/main.c
@@ -35,10 +35,10 @@ ${BUILD_DIR}:
 	mkdir -p ${BUILD_DIR}
 
 ${BUILD_DIR}/jftui: ${BUILD_DIR} $(SOURCES)
-	$(CC) $(CFLAGS) $(LFLAGS) $(OFLAGS) $(SOURCES) -g -o $@
+	$(CC) $(CFLAGS) $(OFLAGS) $(SOURCES) $(LFLAGS) -g -o $@
 
 ${BUILD_DIR}/jftui_debug: ${BUILD_DIR} $(OBJECTS) $(SOURCES)
-	$(CC) $(WFLAGS) $(LFLAGS) $(DFLAGS) $(OBJECTS) -o $@
+	$(CC) $(WFLAGS) $(DFLAGS) $(OBJECTS) $(LFLAGS) -o $@
 
 src/cmd.c: src/cmd.leg
 	leg -o $@ $^
