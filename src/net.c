@@ -75,6 +75,7 @@ static void jf_net_share_lock(CURL *handle,
 		curl_lock_data data,
 		curl_lock_access access,
 		void *userptr);
+
 static void jf_net_share_unlock(CURL *handle,
 		curl_lock_data data,
 		void *userptr);
@@ -88,7 +89,7 @@ jf_reply *jf_reply_new()
 	assert((r = malloc(sizeof(jf_reply))) != NULL);
 	r->payload = NULL;
 	r->size = 0;
-	r->is_resolved = false;
+	r->state = JF_REPLY_PENDING;
 	return r;
 }
 
@@ -107,11 +108,11 @@ char *jf_reply_error_string(const jf_reply *r)
 		return "jf_reply is NULL";
 	}
 
-	if (r->size >= 0) {
+	if (! JF_REPLY_PTR_HAS_ERROR(r)) {
 		return "no error";
 	}
 
-	switch (r->size) {
+	switch (r->state) {
 		case JF_REPLY_ERROR_STUB:
 			return "stub functionality";
 		case JF_REPLY_ERROR_HTTP_401:
@@ -141,7 +142,7 @@ static size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *
 	jf_reply *reply = (jf_reply *)userdata;
 	assert(reply != NULL);
 	assert((reply->payload = realloc(reply->payload,
-					(size_t)reply->size + real_size + 1)) != NULL);
+					reply->size + real_size + 1)) != NULL);
 	memcpy(reply->payload + reply->size, payload, real_size);
 	reply->size += real_size;
 	reply->payload[reply->size] = '\0';
@@ -186,7 +187,7 @@ size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, void 
 		// check errors
 		if (s_tb.state == JF_THREAD_BUFFER_STATE_PARSER_ERROR) {
 			r->payload = strndup(s_tb.data, s_tb.used);
-			r->size = JF_REPLY_ERROR_PARSER;
+			r->state = JF_REPLY_ERROR_PARSER;
 			return 0;	
 		}
 		// send data
@@ -320,7 +321,6 @@ static CURL *jf_net_handle_init(void)
 	assert((handle = curl_easy_init()) != NULL);
 
 	// report errors
-	// TODO: double check this doesn't cause overruns (it shouldn't)
 	s_curl_errorbuffer[0] = '\0';
 	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_ERRORBUFFER, s_curl_errorbuffer));
 
@@ -414,7 +414,7 @@ static void jf_net_handle_after_perform(CURL *handle,
 		if (! JF_REPLY_PTR_HAS_ERROR(reply)) {
 			free(reply->payload);
 			reply->payload = (char *)curl_easy_strerror(result);
-			reply->size = JF_REPLY_ERROR_NETWORK;
+			reply->state = JF_REPLY_ERROR_NETWORK;
 		}
 	} else {
 		if (request_type == JF_REQUEST_SAX_PROMISCUOUS || request_type == JF_REQUEST_SAX) {
@@ -425,9 +425,10 @@ static void jf_net_handle_after_perform(CURL *handle,
 		switch (status_code) { 
 			case 200:
 			case 204:
+				reply->state = JF_REPLY_SUCCESS;
 				break;
 			case 401:
-				reply->size = JF_REPLY_ERROR_HTTP_401;
+				reply->state = JF_REPLY_ERROR_HTTP_401;
 				break;
 			case 302:
 				if (request_type == JF_REQUEST_CHECK_UPDATE) break;
@@ -436,11 +437,10 @@ static void jf_net_handle_after_perform(CURL *handle,
 				free(reply->payload);
 				assert((reply->payload = malloc(34)) != NULL);
 				snprintf(reply->payload, 34, "http request returned status %ld", status_code);
-				reply->size = JF_REPLY_ERROR_HTTP_NOT_OK;
+				reply->state = JF_REPLY_ERROR_HTTP_NOT_OK;
 				break;
 		}
 	}
-	reply->is_resolved = true;
 }
 
 
@@ -564,7 +564,7 @@ jf_reply *jf_net_await(jf_reply *reply)
 {
 	assert(reply != NULL);
 	pthread_mutex_lock(&s_async_mut);
-	while (reply->is_resolved == false) {
+	while (reply->state == JF_REPLY_PENDING) {
 		pthread_cond_wait(&s_async_cv, &s_async_mut);
 	}
 	pthread_mutex_unlock(&s_async_mut);
@@ -666,12 +666,12 @@ static size_t jf_check_update_header_callback(char *payload,
 		if (version_str >= payload + real_size - 2) goto bad_exit;
 		version_len = (size_t)((payload + real_size - 3) - version_str) + 1;
 		assert((reply->payload = strndup(version_str, version_len)) != NULL);
-		reply->size = (int)version_len;
+		reply->size = version_len;
 	}
 	return real_size;
 
 bad_exit:
-	reply->size = JF_REPLY_ERROR_BAD_LOCATION;
+	reply->state = JF_REPLY_ERROR_BAD_LOCATION;
 	return real_size;
 }
 

@@ -39,26 +39,32 @@ do {																		\
 
 
 ////////// JF_REPLY //////////
-// size < 0 means an error occurred
+typedef enum __attribute__((__packed__)) jf_reply_state {
+	JF_REPLY_PENDING = 0,
+	JF_REPLY_SUCCESS = 1,
+
+	JF_REPLY_ERROR_STUB = -1,
+	JF_REPLY_ERROR_NETWORK = -2,
+	JF_REPLY_ERROR_HTTP_401 = -3,
+	JF_REPLY_ERROR_HTTP_NOT_OK = -4,
+	JF_REPLY_ERROR_MALLOC = -5,
+	JF_REPLY_ERROR_CONCAT = -6,
+	JF_REPLY_ERROR_X_EMBY_AUTH = -7,
+	JF_REPLY_ERROR_PARSER = -8,
+	JF_REPLY_ERROR_BAD_LOCATION = -9
+} jf_reply_state;
+
+
 typedef struct jf_reply {
 	char *payload;
-	int size;
-	bool is_resolved;
+	size_t size;
+	jf_reply_state state;
 } jf_reply;
 
-#define JF_REPLY_ERROR_STUB				-1
-#define JF_REPLY_ERROR_NETWORK			-2
-#define JF_REPLY_ERROR_HTTP_401			-3
-#define JF_REPLY_ERROR_HTTP_NOT_OK		-4
-#define JF_REPLY_ERROR_MALLOC			-5
-#define JF_REPLY_ERROR_CONCAT			-6
-#define JF_REPLY_ERROR_X_EMBY_AUTH		-7
-#define JF_REPLY_ERROR_PARSER			-8
-#define JF_REPLY_ERROR_BAD_LOCATION		-9
 
-#define JF_REPLY_PTR_HAS_ERROR(_p)	((_p)->size < 0)
-#define JF_REPLY_PTR_GET_ERROR(_p)	((_p)->size)
-#define JF_REPLY_PTR_ERROR_IS(_p, _e) ((_p)->size == (_e))
+#define JF_REPLY_PTR_HAS_ERROR(_p)	((_p)->state < 0)
+#define JF_REPLY_PTR_GET_ERROR(_p)	((_p)->state)
+#define JF_REPLY_PTR_ERROR_IS(_p, _e) ((_p)->state == (_e))
 
 jf_reply *jf_reply_new(void);
 void jf_reply_free(jf_reply *r);
