@@ -273,15 +273,15 @@ static void jf_net_init()
 	// setup sharing
 	assert((s_curl_sh = curl_share_init()) != NULL);
 	assert(pthread_rwlock_init(&s_share_cookie_rw, NULL) == 0);
-	assert(pthread_rwlock_init(&s_share_dns_rw, NULL) == 0);
-	assert(pthread_rwlock_init(&s_share_ssl_rw, NULL) == 0);
-	assert(pthread_rwlock_init(&s_share_connect_rw, NULL) == 0);
-	assert(pthread_rwlock_init(&s_share_psl_rw, NULL) == 0);
 	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_COOKIE));
+	assert(pthread_rwlock_init(&s_share_dns_rw, NULL) == 0);
 	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS));
+	assert(pthread_rwlock_init(&s_share_ssl_rw, NULL) == 0);
 	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION));
+	assert(pthread_rwlock_init(&s_share_connect_rw, NULL) == 0);
 	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_CONNECT));
 #if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 62
+	assert(pthread_rwlock_init(&s_share_psl_rw, NULL) == 0);
 	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_PSL));
 #endif
 	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_LOCKFUNC, jf_net_share_lock)); 
