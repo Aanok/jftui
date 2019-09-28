@@ -435,7 +435,10 @@ static void jf_net_handle_after_perform(CURL *handle,
 				reply->state = JF_REPLY_ERROR_HTTP_401;
 				break;
 			case 302:
-				if (request_type == JF_REQUEST_CHECK_UPDATE) break;
+				if (request_type == JF_REQUEST_CHECK_UPDATE) {
+					reply->state = JF_REPLY_SUCCESS;
+					break;
+				}
 				// no break on else
 			default:
 				free(reply->payload);
