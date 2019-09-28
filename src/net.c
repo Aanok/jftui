@@ -17,7 +17,9 @@ static pthread_rwlock_t s_share_cookie_rw;
 static pthread_rwlock_t s_share_dns_rw;
 static pthread_rwlock_t s_share_connect_rw;
 static pthread_rwlock_t s_share_ssl_rw;
+#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 62
 static pthread_rwlock_t s_share_psl_rw;
+#endif
 static jf_synced_queue *s_async_queue = NULL;
 static pthread_mutex_t s_async_mut;
 static pthread_cond_t s_async_cv;
@@ -279,7 +281,9 @@ static void jf_net_init()
 	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS));
 	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION));
 	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_CONNECT));
-	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_PSL)); //7.61
+#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 62
+	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_PSL));
+#endif
 	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_LOCKFUNC, jf_net_share_lock)); 
 	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_UNLOCKFUNC, jf_net_share_unlock));
 
@@ -592,9 +596,11 @@ static void jf_net_share_lock(__attribute__((unused)) CURL *handle,
 		case CURL_LOCK_DATA_CONNECT:
 			rw_lock = &s_share_connect_rw;
 			break;
+#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 62
 		case CURL_LOCK_DATA_PSL:
 			rw_lock = &s_share_psl_rw;
 			break;
+#endif
 		default:
 			// no-op, other types are for curl internals
 			return;
@@ -632,9 +638,11 @@ static void jf_net_share_unlock(__attribute__((unused)) CURL *handle,
 		case CURL_LOCK_DATA_CONNECT:
 			rw_lock = &s_share_connect_rw;
 			break;
+#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 62
 		case CURL_LOCK_DATA_PSL:
 			rw_lock = &s_share_psl_rw;
 			break;
+#endif
 		default:
 			// no-op, other types are for curl internals
 			return;
