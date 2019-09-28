@@ -18,6 +18,16 @@
 #include "disk.h"
 
 
+// workaround for mpv bug #3988
+#if MPV_CLIENT_API_VERSION <= MPV_MAKE_VERSION(1,24)
+#define JF_MPV_SET_OPTPROP mpv_set_option
+#define JF_MPV_SET_OPTPROP_STRING mpv_set_option_string
+#else
+#define JF_MPV_SET_OPTPROP mpv_set_property
+#define JF_MPV_SET_OPTPROP_STRING mpv_set_property_string
+#endif
+
+
 ////////// CODE MACROS //////////
 #define JF_MPV_ASSERT(_s)													\
 do {																		\
@@ -109,15 +119,15 @@ static mpv_handle *jf_mpv_context_new()
 	char *x_emby_token;
 
 	assert((ctx = mpv_create()) != NULL);
-	JF_MPV_ASSERT(mpv_set_property(ctx, "config-dir", MPV_FORMAT_STRING, &g_state.config_dir));
-	JF_MPV_ASSERT(mpv_set_property(ctx, "config", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ASSERT(mpv_set_property(ctx, "osc", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ASSERT(mpv_set_property(ctx, "input-default-bindings", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ASSERT(mpv_set_property(ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ASSERT(mpv_set_property(ctx, "input-terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
-	JF_MPV_ASSERT(mpv_set_property(ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "config-dir", MPV_FORMAT_STRING, &g_state.config_dir));
+	JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "config", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "osc", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "input-default-bindings", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "input-terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+	JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
 	assert((x_emby_token = jf_concat(2, "x-emby-token: ", g_options.token)) != NULL);
-	JF_MPV_ASSERT(mpv_set_property_string(ctx, "http-header-fields", x_emby_token));
+	JF_MPV_ASSERT(JF_MPV_SET_OPTPROP_STRING(ctx, "http-header-fields", x_emby_token));
 	free(x_emby_token);
 	JF_MPV_ASSERT(mpv_observe_property(ctx, 0, "time-pos", MPV_FORMAT_INT64));
 
