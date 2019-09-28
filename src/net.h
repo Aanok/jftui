@@ -23,6 +23,18 @@ do {																		\
 		exit(EXIT_FAILURE);													\
 	}																		\
 } while (false)
+
+#define JF_CURL_SHARE_ASSERT(_s)											\
+do {																		\
+	CURLSHcode _c = _s;														\
+	if (_c != CURLSHE_OK) {													\
+		fprintf(stderr, "%s:%d: " #_s " failed.\n", __FILE__, __LINE__);	\
+		fprintf(stderr, "FATAL: libcurl error: %s.\n",						\
+				curl_share_strerror(_c));									\
+		exit(EXIT_FAILURE);													\
+	}																		\
+} while	(false)
+
 /////////////////////////////////
 
 
@@ -42,6 +54,7 @@ typedef struct jf_reply {
 #define JF_REPLY_ERROR_CONCAT			-6
 #define JF_REPLY_ERROR_X_EMBY_AUTH		-7
 #define JF_REPLY_ERROR_PARSER			-8
+#define JF_REPLY_ERROR_BAD_LOCATION		-9
 
 #define JF_REPLY_PTR_HAS_ERROR(_p)	((_p)->size < 0)
 #define JF_REPLY_PTR_GET_ERROR(_p)	((_p)->size)
@@ -60,7 +73,8 @@ typedef enum jf_request_type {
 	JF_REQUEST_SAX_PROMISCUOUS = 2,
 
 	JF_REQUEST_ASYNC_IN_MEMORY = -1,
-	JF_REQUEST_ASYNC_DETACH = -2 
+	JF_REQUEST_ASYNC_DETACH = -2,
+	JF_REQUEST_CHECK_UPDATE = -3
 } jf_request_type;
 
 #define JF_REQUEST_TYPE_IS_ASYNC(_t) ((_t) < 0)
@@ -87,14 +101,17 @@ void jf_net_clear(void);
 //
 // Parameters:
 // 	resource:
-// 		The suffix of the resource to request. Final URL will be the result of
-// 		appending this to the server's address.
+// 		For JF_REQUEST_CHECK_UPDATE, this is the full URL of the
+// 		resource to fetch.
+// 		Otherwise, it is treated as a suffix to append to the server's address
+// 		to compute the full URL.
 // 	request_type:
 // 		- JF_REQUEST_IN_MEMORY will cause the request to be evaded blockingly
 // 			and the response to be passed back in a jf_reply struct;
 // 		- JF_REQUEST_SAX will cause the response to be blockingly passed to the
 // 			JSON parser and digested as a non-promiscuous context;
-// 		- JF_REQUEST_SAX_PROMISCUOUS likewise but digested as a promiscuous context;
+// 		- JF_REQUEST_SAX_PROMISCUOUS likewise but digested as a promiscuous
+// 			context;
 // 			(note: both SAX requests will wait for the parser to be done before
 // 			returning control to the caller)
 // 		- JF_REQUEST_ASYNC_IN_MEMORY will cause the request to be evaded
@@ -106,6 +123,11 @@ void jf_net_clear(void);
 // 			the function will immediately return NULL and all response data
 // 			will be discarded on arrival. Use for requests whose outcome you
 // 			don't care about, like watch state updates.
+// 		- JF_REQUEST_CHECK_UPDATE functions like JF_REQUEST_ASYNC_IN_MEMORY,
+// 			except the resource parameter is interpreted as an absolute URL
+// 			instead of a suffix to append to the server address. This is so far
+// 			used only in the optional update check, which must reach the Github
+// 			servers.
 //	POST_payload:
 //		If NULL, the request will be an HTTP GET. Otherwise, the argument will
 //		constitute the body of an HTTP POST.
@@ -122,6 +144,8 @@ void jf_net_clear(void);
 jf_reply *jf_net_request(const char *resource,
 		jf_request_type request_type,
 		const char *POST_payload);
+
+jf_reply *jf_net_fetch_latest_version(void);
 ////////////////////////////////
 
 

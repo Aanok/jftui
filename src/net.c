@@ -12,6 +12,12 @@ static struct curl_slist *s_headers = NULL;
 static struct curl_slist *s_headers_POST = NULL;
 static char s_curl_errorbuffer[CURL_ERROR_SIZE];
 static jf_thread_buffer s_tb;
+static CURLSH *s_curl_sh = NULL;
+static pthread_rwlock_t s_share_cookie_rw;
+static pthread_rwlock_t s_share_dns_rw;
+static pthread_rwlock_t s_share_connect_rw;
+static pthread_rwlock_t s_share_ssl_rw;
+static pthread_rwlock_t s_share_psl_rw;
 static jf_synced_queue *s_async_queue = NULL;
 static pthread_mutex_t s_async_mut;
 static pthread_cond_t s_async_cv;
@@ -38,7 +44,12 @@ static size_t jf_detach_callback(char *payload,
 		size_t nmemb,
 		void *userdata);
 
-static void jf_net_handle_init(CURL *handle);
+static size_t jf_check_update_header_callback(char *payload,
+		size_t size,
+		size_t nmemb,
+		void *userdata);
+
+static CURL *jf_net_handle_init(void);
 
 static void jf_net_handle_before_perform(CURL *handle,
 		const char *resource,
@@ -59,6 +70,14 @@ static jf_async_request *jf_async_request_new(const char *resource,
 static void jf_async_request_free(jf_async_request *a_r);
 
 static void *jf_net_async_worker_thread(void *arg);
+
+static void jf_net_share_lock(CURL *handle,
+		curl_lock_data data,
+		curl_lock_access access,
+		void *userptr);
+static void jf_net_share_unlock(CURL *handle,
+		curl_lock_data data,
+		void *userptr);
 //////////////////////////////////////
 
 
@@ -104,6 +123,8 @@ char *jf_reply_error_string(const jf_reply *r)
 			return "string concatenation failed";
 		case JF_REPLY_ERROR_X_EMBY_AUTH:
 			return "appending x-emby-authorization failed";
+		case JF_REPLY_ERROR_BAD_LOCATION:
+			return "Locate header from redirect was missing or not formatted as expected";
 		case JF_REPLY_ERROR_NETWORK:
 		case JF_REPLY_ERROR_HTTP_NOT_OK:
 		case JF_REPLY_ERROR_PARSER:
@@ -204,10 +225,17 @@ void jf_thread_buffer_clear_error()
 ////////// NETWORK UNIT //////////
 static void jf_net_init()
 {
+	static pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 	char *tmp;
 	pthread_t sax_parser_thread;
 	pthread_t async_threads[3];
 	int i;
+
+	assert(pthread_mutex_lock(&mut) == 0);
+	if (s_handle != NULL) {
+		pthread_mutex_unlock(&mut);
+		return;
+	}
 
 	// TODO check libcurl version
 	
@@ -239,11 +267,22 @@ static void jf_net_init()
 					s_headers : s_headers_POST,
 					"content-type: application/json; charset=utf-8")) != NULL);
 
-	// setup handle for blocking requests
-	assert((s_handle = curl_easy_init()) != NULL);
-	s_curl_errorbuffer[0] = '\0';
-	JF_CURL_ASSERT(curl_easy_setopt(s_handle, CURLOPT_ERRORBUFFER, s_curl_errorbuffer));
-	jf_net_handle_init(s_handle);
+	// setup sharing
+	assert((s_curl_sh = curl_share_init()) != NULL);
+	assert(pthread_rwlock_init(&s_share_cookie_rw, NULL) == 0);
+	assert(pthread_rwlock_init(&s_share_dns_rw, NULL) == 0);
+	assert(pthread_rwlock_init(&s_share_ssl_rw, NULL) == 0);
+	assert(pthread_rwlock_init(&s_share_connect_rw, NULL) == 0);
+	assert(pthread_rwlock_init(&s_share_psl_rw, NULL) == 0);
+	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_COOKIE));
+	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS));
+	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION));
+	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_CONNECT));
+	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_PSL)); //7.61
+	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_LOCKFUNC, jf_net_share_lock)); 
+	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_UNLOCKFUNC, jf_net_share_unlock));
+
+	s_handle = jf_net_handle_init();
 
 	// sax parser thread
 	jf_thread_buffer_init(&s_tb);
@@ -259,6 +298,8 @@ static void jf_net_init()
 		assert(pthread_create(async_threads + i, NULL, jf_net_async_worker_thread, NULL) != -1);
 		assert(pthread_detach(async_threads[i]) == 0);
 	}
+
+	assert(pthread_mutex_unlock(&mut) == 0);
 }
 
 
@@ -272,16 +313,28 @@ void jf_net_clear()
 
 
 ////////// NETWORKING //////////
-static void jf_net_handle_init(CURL *handle)
+static CURL *jf_net_handle_init(void)
 {
-	// TODO curl_share bollocks
+	CURL *handle;
 
-	// ask for compression (all kinds supported)
+	assert((handle = curl_easy_init()) != NULL);
+
+	// report errors
+	// TODO: double check this doesn't cause overruns (it shouldn't)
+	s_curl_errorbuffer[0] = '\0';
+	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_ERRORBUFFER, s_curl_errorbuffer));
+
+	// be a good neighbour
+	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_SHARE, s_curl_sh));
+
+	// ask for all supported kinds of compression
 	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_ACCEPT_ENCODING, ""));
 
 	// follow redirects and keep POST method if using it
 	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1));
 	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_POSTREDIR, CURL_REDIR_POST_ALL));
+
+	return handle;
 }
 
 
@@ -294,9 +347,13 @@ static void jf_net_handle_before_perform(CURL *handle,
 	char *url;
 
 	// url
-	url = jf_concat(2, g_options.server, resource);
-	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_URL, url));
-	free(url);
+	if (request_type == JF_REQUEST_CHECK_UPDATE) {
+		JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_URL, resource));
+	} else {
+		url = jf_concat(2, g_options.server, resource);
+		JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_URL, url));
+		free(url);
+	}
 
 	// POST and headers
 	if (POST_payload != NULL) {
@@ -321,6 +378,12 @@ static void jf_net_handle_before_perform(CURL *handle,
 			s_tb.promiscuous_context = false;
 			JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, jf_thread_buffer_callback));
 			break;
+		case JF_REQUEST_CHECK_UPDATE:
+			// we don't care for the redirect
+			JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 0));
+			JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HEADERFUNCTION, jf_check_update_header_callback));
+			JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HEADERDATA, (void *)reply));
+			// no break
 		case JF_REQUEST_ASYNC_DETACH:
 			JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, jf_detach_callback));
 			break;
@@ -339,6 +402,11 @@ static void jf_net_handle_after_perform(CURL *handle,
 	if (request_type == JF_REQUEST_ASYNC_DETACH || reply == NULL) {
 		jf_reply_free(reply);
 		return;
+	} else if (request_type == JF_REQUEST_CHECK_UPDATE) {
+		// reset handle to sane defaults
+		JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1));
+		JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HEADERFUNCTION, NULL));
+		JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HEADERDATA, NULL));
 	}
 
 	if (result != CURLE_OK) {
@@ -361,6 +429,9 @@ static void jf_net_handle_after_perform(CURL *handle,
 			case 401:
 				reply->size = JF_REPLY_ERROR_HTTP_401;
 				break;
+			case 302:
+				if (request_type == JF_REQUEST_CHECK_UPDATE) break;
+				// no break on else
 			default:
 				free(reply->payload);
 				assert((reply->payload = malloc(34)) != NULL);
@@ -404,6 +475,23 @@ jf_reply *jf_net_request(const char *resource,
 	}
 
 	return reply;
+}
+
+
+jf_reply *jf_net_fetch_latest_version(void)
+{
+	jf_async_request *a_r;
+	
+	if (s_handle == NULL) {
+		jf_net_init();
+	}
+
+	a_r = jf_async_request_new("https://github.com/Aanok/jftui/releases/latest",
+			JF_REQUEST_CHECK_UPDATE,
+			NULL);
+	jf_synced_queue_enqueue(s_async_queue, a_r);
+
+	return a_r->reply;
 }
 ///////////////////////////////////
 
@@ -451,19 +539,9 @@ static size_t jf_detach_callback(__attribute__((unused)) char *payload,
 static void *jf_net_async_worker_thread(__attribute__((unused)) void *arg)
 {
 	CURL *handle;
-	char errorbuffer[CURL_ERROR_SIZE];
 	jf_async_request *request;
 
-	assert((handle = curl_easy_init()) != NULL);
-
-	// tell curl where to write informative error messages
-	s_curl_errorbuffer[0] = '\0';
-	JF_CURL_ASSERT(curl_easy_setopt(handle,
-				CURLOPT_ERRORBUFFER,
-				errorbuffer));
-
-	// generic networking options and curl_share optimizations
-	jf_net_handle_init(handle);
+	handle = jf_net_handle_init();
 
 	while (true) {
 		request = (jf_async_request *)jf_synced_queue_dequeue(s_async_queue);
@@ -492,10 +570,112 @@ jf_reply *jf_net_await(jf_reply *reply)
 	pthread_mutex_unlock(&s_async_mut);
 	return reply;
 }
+
+
+static void jf_net_share_lock(__attribute__((unused)) CURL *handle,
+		curl_lock_data data,
+		curl_lock_access access,
+		__attribute__((unused)) void *userptr)
+{
+	pthread_rwlock_t *rw_lock;
+
+	switch (data) {
+		case CURL_LOCK_DATA_COOKIE:
+			rw_lock = &s_share_cookie_rw;
+			break;
+		case CURL_LOCK_DATA_DNS:
+			rw_lock = &s_share_dns_rw;
+			break;
+		case CURL_LOCK_DATA_SSL_SESSION:
+			rw_lock = &s_share_ssl_rw;
+			break;
+		case CURL_LOCK_DATA_CONNECT:
+			rw_lock = &s_share_connect_rw;
+			break;
+		case CURL_LOCK_DATA_PSL:
+			rw_lock = &s_share_psl_rw;
+			break;
+		default:
+			// no-op, other types are for curl internals
+			return;
+	}
+	switch (access) {
+		case CURL_LOCK_ACCESS_SHARED:
+			assert(pthread_rwlock_rdlock(rw_lock) == 0);
+			break;
+		case CURL_LOCK_ACCESS_SINGLE:
+			assert(pthread_rwlock_wrlock(rw_lock) == 0);
+			break;
+		default:
+			// no-op, same
+			return;
+	}
+}
+
+
+static void jf_net_share_unlock(__attribute__((unused)) CURL *handle,
+		curl_lock_data data,
+		__attribute__((unused)) void *userptr)
+{
+	pthread_rwlock_t *rw_lock;
+
+	switch (data) {
+		case CURL_LOCK_DATA_COOKIE:
+			rw_lock = &s_share_cookie_rw;
+			break;
+		case CURL_LOCK_DATA_DNS:
+			rw_lock = &s_share_dns_rw;
+			break;
+		case CURL_LOCK_DATA_SSL_SESSION:
+			rw_lock = &s_share_ssl_rw;
+			break;
+		case CURL_LOCK_DATA_CONNECT:
+			rw_lock = &s_share_connect_rw;
+			break;
+		case CURL_LOCK_DATA_PSL:
+			rw_lock = &s_share_psl_rw;
+			break;
+		default:
+			// no-op, other types are for curl internals
+			return;
+	}
+	assert(pthread_rwlock_unlock(rw_lock) == 0);
+}
 //////////////////////////////////////
 
 
 ////////// MISCELLANEOUS GARBAGE ///////////
+static size_t jf_check_update_header_callback(char *payload,
+		size_t size,
+		size_t nmemb,
+		void *userdata)
+{
+	size_t real_size = size * nmemb;
+	jf_reply *reply;
+	char *version_str;
+	size_t version_len;
+	if (strncmp(payload,
+				"Location",
+				JF_STATIC_STRLEN("Location") < real_size ?
+				JF_STATIC_STRLEN("Location") : real_size) == 0) {
+		reply = (jf_reply *)userdata;
+		if ((version_str = strrchr(payload, '/')) == NULL) goto bad_exit;
+		// digest "/v"
+		version_str += 2;
+		// sanity check, knowing we will drop the trailing CRLF
+		if (version_str >= payload + real_size - 2) goto bad_exit;
+		version_len = (size_t)((payload + real_size - 3) - version_str) + 1;
+		assert((reply->payload = strndup(version_str, version_len)) != NULL);
+		reply->size = (int)version_len;
+	}
+	return real_size;
+
+bad_exit:
+	reply->size = JF_REPLY_ERROR_BAD_LOCATION;
+	return real_size;
+}
+
+
 char *jf_net_urlencode(const char *url)
 {
 	char *tmp, *retval;

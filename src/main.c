@@ -90,6 +90,7 @@ static void jf_print_usage() {
 	printf("\t--config-dir <directory> (default: $XDG_CONFIG_HOME/jftui)\n");
 	printf("\t--runtime-dir <directory> (default: $XDG_DATA_HOME/jftui)\n");
 	printf("\t--login.\n");
+	printf("\t--no-check-updates\n");
 }
 
 
@@ -216,7 +217,7 @@ int main(int argc, char *argv[])
 	// VARIABLES
 	int i;
 	char *config_path;
-	jf_reply *reply;
+	jf_reply *reply, *reply_alt;
 
 
 	// SIGNAL HANDLERS
@@ -263,6 +264,8 @@ int main(int argc, char *argv[])
 			assert((g_state.runtime_dir = strdup(argv[i])) != NULL);
 		} else if (strcmp(argv[i], "--login") == 0) {
 			g_state.state = JF_STATE_STARTING_LOGIN;
+		} else if (strcmp(argv[i], "--no-check-updates") == 0) {
+			g_options.check_updates = false;
 		} else {
 			fprintf(stderr, "FATAL: unrecognized argument %s.\n", argv[i]);
 			jf_print_usage();
@@ -282,6 +285,12 @@ int main(int argc, char *argv[])
 	jf_disk_init();
 	atexit(jf_disk_clear);
 	/////////////
+
+
+	// NETWORK SETUP
+	// network init is automatic upon first jf_net_request
+	atexit(jf_net_clear);
+	////////////////
 
 
 	// READ AND PARSE CONFIGURATION FILE
@@ -322,13 +331,15 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 	////////////////////////////////////
-
-
-	// NETWORK SETUP
-	// network init is automatic upon first jf_net_request
-	atexit(jf_net_clear);
-	////////////////
 	
+
+	// UPDATE CHECK
+	// it runs asynchronously while we do other stuff
+	if (g_options.check_updates) {
+		reply_alt = jf_net_fetch_latest_version();
+	}
+	///////////////
+
 
 	// INTERACTIVE CONFIG
 	if (g_state.state == JF_STATE_STARTING_FULL_CONFIG) {
@@ -340,6 +351,7 @@ int main(int argc, char *argv[])
 	// save to disk
 	jf_config_write(config_path);
 	free(config_path);
+
 
 	if (g_state.state != JF_STATE_STARTING) {
 		printf("Please restart to apply the new settings.\n");
@@ -372,6 +384,21 @@ int main(int argc, char *argv[])
 	g_mpv_ctx = jf_mpv_context_new();
 	atexit(jf_mpv_clear);
 	////////////
+
+
+	// resolve update check
+	if (g_options.check_updates) {
+		jf_net_await(reply_alt);
+		if (JF_REPLY_PTR_HAS_ERROR(reply_alt)) {
+			fprintf(stderr, "Warning: could not fetch latest version info: %s.\n",
+					jf_reply_error_string(reply_alt));
+		} else if (strcmp(JF_VERSION, reply_alt->payload) < 0) {
+			printf("Attention: jftui v%s is available for update. Check the changelog on Github.\n",
+					reply_alt->payload);
+		}
+		jf_reply_free(reply_alt);
+	}
+	///////////////////////
 
 
 	////////// MAIN LOOP //////////

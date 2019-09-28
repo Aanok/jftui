@@ -16,12 +16,19 @@
 ////////// CODE MACROS //////////
 #define JF_CONFIG_KEY_IS(key) strncmp(line, key, JF_STATIC_STRLEN(key)) == 0
 
-#define JF_CONFIG_FILL_VALUE(key)										\
+#define JF_CONFIG_FILL_VALUE(_key)										\
 do {																	\
 	value_len = strlen(value);											\
 	if (value[value_len - 1] == '\n') value_len--;						\
-	free(g_options.key);												\
-	assert((g_options.key = strndup(value, value_len)) != NULL);		\
+	free(g_options._key);												\
+	assert((g_options._key = strndup(value, value_len)) != NULL);		\
+} while (false)
+
+#define JF_CONFIG_FILL_VALUE_BOOL(_key)								\
+do {																\
+	if (strncmp(value, "false", JF_STATIC_STRLEN("false")) == 0) {	\
+		g_options._key= false;										\
+	}																\
 } while (false)
 
 #define JF_CONFIG_WRITE_VALUE(key) fprintf(config_file, #key "=%s\n", g_options.key)
@@ -35,6 +42,7 @@ do {																	\
 #define JF_CONFIG_DEVICE_DEFAULT			"PC"
 #define JF_CONFIG_DEVICEID_DEFAULT			"Linux"
 #define JF_CONFIG_VERSION_DEFAULT			JF_VERSION
+#define JF_CONFIG_CHECK_UPDATES_DEFAULT		true
 
 
 typedef struct jf_options {
@@ -47,6 +55,7 @@ typedef struct jf_options {
 	char *device;
 	char deviceid[JF_CONFIG_DEVICEID_MAX_LEN + 1];
 	char *version;
+	bool check_updates;
 } jf_options;
 
 

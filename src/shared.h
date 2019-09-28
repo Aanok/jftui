@@ -29,7 +29,7 @@
 
 
 ////////// CONSTANTS //////////
-#define JF_VERSION "prealpha"
+#define JF_VERSION "0.1"
 
 #define JF_THREAD_BUFFER_DATA_SIZE (CURL_MAX_WRITE_SIZE +1)
 

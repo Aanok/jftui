@@ -38,7 +38,10 @@ static void jf_options_complete_with_defaults()
 void jf_options_init(void)
 {
 	g_options = (jf_options){ 0 };
+	// these two must not be overwritten when calling _defaults() again
+	// during config file parsing
 	g_options.ssl_verifyhost = JF_CONFIG_SSL_VERIFYHOST_DEFAULT;
+	g_options.check_updates = JF_CONFIG_CHECK_UPDATES_DEFAULT;
 	jf_options_complete_with_defaults();
 }
 
@@ -108,9 +111,7 @@ void jf_config_read(const char *config_path)
 		} else if (JF_CONFIG_KEY_IS("userid")) {
 			JF_CONFIG_FILL_VALUE(userid);
 		} else if (JF_CONFIG_KEY_IS("ssl_verifyhost")) {
-			if (strncmp(value, "false", JF_STATIC_STRLEN("false")) == 0) {
-				g_options.ssl_verifyhost = false;
-			}
+			JF_CONFIG_FILL_VALUE_BOOL(ssl_verifyhost);
 		} else if (JF_CONFIG_KEY_IS("client")) {
 			JF_CONFIG_FILL_VALUE(client);
 		} else if (JF_CONFIG_KEY_IS("deviceid")) {
@@ -125,6 +126,8 @@ void jf_config_read(const char *config_path)
 			JF_CONFIG_FILL_VALUE(device);
 		} else if (JF_CONFIG_KEY_IS("version")) {
 			JF_CONFIG_FILL_VALUE(version);
+		} else if (JF_CONFIG_KEY_IS("check_updates")) {
+			JF_CONFIG_FILL_VALUE_BOOL(check_updates);
 		} else {
 			// option key was not recognized; print a warning and go on
 			fprintf(stderr,
@@ -155,6 +158,7 @@ void jf_config_write(const char *config_path)
 		JF_CONFIG_WRITE_VALUE(device);
 		JF_CONFIG_WRITE_VALUE(deviceid);
 		JF_CONFIG_WRITE_VALUE(version);
+		// NB don't write check_updates, we want it set manually
 
 		if (fclose(config_file) != 0) {
 			perror("Warning: jf_config_write: fclose");
