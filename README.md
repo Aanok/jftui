@@ -25,7 +25,7 @@ Run `jftui`. You will be prompted for a minimal interactive configuration on fir
 
 **BEWARE**: jftui fetches `https://github.com/Aanok/jftui/releases/latest` on startup to check for newer versions. You can avoid this by passing the `--no-check-updates` argument. There is also a settings file entry.
 
-jftui will use `mpv.conf` and `input.conf` files in `$XDG_CONFIG_HOME/jftui` (this location can be overridden with the `--config-dir` argument). It is recommended to at least add binds for the mpv commands `script-message jftui-playlist-next` and `script-message jftui-playlist-next` to allow playlist navigation.
+jftui will use `mpv.conf` and `input.conf` files in `$XDG_CONFIG_HOME/jftui` (this location can be overridden with the `--config-dir` argument). It is recommended to at least add binds for the mpv commands `script-message jftui-playlist-next` and `script-message jftui-playlist-prev` to allow playlist navigation.
 
 The grammar defining jftui commands is as follows:
 ```
