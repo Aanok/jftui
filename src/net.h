@@ -107,8 +107,7 @@ void jf_net_clear(void);
 //
 // Parameters:
 // 	resource:
-// 		For JF_REQUEST_CHECK_UPDATE, this is the full URL of the
-// 		resource to fetch.
+// 		For JF_REQUEST_CHECK_UPDATE, this is ignored.
 // 		Otherwise, it is treated as a suffix to append to the server's address
 // 		to compute the full URL.
 // 	request_type:
@@ -130,10 +129,8 @@ void jf_net_clear(void);
 // 			will be discarded on arrival. Use for requests whose outcome you
 // 			don't care about, like watch state updates.
 // 		- JF_REQUEST_CHECK_UPDATE functions like JF_REQUEST_ASYNC_IN_MEMORY,
-// 			except the resource parameter is interpreted as an absolute URL
-// 			instead of a suffix to append to the server address. This is so far
-// 			used only in the optional update check, which must reach the Github
-// 			servers.
+// 			except the resource parameter is ignored and internally set to the
+// 			one required for the optional update check against github.com
 //	POST_payload:
 //		If NULL, the request will be an HTTP GET. Otherwise, the argument will
 //		constitute the body of an HTTP POST.
@@ -143,15 +140,14 @@ void jf_net_clear(void);
 // 	- marks an error (authentication, network, parser's), check with the
 // 		JF_REPLY_PTR_HAS_ERROR macro and get an error string with
 // 		jf_reply_error_string;
-// 	- contains the body of the response for a JF_REQUEST_[ASYNC_]IN_MEMORY;
+// 	- contains the body of the response for a JF_REQUEST_[ASYNC_]IN_MEMORY and
+// 		JF_REQUEST_CHECK_UPDATE.
 // 	- contains an empty body for JF_REQUEST_SAX_*;
 // 	- is NULL for JF_REQUEST_ASYNC_DETACH.
 // CAN FATAL.
 jf_reply *jf_net_request(const char *resource,
 		jf_request_type request_type,
 		const char *POST_payload);
-
-jf_reply *jf_net_fetch_latest_version(void);
 ////////////////////////////////
 
 

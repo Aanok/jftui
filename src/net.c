@@ -355,7 +355,9 @@ static void jf_net_handle_before_perform(CURL *handle,
 
 	// url
 	if (request_type == JF_REQUEST_CHECK_UPDATE) {
-		JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_URL, resource));
+		JF_CURL_ASSERT(curl_easy_setopt(handle,
+					CURLOPT_URL,
+					"https://github.com/Aanok/jftui/releases/latest"));
 	} else {
 		url = jf_concat(2, g_options.server, resource);
 		JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_URL, url));
@@ -488,21 +490,21 @@ jf_reply *jf_net_request(const char *resource,
 }
 
 
-jf_reply *jf_net_fetch_latest_version(void)
-{
-	jf_async_request *a_r;
-	
-	if (s_handle == NULL) {
-		jf_net_init();
-	}
-
-	a_r = jf_async_request_new("https://github.com/Aanok/jftui/releases/latest",
-			JF_REQUEST_CHECK_UPDATE,
-			NULL);
-	jf_synced_queue_enqueue(s_async_queue, a_r);
-
-	return a_r->reply;
-}
+// jf_reply *jf_net_fetch_latest_version(void)
+// {
+// 	jf_async_request *a_r;
+// 	
+// 	if (s_handle == NULL) {
+// 		jf_net_init();
+// 	}
+// 
+// 	a_r = jf_async_request_new("https://github.com/Aanok/jftui/releases/latest",
+// 			JF_REQUEST_CHECK_UPDATE,
+// 			NULL);
+// 	jf_synced_queue_enqueue(s_async_queue, a_r);
+// 
+// 	return a_r->reply;
+// }
 ///////////////////////////////////
 
 
@@ -515,7 +517,11 @@ static jf_async_request *jf_async_request_new(const char *resource,
 
 	assert((a_r = malloc(sizeof(jf_async_request))) != NULL);
 	a_r->reply = request_type == JF_REQUEST_ASYNC_DETACH ? NULL : jf_reply_new();
-	assert((a_r->resource = strdup(resource)) != NULL);
+	if (resource == NULL) {
+		a_r->resource = NULL;
+	} else {
+		assert((a_r->resource = strdup(resource)) != NULL);
+	}
 	a_r->type = request_type;
 	if (POST_payload == NULL) {
 		a_r->POST_payload = NULL;

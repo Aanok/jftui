@@ -345,7 +345,7 @@ int main(int argc, char *argv[])
 	// UPDATE CHECK
 	// it runs asynchronously while we do other stuff
 	if (g_options.check_updates) {
-		reply_alt = jf_net_fetch_latest_version();
+		reply_alt = jf_net_request(NULL, JF_REQUEST_CHECK_UPDATE, NULL);
 	}
 	///////////////
 
