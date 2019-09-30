@@ -316,7 +316,7 @@ int main(int argc, char *argv[])
 	if (access(config_path, F_OK) == 0) {
 		// it's there: read it
 		jf_config_read(config_path);
-		if (strcmp(g_options.version, JF_VERSION) > 0) {
+		if (strcmp(g_options.version, JF_VERSION) < 0) {
 			printf("Attention: jftui was updated from the last time it was run. Check the changelog on Github.\n");
 			free(g_options.version);
 			assert((g_options.version = strdup(JF_VERSION)) != NULL);

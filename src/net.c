@@ -264,7 +264,6 @@ static void jf_net_init()
 				"\", deviceid=\"", g_options.deviceid,
 				"\", version=\"", g_options.version,
 				"\"");
-		printf("DEBUG: %s\n", tmp);
 		assert((s_headers_POST = curl_slist_append(s_headers, tmp)) != NULL);
 	} else {
 		// main behaviour
