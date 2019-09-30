@@ -17,7 +17,7 @@ static pthread_rwlock_t s_share_cookie_rw;
 static pthread_rwlock_t s_share_dns_rw;
 static pthread_rwlock_t s_share_connect_rw;
 static pthread_rwlock_t s_share_ssl_rw;
-#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 62
+#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 61
 static pthread_rwlock_t s_share_psl_rw;
 #endif
 static jf_synced_queue *s_async_queue = NULL;
@@ -72,6 +72,9 @@ static jf_async_request *jf_async_request_new(const char *resource,
 static void jf_async_request_free(jf_async_request *a_r);
 
 static void *jf_net_async_worker_thread(void *arg);
+
+static JF_FORCE_INLINE pthread_rwlock_t *
+jf_net_get_lock_for_data(curl_lock_data data);
 
 static void jf_net_share_lock(CURL *handle,
 		curl_lock_data data,
@@ -280,7 +283,7 @@ static void jf_net_init()
 	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION));
 	assert(pthread_rwlock_init(&s_share_connect_rw, NULL) == 0);
 	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_CONNECT));
-#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 62
+#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 61
 	assert(pthread_rwlock_init(&s_share_psl_rw, NULL) == 0);
 	JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_PSL));
 #endif
@@ -567,15 +570,26 @@ static void *jf_net_async_worker_thread(__attribute__((unused)) void *arg)
 }
 
 
-jf_reply *jf_net_await(jf_reply *reply)
+static JF_FORCE_INLINE pthread_rwlock_t *
+jf_net_get_lock_for_data(curl_lock_data data)
 {
-	assert(reply != NULL);
-	pthread_mutex_lock(&s_async_mut);
-	while (reply->state == JF_REPLY_PENDING) {
-		pthread_cond_wait(&s_async_cv, &s_async_mut);
+	switch (data) {
+		case CURL_LOCK_DATA_COOKIE:
+			return &s_share_cookie_rw;
+		case CURL_LOCK_DATA_DNS:
+			return &s_share_dns_rw;
+		case CURL_LOCK_DATA_SSL_SESSION:
+			return &s_share_ssl_rw;
+		case CURL_LOCK_DATA_CONNECT:
+			return &s_share_connect_rw;
+#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 61
+		case CURL_LOCK_DATA_PSL:
+			return &s_share_psl_rw;
+#endif
+		default:
+			// no-op, other types are for curl internals
+			return NULL;
 	}
-	pthread_mutex_unlock(&s_async_mut);
-	return reply;
 }
 
 
@@ -584,30 +598,10 @@ static void jf_net_share_lock(__attribute__((unused)) CURL *handle,
 		curl_lock_access access,
 		__attribute__((unused)) void *userptr)
 {
-	pthread_rwlock_t *rw_lock;
+	pthread_rwlock_t *rw_lock = jf_net_get_lock_for_data(data);
 
-	switch (data) {
-		case CURL_LOCK_DATA_COOKIE:
-			rw_lock = &s_share_cookie_rw;
-			break;
-		case CURL_LOCK_DATA_DNS:
-			rw_lock = &s_share_dns_rw;
-			break;
-		case CURL_LOCK_DATA_SSL_SESSION:
-			rw_lock = &s_share_ssl_rw;
-			break;
-		case CURL_LOCK_DATA_CONNECT:
-			rw_lock = &s_share_connect_rw;
-			break;
-#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 62
-		case CURL_LOCK_DATA_PSL:
-			rw_lock = &s_share_psl_rw;
-			break;
-#endif
-		default:
-			// no-op, other types are for curl internals
-			return;
-	}
+	if (rw_lock == NULL) return;
+
 	switch (access) {
 		case CURL_LOCK_ACCESS_SHARED:
 			assert(pthread_rwlock_rdlock(rw_lock) == 0);
@@ -616,7 +610,7 @@ static void jf_net_share_lock(__attribute__((unused)) CURL *handle,
 			assert(pthread_rwlock_wrlock(rw_lock) == 0);
 			break;
 		default:
-			// no-op, same
+			// no-op, other types are for internals
 			return;
 	}
 }
@@ -626,31 +620,23 @@ static void jf_net_share_unlock(__attribute__((unused)) CURL *handle,
 		curl_lock_data data,
 		__attribute__((unused)) void *userptr)
 {
-	pthread_rwlock_t *rw_lock;
+	pthread_rwlock_t *rw_lock = jf_net_get_lock_for_data(data);
 
-	switch (data) {
-		case CURL_LOCK_DATA_COOKIE:
-			rw_lock = &s_share_cookie_rw;
-			break;
-		case CURL_LOCK_DATA_DNS:
-			rw_lock = &s_share_dns_rw;
-			break;
-		case CURL_LOCK_DATA_SSL_SESSION:
-			rw_lock = &s_share_ssl_rw;
-			break;
-		case CURL_LOCK_DATA_CONNECT:
-			rw_lock = &s_share_connect_rw;
-			break;
-#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 62
-		case CURL_LOCK_DATA_PSL:
-			rw_lock = &s_share_psl_rw;
-			break;
-#endif
-		default:
-			// no-op, other types are for curl internals
-			return;
-	}
+	if (rw_lock == NULL) return;
+
 	assert(pthread_rwlock_unlock(rw_lock) == 0);
+}
+
+
+jf_reply *jf_net_await(jf_reply *reply)
+{
+	assert(reply != NULL);
+	pthread_mutex_lock(&s_async_mut);
+	while (reply->state == JF_REPLY_PENDING) {
+		pthread_cond_wait(&s_async_cv, &s_async_mut);
+	}
+	pthread_mutex_unlock(&s_async_mut);
+	return reply;
 }
 //////////////////////////////////////
 

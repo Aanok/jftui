@@ -49,11 +49,6 @@ mpv_handle *g_mpv_ctx = NULL;
 //////////////////////////////////////
 
 
-////////// STATIC VARIABLES //////////
-static mpv_handle *jf_mpv_context_new(void);
-//////////////////////////////////////
-
-
 ////////// STATIC FUNCTIONS //////////
 static JF_FORCE_INLINE void jf_mpv_version_check(void);
 static void jf_abort(int sig);
