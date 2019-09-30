@@ -264,6 +264,7 @@ static void jf_net_init()
 				"\", deviceid=\"", g_options.deviceid,
 				"\", version=\"", g_options.version,
 				"\"");
+		printf("DEBUG: %s\n", tmp);
 		assert((s_headers_POST = curl_slist_append(s_headers, tmp)) != NULL);
 	} else {
 		// main behaviour
@@ -491,23 +492,6 @@ jf_reply *jf_net_request(const char *resource,
 
 	return reply;
 }
-
-
-// jf_reply *jf_net_fetch_latest_version(void)
-// {
-// 	jf_async_request *a_r;
-// 	
-// 	if (s_handle == NULL) {
-// 		jf_net_init();
-// 	}
-// 
-// 	a_r = jf_async_request_new("https://github.com/Aanok/jftui/releases/latest",
-// 			JF_REQUEST_CHECK_UPDATE,
-// 			NULL);
-// 	jf_synced_queue_enqueue(s_async_queue, a_r);
-// 
-// 	return a_r->reply;
-// }
 ///////////////////////////////////
 
 

@@ -316,6 +316,11 @@ int main(int argc, char *argv[])
 	if (access(config_path, F_OK) == 0) {
 		// it's there: read it
 		jf_config_read(config_path);
+		if (strcmp(g_options.version, JF_VERSION) > 0) {
+			printf("Attention: jftui was updated from the last time it was run. Check the changelog on Github.\n");
+			free(g_options.version);
+			assert((g_options.version = strdup(JF_VERSION)) != NULL);
+		}
 		// if fundamental fields are missing (file corrupted for some reason)
 		if (g_options.server == NULL
 				|| g_options.userid == NULL
@@ -402,7 +407,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "Warning: could not fetch latest version info: %s.\n",
 					jf_reply_error_string(reply_alt));
 		} else if (strcmp(JF_VERSION, reply_alt->payload) < 0) {
-			printf("Attention: jftui v%s is available for update. Check the changelog on Github.\n",
+			printf("Attention: jftui v%s is available for update.\n",
 					reply_alt->payload);
 		}
 		jf_reply_free(reply_alt);
