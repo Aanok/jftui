@@ -548,7 +548,9 @@ void jf_json_parse_login_response(const char *payload)
 	token = YAJL_GET_STRING(yajl_tree_get(parsed, token_selector, yajl_t_string));
 	assert(userid != NULL);
 	assert(token != NULL);
+	free(g_options.userid);
 	g_options.userid = strdup(userid);
+	free(g_options.token);
 	g_options.token = strdup(token);
 	yajl_tree_free(parsed);
 }

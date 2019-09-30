@@ -3,6 +3,7 @@
 
 ////////// GLOBAL VARIABLES //////////
 extern jf_options g_options;
+extern jf_global_state g_state;
 //////////////////////////////////////
 
 
@@ -254,8 +255,9 @@ static void jf_net_init()
 	// headers
 	assert((s_headers = curl_slist_append(s_headers,
 					"accept: application/json; charset=utf-8")) != NULL);
-	if (g_options.token == NULL) {
-		// the only thing we can do is a POST for login
+	if (g_state.state == JF_STATE_STARTING_LOGIN
+			|| g_state.state == JF_STATE_STARTING_FULL_CONFIG) {
+		// the only thing we will do is a POST for login
 		tmp = jf_concat(9,
 				"x-emby-authorization: mediabrowser client=\"", g_options.client,
 				"\", device=\"", g_options.device, 

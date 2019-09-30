@@ -220,6 +220,7 @@ void jf_config_ask_user_login()
 			exit(EXIT_FAILURE);
 		}
 	}
+	printf("Login successful.\n");
 	jf_json_parse_login_response(login_reply->payload);
 	jf_reply_free(login_reply);
 	jf_growing_buffer_free(password);
@@ -249,6 +250,6 @@ void jf_config_ask_user()
 
 	jf_config_ask_user_login();
 
-	printf("Configuration and login successful.\n");
+	printf("Configuration successful.\n");
 }
 /////////////////////////////////////////////
