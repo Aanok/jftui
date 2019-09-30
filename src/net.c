@@ -10,7 +10,7 @@ extern jf_options g_options;
 static CURL *s_handle = NULL;
 static struct curl_slist *s_headers = NULL;
 static struct curl_slist *s_headers_POST = NULL;
-static char s_curl_errorbuffer[CURL_ERROR_SIZE];
+static char s_curl_errorbuffer[CURL_ERROR_SIZE + 1];
 static jf_thread_buffer s_tb;
 static CURLSH *s_curl_sh = NULL;
 static pthread_rwlock_t s_share_cookie_rw;
@@ -329,6 +329,7 @@ static CURL *jf_net_handle_init(void)
 
 	// report errors
 	s_curl_errorbuffer[0] = '\0';
+	s_curl_errorbuffer[sizeof(s_curl_errorbuffer) - 1] = '\0';
 	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_ERRORBUFFER, s_curl_errorbuffer));
 
 	// be a good neighbour
