@@ -644,7 +644,7 @@ char *jf_menu_linenoise(const char *prompt)
 		if (errno != EAGAIN) {
 			perror("FATAL: jf_menu_linenoise");
 		}
-		exit(EXIT_FAILURE);
+		jf_exit(JF_EXIT_FAILURE);
 	}
 	return str;
 }

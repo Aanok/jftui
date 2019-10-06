@@ -541,7 +541,7 @@ void jf_json_parse_login_response(const char *payload)
 	if ((parsed = yajl_tree_parse(payload, s_error_buffer, JF_PARSER_ERROR_BUFFER_SIZE)) == NULL) {
 		fprintf(stderr, "FATAL: jf_json_parse_login_response: %s\n",
 				s_error_buffer[0] == '\0' ? "yajl_tree_parse unknown error" : s_error_buffer);
-		exit(EXIT_FAILURE);
+		jf_exit(JF_EXIT_FAILURE);
 	}
 	// NB macros propagate NULL
 	userid = YAJL_GET_STRING(yajl_tree_get(parsed, userid_selector, yajl_t_string));
@@ -586,7 +586,7 @@ void jf_json_parse_server_info_response(const char *payload)
 	if ((parsed = yajl_tree_parse(payload, s_error_buffer, JF_PARSER_ERROR_BUFFER_SIZE)) == NULL) {
 		fprintf(stderr, "FATAL: jf_json_parse_login_response: %s\n",
 				s_error_buffer[0] == '\0' ? "yajl_tree_parse unknown error" : s_error_buffer);
-		exit(EXIT_FAILURE);
+		jf_exit(JF_EXIT_FAILURE);
 	}
 	// NB macros propagate NULL
 	assert((g_state.server_name = YAJL_GET_STRING(yajl_tree_get(parsed, server_name_selector, yajl_t_string))) != NULL);

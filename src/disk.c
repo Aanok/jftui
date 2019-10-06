@@ -112,7 +112,7 @@ char *jf_disk_get_default_runtime_dir()
 
 	if (dir == NULL) {
 		fprintf(stderr, "FATAL: could not acquire runtime directory location. $HOME could not be read and --runtime-dir was not passed.\n");
-		exit(EXIT_FAILURE);
+		jf_exit(JF_EXIT_FAILURE);
 	}
 	return dir;
 }

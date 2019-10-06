@@ -36,7 +36,7 @@ do {																		\
 		fprintf(stderr, "%s:%d: " #_s " failed.\n", __FILE__, __LINE__);	\
 		fprintf(stderr, "FATAL: mpv API error: %s.\n",						\
 				mpv_error_string(_status));									\
-		exit(EXIT_FAILURE);													\
+		jf_exit(JF_EXIT_FAILURE);											\
 	}																		\
 } while (false)
 /////////////////////////////////
@@ -51,12 +51,28 @@ mpv_handle *g_mpv_ctx = NULL;
 
 ////////// STATIC FUNCTIONS //////////
 static JF_FORCE_INLINE void jf_mpv_version_check(void);
-static void jf_abort(int sig);
 static void jf_print_usage(void);
 static JF_FORCE_INLINE void jf_missing_arg(const char *arg);
 static mpv_handle *jf_mpv_context_new(void);
 static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event);
 //////////////////////////////////////
+
+
+////////// PROGRAM TERMINATION //////////
+// Note: the signature and description of this function are in shared.h
+void jf_exit(int sig)
+{
+	// some of this is not async-signal-safe
+	// but what's the worst that can happen, a crash? :^)
+	if (sig == SIGABRT) {
+		perror("FATAL");
+	}
+	jf_disk_clear();
+	jf_net_clear();
+	mpv_terminate_destroy(g_mpv_ctx);
+	_exit(sig == JF_EXIT_SUCCESS ? EXIT_SUCCESS : EXIT_FAILURE);
+}
+/////////////////////////////////////////
 
 
 ////////// MISCELLANEOUS GARBAGE //////////
@@ -66,26 +82,13 @@ static JF_FORCE_INLINE void jf_mpv_version_check(void)
 	if (mpv_version < MPV_MAKE_VERSION(1,24)) {
 		fprintf(stderr, "FATAL: found libmpv version %lu.%lu, but 1.24 or greater is required.\n",
 				mpv_version >> 16, mpv_version & 0xFFFF);
-		exit(EXIT_FAILURE);
+		jf_exit(JF_EXIT_FAILURE);
 	}
 	// future proofing
 	if (mpv_version >= MPV_MAKE_VERSION(2,0)) {
 		fprintf(stderr, "Warning: found libmpv version %lu.%lu, but jftui expects 1.xx. mpv will probably not work.\n",
 				mpv_version >> 16, mpv_version & 0xFFFF);
 	}
-}
-
-
-static void jf_abort(int sig)
-{
-	// some of this is not async-signal-safe
-	// but what's the worst that can happen, a crash? :^)
-	if (sig == SIGABRT) {
-		perror("FATAL");
-	}
-	jf_disk_clear();
-	jf_net_clear();
-	_exit(EXIT_FAILURE);
 }
 
 
@@ -227,8 +230,8 @@ int main(int argc, char *argv[])
 
 
 	// SIGNAL HANDLERS
-	assert(signal(SIGABRT, jf_abort) != SIG_ERR);
-	assert(signal(SIGINT, jf_abort) != SIG_ERR);
+	assert(signal(SIGABRT, jf_exit) != SIG_ERR);
+	assert(signal(SIGINT, jf_exit) != SIG_ERR);
 	//////////////////
 
 
@@ -240,7 +243,6 @@ int main(int argc, char *argv[])
 
 	// SETUP OPTIONS
 	jf_options_init();
-	atexit(jf_options_clear);
 	////////////////
 
 
@@ -255,17 +257,17 @@ int main(int argc, char *argv[])
 	while (++i < argc) {
 		if (strcmp(argv[i], "--help") == 0) {
 			jf_print_usage();
-			exit(EXIT_SUCCESS);
+			jf_exit(JF_EXIT_SUCCESS);
 		} else if (strcmp(argv[i], "--config-dir") == 0) {
 			if (++i >= argc) {
 				jf_missing_arg("--config-dir");
-				exit(EXIT_FAILURE);
+				jf_exit(JF_EXIT_FAILURE);
 			}
 			assert((g_state.config_dir = strdup(argv[i])) != NULL);
 		} else if (strcmp(argv[i], "--runtime-dir") == 0) {
 			if (++i >= argc) {
 				jf_missing_arg("--runtime-dir");
-				exit(EXIT_FAILURE);
+				jf_exit(JF_EXIT_FAILURE);
 			}
 			assert((g_state.runtime_dir = strdup(argv[i])) != NULL);
 		} else if (strcmp(argv[i], "--login") == 0) {
@@ -274,11 +276,11 @@ int main(int argc, char *argv[])
 			g_options.check_updates = false;
 		} else if (strcmp(argv[i], "--version") == 0) {
 			printf("%s\n", g_options.version);
-			exit(EXIT_SUCCESS);
+			jf_exit(JF_EXIT_SUCCESS);
 		} else {
 			fprintf(stderr, "FATAL: unrecognized argument %s.\n", argv[i]);
 			jf_print_usage();
-			exit(EXIT_FAILURE);
+			jf_exit(JF_EXIT_FAILURE);
 		}
 	}
 	/////////////////////////
@@ -289,17 +291,10 @@ int main(int argc, char *argv[])
 	if (g_state.runtime_dir == NULL
 			&& (g_state.runtime_dir = jf_disk_get_default_runtime_dir()) == NULL) {
 		fprintf(stderr, "FATAL: could not acquire runtime directory location. $HOME could not be read and --runtime-dir was not passed.\n");
-		exit(EXIT_FAILURE);
+		jf_exit(JF_EXIT_FAILURE);
 	}
 	jf_disk_init();
-	atexit(jf_disk_clear);
 	/////////////
-
-
-	// NETWORK SETUP
-	// network init is automatic upon first jf_net_request
-	atexit(jf_net_clear);
-	////////////////
 
 
 	// READ AND PARSE CONFIGURATION FILE
@@ -307,7 +302,7 @@ int main(int argc, char *argv[])
 	if (g_state.config_dir == NULL
 			&& (g_state.config_dir = jf_config_get_default_dir()) == NULL) {
 		fprintf(stderr, "FATAL: could not acquire configuration directory location. $HOME could not be read and --config-dir was not passed.\n");
-		exit(EXIT_FAILURE);
+		jf_exit(JF_EXIT_FAILURE);
 	}
 	// get expected location of config file
 	config_path = jf_concat(2, g_state.config_dir, "/settings");
@@ -326,7 +321,7 @@ int main(int argc, char *argv[])
 				|| g_options.userid == NULL
 				|| g_options.token == NULL) {
 			if (! jf_menu_user_ask_yn("Error: settings file missing fundamental fields. Would you like to go through manual configuration?")) {
-				exit(EXIT_SUCCESS);
+				jf_exit(JF_EXIT_SUCCESS);
 			}
 			free(g_options.server);
 			free(g_options.userid);
@@ -336,13 +331,13 @@ int main(int argc, char *argv[])
 	} else if (errno == ENOENT) {
 		// it's not there
 		if (! jf_menu_user_ask_yn("Settings file not found. Would you like to configure jftui?")) {
-			exit(EXIT_SUCCESS);
+			jf_exit(JF_EXIT_SUCCESS);
 		}
 		g_state.state = JF_STATE_STARTING_FULL_CONFIG;
 	} else {
 		fprintf(stderr, "FATAL: access for settings file at location %s: %s.\n",
 			config_path, strerror(errno));
-		exit(EXIT_FAILURE);
+		jf_exit(JF_EXIT_FAILURE);
 	}
 	////////////////////////////////////
 	
@@ -367,10 +362,10 @@ int main(int argc, char *argv[])
 			|| g_state.state == JF_STATE_STARTING_LOGIN) {
 		if (jf_config_write(config_path)) {
 			printf("Please restart to apply the new settings.\n");
-			exit(EXIT_SUCCESS);
+			jf_exit(JF_EXIT_SUCCESS);
 		} else {
 			fprintf(stderr, "FATAL: Configuration failed.\n");
-			exit(EXIT_FAILURE);
+			jf_exit(JF_EXIT_FAILURE);
 		}
 	} else {
 		// we don't consider a failure to save config fatal during normal startup
@@ -385,7 +380,7 @@ int main(int argc, char *argv[])
 	reply = jf_net_request("/system/info", JF_REQUEST_IN_MEMORY, NULL);
 	if (JF_REPLY_PTR_HAS_ERROR(reply)) {
 		fprintf(stderr, "FATAL: could not reach server: %s.\n", jf_reply_error_string(reply));
-		exit(EXIT_FAILURE);
+		jf_exit(JF_EXIT_FAILURE);
 	}
 	jf_json_parse_server_info_response(reply->payload);
 	jf_reply_free(reply);
@@ -402,7 +397,6 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Warning: could not set numeric locale to sane standard. mpv might refuse to work.\n");
 	}
 	g_mpv_ctx = jf_mpv_context_new();
-	atexit(jf_mpv_clear);
 	////////////
 
 
@@ -425,10 +419,10 @@ int main(int argc, char *argv[])
 	while (true) {
 		switch (g_state.state) {
 			case JF_STATE_USER_QUIT:
-				exit(EXIT_SUCCESS);
+				jf_exit(JF_EXIT_SUCCESS);
 				break;
 			case JF_STATE_FAIL:
-				exit(EXIT_FAILURE);
+				jf_exit(JF_EXIT_FAILURE);
 				break;
 			default:
 				jf_mpv_event_dispatch(mpv_wait_event(g_mpv_ctx, -1));
@@ -438,6 +432,6 @@ int main(int argc, char *argv[])
 
 
 	// never reached
-	exit(EXIT_SUCCESS);
+	jf_exit(JF_EXIT_SUCCESS);
 }
 ///////////////////////////////

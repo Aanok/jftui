@@ -3,7 +3,6 @@
 
 ////////// GLOBALS //////////
 extern jf_global_state g_state;
-extern mpv_handle *g_mpv_ctx;
 /////////////////////////////
 
 
@@ -194,12 +193,6 @@ void *jf_synced_queue_dequeue(jf_synced_queue *q)
 
 
 ////////// MISCELLANEOUS GARBAGE //////////
-void jf_mpv_clear()
-{
-	mpv_terminate_destroy(g_mpv_ctx);
-}
-
-
 char *jf_concat(size_t n, ...)
 {
 	char *buf;

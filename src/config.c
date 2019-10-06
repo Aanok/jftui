@@ -244,7 +244,7 @@ void jf_config_ask_user_login()
 					"FATAL: could not login: %s.\n",
 					jf_reply_error_string(login_reply));
 			jf_reply_free(login_reply);
-			exit(EXIT_FAILURE);
+			jf_exit(JF_EXIT_FAILURE);
 		}
 	}
 	printf("Login successful.\n");

@@ -15,10 +15,9 @@
 #include <mpv/client.h>
 
 
+////////// CODE MACROS //////////
 #define JF_FORCE_INLINE __attribute__((always_inline)) inline
 
-
-////////// CODE MACROS //////////
 // for hardcoded strings
 #define JF_STATIC_STRLEN(str) (sizeof(str) - 1)
 
@@ -30,13 +29,30 @@
 
 ////////// CONSTANTS //////////
 #define JF_VERSION "0.1.1"
-
 #define JF_THREAD_BUFFER_DATA_SIZE (CURL_MAX_WRITE_SIZE +1)
-
 #define JF_ID_LENGTH 32
-
 #define JF_CONFIG_DEVICEID_MAX_LEN 31
 ///////////////////////////////
+
+
+// make sure all custom exit codes are not positive to avoid collisions
+// with UNIX signal identifiers
+#define JF_EXIT_SUCCESS	0
+#define JF_EXIT_FAILURE	-1
+
+
+////////// PROGRAM TERMINATION //////////
+// Note: the code for this function is defined in the main.c TU.
+// Exits the program after making an attempt to perform required cleanup.
+// Meant as a catch-all, including normal termination and signal handling.
+//
+// Parameters:
+// 	sig: can be a UNIX signal identifier or either JF_EXIT_FAILURE or
+// 		JF_EXIT_SUCCESS. In the latter two cases, the process wil return the
+// 		corresponding stdlib exit codes.
+// CAN (unsurprisingly) FATAL.
+void jf_exit(int sig);
+/////////////////////////////////////////
 
 
 ////////// GENERIC JELLYFIN ITEM REPRESENTATION //////////
@@ -216,6 +232,8 @@ void *jf_synced_queue_dequeue(jf_synced_queue *q);
 
 
 ////////// MISCELLANEOUS GARBAGE //////////
+
+
 // Concatenates any amount of NULL-terminated strings. The result will be
 // dynamically allocated and will need to be free'd.
 //

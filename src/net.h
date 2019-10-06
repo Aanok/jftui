@@ -20,7 +20,7 @@ do {																		\
 		fprintf(stderr, "%s:%d: " #_s " failed.\n", __FILE__, __LINE__);	\
 		fprintf(stderr, "FATAL: libcurl error: %s: %s.\n",					\
 				curl_easy_strerror(_c), s_curl_errorbuffer);				\
-		exit(EXIT_FAILURE);													\
+		jf_exit(JF_EXIT_FAILURE);											\
 	}																		\
 } while (false)
 
@@ -31,7 +31,7 @@ do {																		\
 		fprintf(stderr, "%s:%d: " #_s " failed.\n", __FILE__, __LINE__);	\
 		fprintf(stderr, "FATAL: libcurl error: %s.\n",						\
 				curl_share_strerror(_c));									\
-		exit(EXIT_FAILURE);													\
+		jf_exit(JF_EXIT_FAILURE);											\
 	}																		\
 } while	(false)
 
