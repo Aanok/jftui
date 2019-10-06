@@ -232,8 +232,15 @@ int main(int argc, char *argv[])
 
 
 	// SIGNAL HANDLERS
-	assert(signal(SIGABRT, jf_exit) != SIG_ERR);
-	assert(signal(SIGINT, jf_exit) != SIG_ERR);
+	{
+		struct sigaction sa;
+		sa.sa_handler = jf_exit;
+		sigemptyset(&sa.sa_mask);
+		sa.sa_flags = 0;
+		sa.sa_sigaction = NULL;
+		assert(sigaction(SIGABRT, &sa, NULL) == 0);
+		assert(sigaction(SIGINT, &sa, NULL) == 0);
+	}
 	//////////////////
 
 

@@ -545,6 +545,15 @@ static void *jf_net_async_worker_thread(__attribute__((unused)) void *arg)
 
 	handle = jf_net_handle_init();
 
+	// block signals we handle in main thread
+	{
+		sigset_t ss;
+		sigemptyset(&ss);
+		sigaddset(&ss, SIGABRT);
+		sigaddset(&ss, SIGINT);
+		assert(pthread_sigmask(SIG_BLOCK, &ss, NULL) == 0);
+	}
+
 	while (true) {
 		request = (jf_async_request *)jf_synced_queue_dequeue(s_async_queue);
 		jf_net_handle_before_perform(handle,
