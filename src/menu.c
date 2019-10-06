@@ -41,11 +41,11 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
 				0, 0
 			},
 			&(jf_menu_item){
-				JF_ITEM_TYPE_MENU_LATEST,
+				JF_ITEM_TYPE_MENU_LATEST_UNPLAYED,
 				NULL,
 				0,
 				"",
-				"Latest Added",
+				"Latest Unplayed",
 				0, 0
 			},
 			&(jf_menu_item){
@@ -166,7 +166,7 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 		case JF_ITEM_TYPE_ALBUM:
 		case JF_ITEM_TYPE_SEASON:
 		case JF_ITEM_TYPE_SERIES:
-			if ((parent = jf_menu_stack_peek()) != NULL && parent->type == JF_ITEM_TYPE_MENU_LATEST) {
+			if ((parent = jf_menu_stack_peek()) != NULL && parent->type == JF_ITEM_TYPE_MENU_LATEST_UNPLAYED) {
 				return jf_concat(4,
 						"/users/",
 						g_options.userid,
@@ -231,7 +231,7 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 					"/items/resume?recursive=true");
 		case JF_ITEM_TYPE_MENU_NEXT_UP:
 			return jf_concat(3, "/shows/nextup?userid=", g_options.userid, "&limit=15");
-		case JF_ITEM_TYPE_MENU_LATEST:
+		case JF_ITEM_TYPE_MENU_LATEST_UNPLAYED:
 			// TODO figure out what fresh insanity drives the limit amount in this case
 			return jf_concat(3, "/users/", g_options.userid, "/items/latest?limit=115");
 		case JF_ITEM_TYPE_MENU_LIBRARIES:
@@ -279,7 +279,7 @@ static bool jf_menu_print_context()
 		case JF_ITEM_TYPE_MENU_FAVORITES:
 		case JF_ITEM_TYPE_MENU_CONTINUE:
 		case JF_ITEM_TYPE_MENU_NEXT_UP:
-		case JF_ITEM_TYPE_MENU_LATEST:
+		case JF_ITEM_TYPE_MENU_LATEST_UNPLAYED:
 		case JF_ITEM_TYPE_MENU_LIBRARIES:
 		case JF_ITEM_TYPE_SEARCH_RESULT:
 			request_type = JF_REQUEST_SAX_PROMISCUOUS;
@@ -432,7 +432,7 @@ bool jf_menu_child_dispatch(size_t n)
 		case JF_ITEM_TYPE_MENU_FAVORITES:
 		case JF_ITEM_TYPE_MENU_CONTINUE:
 		case JF_ITEM_TYPE_MENU_NEXT_UP:
-		case JF_ITEM_TYPE_MENU_LATEST:
+		case JF_ITEM_TYPE_MENU_LATEST_UNPLAYED:
 		case JF_ITEM_TYPE_MENU_LIBRARIES:
 		case JF_ITEM_TYPE_COLLECTION_MUSIC:
 		case JF_ITEM_TYPE_COLLECTION_SERIES:

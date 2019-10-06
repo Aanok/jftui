@@ -71,7 +71,7 @@ typedef enum __attribute__((__packed__)) jf_item_type {
 	JF_ITEM_TYPE_MENU_FAVORITES = -2,
 	JF_ITEM_TYPE_MENU_CONTINUE = -3,
 	JF_ITEM_TYPE_MENU_NEXT_UP = -4,
-	JF_ITEM_TYPE_MENU_LATEST = -5,
+	JF_ITEM_TYPE_MENU_LATEST_UNPLAYED = -5,
 	JF_ITEM_TYPE_MENU_LIBRARIES = -6
 } jf_item_type;
 
