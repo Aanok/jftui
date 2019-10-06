@@ -145,34 +145,56 @@ void jf_config_read(const char *config_path)
 }
 
 
-void jf_config_write(const char *config_path)
+bool jf_config_write(const char *config_path)
 {
-	FILE *config_file;
+	FILE *tmp_file;
+	char *tmp_path;
 
 	if (access(g_state.config_dir, F_OK) != 0) {
 		assert(mkdir(g_state.config_dir, S_IRWXU) != -1);
 	}
 
-	if ((config_file = fopen(config_path, "w")) != NULL) {
-		JF_CONFIG_WRITE_VALUE(server);
-		JF_CONFIG_WRITE_VALUE(token);
-		JF_CONFIG_WRITE_VALUE(userid);
-		fprintf(config_file, "ssl_verifyhost=%s\n",
-				g_options.ssl_verifyhost ? "true" : "false" );
-		JF_CONFIG_WRITE_VALUE(client);
-		JF_CONFIG_WRITE_VALUE(device);
-		JF_CONFIG_WRITE_VALUE(deviceid);
-		JF_CONFIG_WRITE_VALUE(version);
-		// NB don't write check_updates, we want it set manually
+	tmp_path = jf_concat(2, g_state.config_dir, "/settings.tmp");
 
-		if (fclose(config_file) != 0) {
-			perror("Warning: jf_config_write: fclose");
-			fprintf(stderr, "Settings may not have been saved to disk.\n");
-		}
-	} else {
-		perror("Warning: jf_config_write: fopen");
-		fprintf(stderr, "Settings could not be saved to disk.\n");
+	if ((tmp_file = fopen(tmp_path, "w")) == NULL) {
+		fprintf(stderr,
+				"Warning: could not open temporary settings file (%s): %s.\nSettings could not be saved.\n",
+				tmp_path,
+				strerror(errno));
+		goto bad_exit;
 	}
+	JF_CONFIG_WRITE_VALUE(server);
+	JF_CONFIG_WRITE_VALUE(token);
+	JF_CONFIG_WRITE_VALUE(userid);
+	fprintf(tmp_file, "ssl_verifyhost=%s\n",
+			g_options.ssl_verifyhost ? "true" : "false" );
+	JF_CONFIG_WRITE_VALUE(client);
+	JF_CONFIG_WRITE_VALUE(device);
+	JF_CONFIG_WRITE_VALUE(deviceid);
+	JF_CONFIG_WRITE_VALUE(version);
+	// NB don't write check_updates, we want it set manually
+
+	if (fclose(tmp_file) != 0) {
+		fprintf(stderr,
+				"Warning: could not close temporary settings file (%s): %s.\nSettings could not be saved.\n",
+				tmp_path,
+				strerror(errno));
+		goto bad_exit;
+	}
+	if (rename(tmp_path, config_path) != 0) {
+		fprintf(stderr,
+				"Warning: could not move temporary settings file to final location (%s): %s.\nSettings could not be saved.\n",
+				config_path,
+				strerror(errno));
+		goto bad_exit;
+	}
+
+	free(tmp_path);
+	return true;
+
+bad_exit:
+	free(tmp_path);
+	return false;
 }
 ////////////////////////////////////////
 
@@ -254,7 +276,5 @@ void jf_config_ask_user()
 	}
 
 	jf_config_ask_user_login();
-
-	printf("Configuration successful.\n");
 }
 /////////////////////////////////////////////

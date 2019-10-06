@@ -31,7 +31,7 @@ do {																\
 	}																\
 } while (false)
 
-#define JF_CONFIG_WRITE_VALUE(key) fprintf(config_file, #key "=%s\n", g_options.key)
+#define JF_CONFIG_WRITE_VALUE(key) fprintf(tmp_file, #key "=%s\n", g_options.key)
 /////////////////////////////////
 
 
@@ -67,7 +67,7 @@ void jf_options_clear(void);
 ////////// USER CONFIGURATION //////////
 char *jf_config_get_default_dir(void);
 void jf_config_read(const char *config_path);
-void jf_config_write(const char *config_path);
+bool jf_config_write(const char *config_path);
 void jf_config_ask_user_login(void);
 void jf_config_ask_user(void);
 ////////////////////////////////////////

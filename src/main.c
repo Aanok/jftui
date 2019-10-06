@@ -361,15 +361,21 @@ int main(int argc, char *argv[])
 	} else if (g_state.state == JF_STATE_STARTING_LOGIN) {
 		jf_config_ask_user_login();
 	}
-	
+
 	// save to disk
-	jf_config_write(config_path);
-	free(config_path);
-
-
-	if (g_state.state != JF_STATE_STARTING) {
-		printf("Please restart to apply the new settings.\n");
-		exit(EXIT_SUCCESS);
+	if (g_state.state == JF_STATE_STARTING_FULL_CONFIG
+			|| g_state.state == JF_STATE_STARTING_LOGIN) {
+		if (jf_config_write(config_path)) {
+			printf("Please restart to apply the new settings.\n");
+			exit(EXIT_SUCCESS);
+		} else {
+			fprintf(stderr, "FATAL: Configuration failed.\n");
+			exit(EXIT_FAILURE);
+		}
+	} else {
+		// we don't consider a failure to save config fatal during normal startup
+		jf_config_write(config_path);
+		free(config_path);
 	}
 	/////////////////////
 	
