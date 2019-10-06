@@ -3,6 +3,7 @@
 
 ////////// GLOBALS //////////
 extern jf_options g_options;
+extern jf_global_state g_state;
 /////////////////////////////
 
 
@@ -147,6 +148,10 @@ void jf_config_read(const char *config_path)
 void jf_config_write(const char *config_path)
 {
 	FILE *config_file;
+
+	if (access(g_state.config_dir, F_OK) != 0) {
+		assert(mkdir(g_state.config_dir, S_IRWXU) != -1);
+	}
 
 	if ((config_file = fopen(config_path, "w")) != NULL) {
 		JF_CONFIG_WRITE_VALUE(server);
