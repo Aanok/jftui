@@ -28,7 +28,7 @@
 
 
 ////////// CONSTANTS //////////
-#define JF_VERSION "0.1.1"
+#define JF_VERSION "0.1.2"
 #define JF_THREAD_BUFFER_DATA_SIZE (CURL_MAX_WRITE_SIZE +1)
 #define JF_ID_LENGTH 32
 #define JF_CONFIG_DEVICEID_MAX_LEN 31
