@@ -141,7 +141,9 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 	int64_t playback_ticks;
 	int mpv_flag_yes = 1, mpv_flag_no = 0;
 
-// 	printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
+#ifdef JF_DEBUG
+	printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
+#endif
 	switch (event->event_id) {
 		case MPV_EVENT_CLIENT_MESSAGE:
 			// playlist controls

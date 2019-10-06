@@ -296,7 +296,9 @@ static bool jf_menu_print_context()
 				jf_menu_item_free(s_context);
 				return false;
 			}
-// 			printf("DEBUG: request_url = %s\n", request_url);
+#ifdef JF_DEBUG
+			printf("DEBUG: request_url = %s\n", request_url);
+#endif
 			reply = jf_net_request(request_url, request_type, NULL);
 			free(request_url);
 			if (JF_REPLY_PTR_HAS_ERROR(reply)) {
