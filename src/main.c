@@ -333,7 +333,7 @@ int main(int argc, char *argv[])
 			free(g_options.token);
 			g_state.state = JF_STATE_STARTING_FULL_CONFIG;
 		}
-	} else if (errno == ENOENT || errno == ENOTDIR) {
+	} else if (errno == ENOENT) {
 		// it's not there
 		if (! jf_menu_user_ask_yn("Settings file not found. Would you like to configure jftui?")) {
 			exit(EXIT_SUCCESS);
