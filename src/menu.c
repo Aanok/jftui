@@ -372,6 +372,7 @@ static void jf_menu_play_item(const jf_menu_item *item)
 		case JF_ITEM_TYPE_EPISODE:
 		case JF_ITEM_TYPE_MOVIE:
 			printf("Error: jf_menu_play_item video types not yet supported.\n");
+			g_state.state = JF_STATE_MENU_UI;
 			break;
 		default:
 			fprintf(stderr,
