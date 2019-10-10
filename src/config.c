@@ -237,7 +237,7 @@ void jf_config_ask_user_login()
 		if (JF_REPLY_PTR_ERROR_IS(login_reply, JF_REPLY_ERROR_HTTP_401)) {
 			jf_reply_free(login_reply);
 			if (! jf_menu_user_ask_yn("Error: invalid login credentials. Would you like to try again?")) {
-				exit(EXIT_SUCCESS);
+				jf_exit(EXIT_SUCCESS);
 			}
 		} else {
 			fprintf(stderr,
