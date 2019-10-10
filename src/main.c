@@ -60,6 +60,7 @@ void jf_exit(int sig)
 {
 	// some of this is not async-signal-safe
 	// but what's the worst that can happen, a crash? :^)
+	g_state.state = sig == JF_EXIT_SUCCESS ? JF_STATE_USER_QUIT : JF_STATE_FAIL;
 	if (sig == SIGABRT) {
 		perror("FATAL");
 	}
@@ -236,6 +237,9 @@ int main(int argc, char *argv[])
 		sa.sa_sigaction = NULL;
 		assert(sigaction(SIGABRT, &sa, NULL) == 0);
 		assert(sigaction(SIGINT, &sa, NULL) == 0);
+		// for the sake of multithreaded libcurl
+		sa.sa_handler = SIG_IGN;
+		assert(sigaction(SIGPIPE, &sa, NULL) == 0);
 	}
 	//////////////////
 

@@ -13,6 +13,7 @@ static struct curl_slist *s_headers = NULL;
 static struct curl_slist *s_headers_POST = NULL;
 static char s_curl_errorbuffer[CURL_ERROR_SIZE + 1];
 static jf_thread_buffer s_tb;
+static pthread_mutex_t s_mut = PTHREAD_MUTEX_INITIALIZER;
 static CURLSH *s_curl_sh = NULL;
 static pthread_rwlock_t s_share_cookie_rw;
 static pthread_rwlock_t s_share_dns_rw;
@@ -21,6 +22,7 @@ static pthread_rwlock_t s_share_ssl_rw;
 #if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 61
 static pthread_rwlock_t s_share_psl_rw;
 #endif
+pthread_t s_async_threads[JF_NET_ASYNC_THREADS];
 static jf_synced_queue *s_async_queue = NULL;
 static pthread_mutex_t s_async_mut;
 static pthread_cond_t s_async_cv;
@@ -146,6 +148,11 @@ static size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *
 {
 	size_t real_size = size * nmemb;
 	jf_reply *reply = (jf_reply *)userdata;
+
+	if (JF_STATE_IS_EXITING(g_state.state)) {
+		return 0;
+	}
+
 	assert(reply != NULL);
 	assert((reply->payload = realloc(reply->payload,
 					reply->size + real_size + 1)) != NULL);
@@ -187,10 +194,14 @@ size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, void 
 	pthread_mutex_lock(&s_tb.mut);
 	while (written_data < real_size) {
 		// wait for parser
-		while (s_tb.state == JF_THREAD_BUFFER_STATE_PENDING_DATA) {
+		while (s_tb.state == JF_THREAD_BUFFER_STATE_PENDING_DATA
+				&& ! JF_STATE_IS_EXITING(g_state.state)) {
 			pthread_cond_wait(&s_tb.cv_has_data, &s_tb.mut);
 		}
 		// check errors
+		if (JF_STATE_IS_EXITING(g_state.state)) {
+			return 0;
+		}
 		if (s_tb.state == JF_THREAD_BUFFER_STATE_PARSER_ERROR) {
 			r->payload = strndup(s_tb.data, s_tb.used);
 			r->state = JF_REPLY_ERROR_PARSER;
@@ -232,15 +243,13 @@ void jf_thread_buffer_clear_error()
 ////////// NETWORK UNIT //////////
 static void jf_net_init()
 {
-	static pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 	char *tmp;
 	pthread_t sax_parser_thread;
-	pthread_t async_threads[3];
 	int i;
 
-	assert(pthread_mutex_lock(&mut) == 0);
+	assert(pthread_mutex_lock(&s_mut) == 0);
 	if (s_handle != NULL) {
-		pthread_mutex_unlock(&mut);
+		pthread_mutex_unlock(&s_mut);
 		return;
 	}
 
@@ -304,20 +313,37 @@ static void jf_net_init()
 	assert(pthread_mutex_init(&s_async_mut, NULL) == 0);
 	assert(pthread_cond_init(&s_async_cv, NULL) == 0);
 
-	for (i = 0; i < 3; i++) {
-		assert(pthread_create(async_threads + i, NULL, jf_net_async_worker_thread, NULL) != -1);
-		assert(pthread_detach(async_threads[i]) == 0);
+	for (i = 0; i < JF_NET_ASYNC_THREADS; i++) {
+		assert(pthread_create(s_async_threads + i, NULL, jf_net_async_worker_thread, NULL) != -1);
 	}
 
-	assert(pthread_mutex_unlock(&mut) == 0);
+	assert(pthread_mutex_unlock(&s_mut) == 0);
 }
 
 
 void jf_net_clear()
 {
-	curl_slist_free_all(s_headers_POST);
+	int i;
+
+	assert(pthread_mutex_lock(&s_mut) == 0);
+	if (s_handle != NULL) {
+		pthread_mutex_unlock(&s_mut);
+		return;
+	}
+
+	for (i = 0; i < JF_NET_ASYNC_THREADS; i++) {
+		jf_synced_queue_enqueue(s_async_queue,
+				jf_async_request_new(NULL, JF_REQUEST_EXIT, NULL));
+	}
 	curl_easy_cleanup(s_handle);
+	for (i = 0; i < JF_NET_ASYNC_THREADS; i++) {
+		assert(pthread_join(s_async_threads[i], NULL) == 0);
+	}
+	curl_share_cleanup(s_curl_sh);
+	curl_slist_free_all(s_headers_POST);
 	curl_global_cleanup();
+
+	assert(pthread_mutex_unlock(&s_mut) == 0);
 }
 //////////////////////////////////
 
@@ -336,6 +362,7 @@ static CURL *jf_net_handle_init(void)
 
 	// be a good neighbour
 	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_SHARE, s_curl_sh));
+	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_NOSIGNAL, 1L));
 
 	// ask for all supported kinds of compression
 	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_ACCEPT_ENCODING, ""));
@@ -399,6 +426,10 @@ static void jf_net_handle_before_perform(CURL *handle,
 		case JF_REQUEST_ASYNC_DETACH:
 			JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, jf_detach_callback));
 			break;
+		case JF_REQUEST_EXIT:
+			// just to silence the warning, this is never reached
+			// (and should be kept that way!)
+			return;
 	}
 	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_WRITEDATA, (void *)reply));
 }
@@ -533,6 +564,9 @@ static size_t jf_detach_callback(__attribute__((unused)) char *payload,
 		size_t nmemb,
 		__attribute__((unused)) void *userdata)
 {
+	if (JF_STATE_IS_EXITING(g_state.state)) {
+		return 0;
+	}
 	// discard everything
 	return size * nmemb;
 }
@@ -551,11 +585,17 @@ static void *jf_net_async_worker_thread(__attribute__((unused)) void *arg)
 		sigemptyset(&ss);
 		sigaddset(&ss, SIGABRT);
 		sigaddset(&ss, SIGINT);
+		sigaddset(&ss, SIGPIPE);
 		assert(pthread_sigmask(SIG_BLOCK, &ss, NULL) == 0);
 	}
 
 	while (true) {
 		request = (jf_async_request *)jf_synced_queue_dequeue(s_async_queue);
+		if (request->type == JF_REQUEST_EXIT) {
+			jf_async_request_free(request);
+			curl_easy_cleanup(handle);
+			pthread_exit(NULL);
+		}
 		jf_net_handle_before_perform(handle,
 				request->resource,
 				request->type,
@@ -652,6 +692,11 @@ static size_t jf_check_update_header_callback(char *payload,
 	jf_reply *reply;
 	char *version_str;
 	size_t version_len;
+
+	if (JF_STATE_IS_EXITING(g_state.state)) {
+		return 0;
+	}
+
 	if (strncmp(payload,
 				"Location",
 				JF_STATIC_STRLEN("Location") < real_size ?

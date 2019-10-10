@@ -38,6 +38,10 @@ do {																		\
 /////////////////////////////////
 
 
+////////// CONSTANTS /////////
+#define JF_NET_ASYNC_THREADS 3
+//////////////////////////////
+
 ////////// JF_REPLY //////////
 typedef enum __attribute__((__packed__)) jf_reply_state {
 	JF_REPLY_PENDING = 0,
@@ -77,6 +81,8 @@ typedef enum jf_request_type {
 	JF_REQUEST_IN_MEMORY = 0,
 	JF_REQUEST_SAX = 1,
 	JF_REQUEST_SAX_PROMISCUOUS = 2,
+
+	JF_REQUEST_EXIT = 100,
 
 	JF_REQUEST_ASYNC_IN_MEMORY = -1,
 	JF_REQUEST_ASYNC_DETACH = -2,

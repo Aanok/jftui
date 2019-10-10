@@ -193,6 +193,8 @@ typedef enum jf_jftui_state {
 	JF_STATE_FAIL = -2
 } jf_jftui_state;
 
+#define JF_STATE_IS_EXITING(_s) ((_s) < 0)
+
 
 typedef struct jf_global_state {
 	char *config_dir;
