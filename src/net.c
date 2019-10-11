@@ -134,6 +134,8 @@ char *jf_reply_error_string(const jf_reply *r)
 			return "appending x-emby-authorization failed";
 		case JF_REPLY_ERROR_BAD_LOCATION:
 			return "Locate header from redirect was missing or not formatted as expected";
+		case JF_REPLY_ERROR_EXIT_REQUEST:
+			return "exit request";
 		case JF_REPLY_ERROR_NETWORK:
 		case JF_REPLY_ERROR_HTTP_NOT_OK:
 		case JF_REPLY_ERROR_PARSER:
@@ -149,10 +151,7 @@ static size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *
 	size_t real_size = size * nmemb;
 	jf_reply *reply = (jf_reply *)userdata;
 
-	if (JF_STATE_IS_EXITING(g_state.state)) {
-		return 0;
-	}
-
+	if (JF_STATE_IS_EXITING(g_state.state)) return 0;
 	assert(reply != NULL);
 	assert((reply->payload = realloc(reply->payload,
 					reply->size + real_size + 1)) != NULL);
@@ -199,9 +198,7 @@ size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, void 
 			pthread_cond_wait(&s_tb.cv_has_data, &s_tb.mut);
 		}
 		// check errors
-		if (JF_STATE_IS_EXITING(g_state.state)) {
-			return 0;
-		}
+		if (JF_STATE_IS_EXITING(g_state.state)) return 0;
 		if (s_tb.state == JF_THREAD_BUFFER_STATE_PARSER_ERROR) {
 			r->payload = strndup(s_tb.data, s_tb.used);
 			r->state = JF_REPLY_ERROR_PARSER;
@@ -497,6 +494,12 @@ jf_reply *jf_net_request(const char *resource,
 	jf_reply *reply;
 	jf_async_request *a_r;
 	
+	if (request_type == JF_REQUEST_EXIT) {
+		reply = jf_reply_new();
+		reply->state = JF_REPLY_ERROR_EXIT_REQUEST;
+		return reply;
+	}
+
 	if (s_handle == NULL) {
 		jf_net_init();
 	}

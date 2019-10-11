@@ -55,7 +55,8 @@ typedef enum __attribute__((__packed__)) jf_reply_state {
 	JF_REPLY_ERROR_CONCAT = -6,
 	JF_REPLY_ERROR_X_EMBY_AUTH = -7,
 	JF_REPLY_ERROR_PARSER = -8,
-	JF_REPLY_ERROR_BAD_LOCATION = -9
+	JF_REPLY_ERROR_BAD_LOCATION = -9,
+	JF_REPLY_ERROR_EXIT_REQUEST = -10
 } jf_reply_state;
 
 
@@ -82,11 +83,11 @@ typedef enum jf_request_type {
 	JF_REQUEST_SAX = 1,
 	JF_REQUEST_SAX_PROMISCUOUS = 2,
 
-	JF_REQUEST_EXIT = 100,
-
 	JF_REQUEST_ASYNC_IN_MEMORY = -1,
 	JF_REQUEST_ASYNC_DETACH = -2,
-	JF_REQUEST_CHECK_UPDATE = -3
+	JF_REQUEST_CHECK_UPDATE = -3,
+
+	JF_REQUEST_EXIT = -100
 } jf_request_type;
 
 #define JF_REQUEST_TYPE_IS_ASYNC(_t) ((_t) < 0)
@@ -113,7 +114,7 @@ void jf_net_clear(void);
 //
 // Parameters:
 // 	resource:
-// 		For JF_REQUEST_CHECK_UPDATE, this is ignored.
+// 		For JF_REQUEST_CHECK_UPDATE and JF_REQUEST_EXIT, this is ignored.
 // 		Otherwise, it is treated as a suffix to append to the server's address
 // 		to compute the full URL.
 // 	request_type:
@@ -137,14 +138,16 @@ void jf_net_clear(void);
 // 		- JF_REQUEST_CHECK_UPDATE functions like JF_REQUEST_ASYNC_IN_MEMORY,
 // 			except the resource parameter is ignored and internally set to the
 // 			one required for the optional update check against github.com
+// 		- JF_REQUEST_EXIT should not be used here and will return a reply
+// 			containing an error code without performing any network activity.
 //	POST_payload:
 //		If NULL, the request will be an HTTP GET. Otherwise, the argument will
 //		constitute the body of an HTTP POST.
 //
 // Returns:
 // 	A jf_reply which either:
-// 	- marks an error (authentication, network, parser's), check with the
-// 		JF_REPLY_PTR_HAS_ERROR macro and get an error string with
+// 	- marks an error (authentication, network, parser's, internal), check with
+// 		the JF_REPLY_PTR_HAS_ERROR macro and get an error string with
 // 		jf_reply_error_string;
 // 	- contains the body of the response for a JF_REQUEST_[ASYNC_]IN_MEMORY and
 // 		JF_REQUEST_CHECK_UPDATE.
