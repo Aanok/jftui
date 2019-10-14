@@ -158,8 +158,8 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 			// tell server file playback stopped so it won't keep accruing progress
 			playback_ticks =
 				mpv_get_property(g_mpv_ctx, "time-pos", MPV_FORMAT_INT64, &playback_ticks) == 0 ?
-				JF_SECS_TO_TICKS(playback_ticks) : g_state.now_playing.playback_ticks;
-			progress_post = jf_json_generate_progress_post(g_state.now_playing.id, playback_ticks);
+				JF_SECS_TO_TICKS(playback_ticks) : g_state.now_playing->playback_ticks;
+			progress_post = jf_json_generate_progress_post(g_state.now_playing->id, playback_ticks);
 			jf_net_request("/sessions/playing/stopped", JF_REQUEST_ASYNC_DETACH, progress_post);
 			free(progress_post);
 			// move to next item in playlist, if any
@@ -180,12 +180,12 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 			if (((mpv_event_property *)event->data)->format == MPV_FORMAT_NONE) break;
 			// event valid, check if need to update the server
 			playback_ticks = JF_SECS_TO_TICKS(*(int64_t *)((mpv_event_property *)event->data)->data);
-			if (llabs(playback_ticks - g_state.now_playing.playback_ticks) < JF_SECS_TO_TICKS(10)) break;
+			if (llabs(playback_ticks - g_state.now_playing->playback_ticks) < JF_SECS_TO_TICKS(10)) break;
 			// good for update; note this will also start a playback session if none are there
-			progress_post = jf_json_generate_progress_post(g_state.now_playing.id, playback_ticks);
+			progress_post = jf_json_generate_progress_post(g_state.now_playing->id, playback_ticks);
 			jf_net_request("/sessions/playing/progress", JF_REQUEST_ASYNC_DETACH, progress_post);
 			free(progress_post);
-			g_state.now_playing.playback_ticks = playback_ticks;
+			g_state.now_playing->playback_ticks = playback_ticks;
 			break;
 		case MPV_EVENT_IDLE:
 			if (g_state.state == JF_STATE_PLAYBACK_NAVIGATING) {
@@ -202,7 +202,7 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 		case MPV_EVENT_SHUTDOWN:
 			// tell jellyfin playback stopped
 			// NB we can't call mpv_get_property because mpv core has aborted!
-			progress_post = jf_json_generate_progress_post(g_state.now_playing.id, g_state.now_playing.playback_ticks);
+			progress_post = jf_json_generate_progress_post(g_state.now_playing->id, g_state.now_playing->playback_ticks);
 			jf_net_request("/sessions/playing/stopped", JF_REQUEST_ASYNC_DETACH, progress_post);
 			free(progress_post);
 			// it is unfortunate, but the cleanest way to handle this case

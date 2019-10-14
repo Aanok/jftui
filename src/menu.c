@@ -97,7 +97,9 @@ static JF_FORCE_INLINE const jf_menu_item *jf_menu_stack_peek(void);
 static jf_menu_item *jf_menu_child_get(size_t n);
 static char *jf_menu_item_get_request_url(const jf_menu_item *item);
 static bool jf_menu_print_context(void);
-static void jf_menu_play_item(const jf_menu_item *item);
+static void jf_menu_play_video(const jf_menu_item *item);
+static void jf_menu_ask_resume(const jf_menu_item *item);
+static void jf_menu_play_item(jf_menu_item *item);
 static void jf_menu_try_play(void);
 //////////////////////////////////////
 
@@ -156,10 +158,13 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 		// Atoms
 		case JF_ITEM_TYPE_AUDIO:
 		case JF_ITEM_TYPE_AUDIOBOOK:
+		case JF_ITEM_TYPE_VIDEO_SOURCE:
 			return jf_concat(4, g_options.server, "/items/", item->id, "/file");
 		case JF_ITEM_TYPE_EPISODE:
 		case JF_ITEM_TYPE_MOVIE:
 			return jf_concat(4, "/users/", g_options.userid, "/items/", item->id);
+		case JF_ITEM_TYPE_VIDEO_SUB:
+			return strdup(item->name);
 		// Folders
 		case JF_ITEM_TYPE_COLLECTION:
 		case JF_ITEM_TYPE_FOLDER:
@@ -332,9 +337,58 @@ static bool jf_menu_print_context()
 }
 
 
-static void jf_menu_play_item(const jf_menu_item *item)
+static void jf_menu_play_video(const jf_menu_item *item)
 {
-	char *request_url, *question, *timestamp;
+	char *tmp;
+	size_t i;
+
+	//TODO set merge-files
+	tmp = jf_menu_item_get_request_url(item->children[0]);
+	const char *loadfile[] = { "loadfile", tmp, NULL };
+	mpv_command(g_mpv_ctx, loadfile);
+	free(tmp);
+	for (i = 1; i < item->children_count; i++) {
+		if (item->children[i]->type == JF_ITEM_TYPE_VIDEO_SOURCE) {
+			tmp = jf_menu_item_get_request_url(item->children[i]);
+			const char *command[] = { "loadfile", "append", tmp, NULL };
+			mpv_command(g_mpv_ctx, command);
+			free(tmp);
+		} else if (item->children[i]->type == JF_ITEM_TYPE_VIDEO_SUB) {
+			const char *command[] = { "sub-add", "auto", item->children[i]->name, NULL };
+			mpv_command(g_mpv_ctx, command);
+		} else {
+			// TODO print warning
+			return;
+		}
+	}
+	//TODO unset merge-files
+}
+
+
+static void jf_menu_ask_resume(const jf_menu_item *item)
+{
+	char *timestamp, *question;
+
+	timestamp = jf_make_timestamp(item->playback_ticks);
+	question = jf_concat(5,
+					"Would you like to resume ",
+					item->name,
+					" at the ",
+					timestamp,
+					" mark?");
+	if (jf_menu_user_ask_yn(question)) {
+		mpv_set_property_string(g_mpv_ctx, "start", timestamp);
+		g_state.state = JF_STATE_PLAYBACK_START_MARK;
+	}
+	free(timestamp);
+	free(question);
+}
+
+
+static void jf_menu_play_item(jf_menu_item *item)
+{
+	char *request_url;
+	jf_reply *r1, *r2;
 
 	if (item == NULL) {
 		return;
@@ -352,33 +406,59 @@ static void jf_menu_play_item(const jf_menu_item *item)
 				return;
 			}
 			if (item->playback_ticks != 0) {
-				timestamp = jf_make_timestamp(item->playback_ticks);
-				question = jf_concat(5,
-								"Would you like to resume ",
-								item->name,
-								" at the ",
-								timestamp,
-								" mark?");
-				if (jf_menu_user_ask_yn(question)) {
-					mpv_set_property_string(g_mpv_ctx, "start", timestamp);
-					g_state.state = JF_STATE_PLAYBACK_START_MARK;
-				}
-				free(timestamp);
-				free(question);
+				jf_menu_ask_resume(item);
 			}
 			const char *loadfile[] = { "loadfile", request_url, NULL };
 			mpv_command(g_mpv_ctx, loadfile); 
-			jf_menu_item_static_copy(&g_state.now_playing, item);
+			jf_menu_item_free(g_state.now_playing);
+			g_state.now_playing = item;
 			free(request_url);
 			break;
 		case JF_ITEM_TYPE_EPISODE:
 		case JF_ITEM_TYPE_MOVIE:
-			printf("Error: jf_menu_play_item video types not yet supported.\n");
-			g_state.state = JF_STATE_MENU_UI;
+			if (item->playback_ticks != 0) {
+				jf_menu_ask_resume(item);
+			}
+			// check if item was already evaded re: split file and versions
+			if (item->children_count > 0) {
+				jf_menu_play_video(item);
+			} else {
+				request_url = jf_menu_item_get_request_url(item);
+				r1 = jf_net_request(request_url, JF_REQUEST_ASYNC_IN_MEMORY, NULL);
+				free(request_url);
+				request_url = jf_concat(4, g_options.server, "/videos/", item->id, "/additionalparts");
+				r2 = jf_net_request(request_url, JF_REQUEST_IN_MEMORY, NULL);
+				free(request_url);
+				if (JF_REPLY_PTR_HAS_ERROR(r2)) {
+					fprintf(stderr,
+							"Error: network request for /additionalparts of item %s failed: %s.\n",
+							item->name,
+							jf_reply_error_string(r2));
+					jf_reply_free(r2);
+					jf_reply_free(jf_net_await(r1));
+					return;
+				}
+				if (JF_REPLY_PTR_HAS_ERROR(jf_net_await(r1))) {
+					fprintf(stderr,
+							"Error: network request for item %s failed: %s.\n",
+							item->name,
+							jf_reply_error_string(r1));
+					jf_reply_free(r1);
+					jf_reply_free(r2);
+					return;
+				}
+				jf_json_parse_video(item, r1->payload, r2->payload);
+				jf_reply_free(r1);
+				jf_reply_free(r2);
+				jf_menu_play_video(item);
+				jf_disk_playlist_replace_item(s_playlist_current, item);
+				jf_menu_item_free(g_state.now_playing);
+				g_state.now_playing = item;
+			}
 			break;
 		default:
 			fprintf(stderr,
-					"Error: jf_menu_play_item unsupported item type (%d). This is a bug.\n",
+					"Error: jf_menu_play_item unsupported type (%d). This is a bug.\n",
 					item->type);
 			break;
 	}
@@ -447,9 +527,12 @@ bool jf_menu_child_dispatch(size_t n)
 			jf_menu_stack_push(child);
 			break;
 		default:
-			fprintf(stderr, "Error: jf_menu_child_dispatch unsupported menu item type. This is a bug.\n");
+			fprintf(stderr,
+					"Error: jf_menu_child_dispatch unsupported menu item type (%d) for item %zu. This is a bug.\n",
+					child->type,
+					n);
 			jf_menu_item_free(child);
-			break;
+			return false;
 	}
 
 	return true;
@@ -512,12 +595,8 @@ void jf_menu_mark_played(const jf_menu_item *item)
 
 bool jf_menu_playlist_forward()
 {
-	jf_menu_item *item;
-
 	if (s_playlist_current < jf_disk_playlist_item_count()) {
-		item = jf_disk_playlist_get_item(++s_playlist_current);
-		jf_menu_play_item(item);
-		jf_menu_item_free(item);
+		jf_menu_play_item(jf_disk_playlist_get_item(++s_playlist_current));
 		return true;
 	} else {
 		return false;
@@ -527,12 +606,8 @@ bool jf_menu_playlist_forward()
 
 bool jf_menu_playlist_backward()
 {
-	jf_menu_item *item;
-
 	if (s_playlist_current > 1) {
-		item = jf_disk_playlist_get_item(--s_playlist_current);
-		jf_menu_play_item(item);
-		jf_menu_item_free(item);
+		jf_menu_play_item(jf_disk_playlist_get_item(--s_playlist_current));
 		return true;
 	} else {
 		return false;

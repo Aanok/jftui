@@ -37,6 +37,9 @@ static JF_FORCE_INLINE void jf_sax_current_item_make_and_print_name(jf_sax_conte
 static JF_FORCE_INLINE void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb);
 static JF_FORCE_INLINE void jf_sax_context_current_item_clear(jf_sax_context *context);
 static JF_FORCE_INLINE void jf_sax_context_current_item_copy(jf_sax_context *context);
+
+
+static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl_val media_sources);
 //////////////////////////////////////
 
 
@@ -522,6 +525,140 @@ void *jf_json_sax_thread(void *arg)
 ////////////////////////////////
 
 
+////////// VIDEO PARSING //////////
+static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl_val media_sources)
+{
+	jf_menu_item **subs = NULL;
+	size_t subs_count = 0;
+	size_t i, j;
+	char *tmp;
+	yajl_val media_streams, source, stream;
+
+	// TODO integrity checks
+	if (YAJL_GET_ARRAY(media_sources)->len > 1) {
+		printf("Please choose exactly one of the following available versions of item %s:\n",
+				item->name);
+		for (i = 0; i <= YAJL_GET_ARRAY(media_sources)->len; i++) {
+			source = YAJL_GET_ARRAY(media_sources)->values[i];
+			printf("%zu: %s (",
+					i + 1,
+					YAJL_GET_STRING(yajl_tree_get(source,
+							(const char *[]){ "Name", NULL },
+							yajl_t_string)));
+			assert((media_streams = yajl_tree_get(source,
+								(const char *[]){ "MediaStreams", NULL },
+								yajl_t_array)) != NULL);
+			for (j = 0; j < YAJL_GET_ARRAY(media_streams)->len; j++) {
+				stream = YAJL_GET_ARRAY(media_streams)->values[j];
+				printf(" %s", YAJL_GET_STRING(yajl_tree_get(stream,
+								(const char *[]){ "DisplayTitle", NULL },
+								yajl_t_string)));
+			}
+			printf(")\n");
+		}
+		// read the number, kronk
+		while (true) {
+			i = 0; // 1-indexed
+			tmp = jf_menu_linenoise("> ");
+			if (sscanf(tmp, " %zu ", &i) == 1
+					&& i > 0
+					&& i <= YAJL_GET_ARRAY(media_sources)->len) {
+				i--;
+				break;
+			}
+			// wrong numbeeeeeer...
+			fprintf(stderr, "Error: please choose exactly one listed item.\n");
+		}
+	} else {
+		i = 0;
+	}
+
+	source = YAJL_GET_ARRAY(media_sources)->values[i];
+	media_streams = yajl_tree_get(source,
+				(const char *[]){ "MediaStreams", NULL },
+				yajl_t_array);
+	for (j = 0; j < YAJL_GET_ARRAY(media_streams)->len; j++) {
+		if (strcmp(YAJL_GET_STRING(yajl_tree_get(stream,
+							(const char *[]){ "Type", NULL },
+							yajl_t_string)),
+					"Subtitle") == 0
+				&& YAJL_IS_TRUE(yajl_tree_get(stream,
+						(const char *[]){ "IsExternal", NULL },
+						yajl_t_true))) {
+			subs_count++;
+			assert((subs = realloc(subs, subs_count * sizeof(jf_menu_item *))) != NULL);
+			tmp = jf_concat(8,
+					"/videos/",
+					item->id,
+					"/",
+					YAJL_GET_STRING(yajl_tree_get(source, (const char *[]){ "Id", NULL }, yajl_t_string)),
+					"/subtitles/",
+					YAJL_GET_NUMBER(yajl_tree_get(stream, (const char *[]){ "Index", NULL }, yajl_t_number)),
+					"/stream.",
+					YAJL_GET_STRING(yajl_tree_get(stream, (const char *[]){ "Codec", NULL }, yajl_t_string)));
+			subs[subs_count - 1] = jf_menu_item_new(JF_ITEM_TYPE_VIDEO_SUB,
+					NULL, // children
+					NULL, // id
+					tmp,
+					0, 0); // ticks
+			free(tmp);
+		}
+	}
+
+	return jf_menu_item_new(JF_ITEM_TYPE_VIDEO_SOURCE,
+			subs,
+			YAJL_GET_STRING(yajl_tree_get(source, (const char *[]){ "Id", NULL }, yajl_t_string)),
+			NULL,
+			0, 0);
+}
+
+
+void jf_json_parse_video(jf_menu_item *item, const char *video, const char *additional_parts)
+{
+	yajl_val parsed, part_item;
+	size_t i;
+
+	s_error_buffer[0] = '\0';
+	if ((parsed = yajl_tree_parse(video, s_error_buffer, JF_PARSER_ERROR_BUFFER_SIZE)) == NULL) {
+		fprintf(stderr, "FATAL: jf_json_parse_video: %s\n",
+				s_error_buffer[0] == '\0' ? "yajl_tree_parse unknown error" : s_error_buffer);
+		jf_exit(JF_EXIT_FAILURE);
+	}
+	item->children_count = (size_t)YAJL_GET_INTEGER(yajl_tree_get(parsed,
+					(const char *[]){ "PartCount", NULL },
+					yajl_t_number));
+	assert((item->children = malloc(item->children_count * sizeof(jf_menu_item *))) != NULL);
+	item->children[0] = jf_json_parse_versions(item,
+			yajl_tree_get(parsed,
+				(const char *[]){ "MediaSources", NULL },
+				yajl_t_array));
+	yajl_tree_free(parsed);
+
+	// check for additional parts
+	if (item->children_count > 1) {
+		s_error_buffer[0] = '\0';
+		if ((parsed = yajl_tree_parse(additional_parts,
+						s_error_buffer,
+						JF_PARSER_ERROR_BUFFER_SIZE)) == NULL) {
+			fprintf(stderr, "FATAL: jf_json_parse_video: %s\n",
+					s_error_buffer[0] == '\0' ? "yajl_tree_parse unknown error" : s_error_buffer);
+			jf_exit(JF_EXIT_FAILURE);
+		}
+		for (i = 1; i < item->children_count; i++) {
+			part_item = YAJL_GET_ARRAY(yajl_tree_get(parsed,
+						(const char *[]){ "Items", NULL },
+						yajl_t_array))->values[i - 1];
+			item->children[i] = jf_json_parse_versions(item,
+					yajl_tree_get(part_item,
+						(const char *[]){ "MediaSources",
+						NULL }, yajl_t_array));
+		}
+		yajl_tree_free(parsed);
+	}
+}
+///////////////////////////////////
+
+
 ////////// MISCELLANEOUS GARBAGE //////////
 char *jf_json_error_string()
 {
@@ -580,7 +717,6 @@ char *jf_json_generate_login_request(const char *username, const char *password)
 void jf_json_parse_server_info_response(const char *payload)
 {
 	yajl_val parsed;
-	const char *server_name_selector[2] = { "ServerName", NULL };
 
 	s_error_buffer[0] = '\0';
 	if ((parsed = yajl_tree_parse(payload, s_error_buffer, JF_PARSER_ERROR_BUFFER_SIZE)) == NULL) {
@@ -589,7 +725,9 @@ void jf_json_parse_server_info_response(const char *payload)
 		jf_exit(JF_EXIT_FAILURE);
 	}
 	// NB macros propagate NULL
-	assert((g_state.server_name = YAJL_GET_STRING(yajl_tree_get(parsed, server_name_selector, yajl_t_string))) != NULL);
+	assert((g_state.server_name = YAJL_GET_STRING(yajl_tree_get(parsed,
+						(const char *[]){ "ServerName", NULL },
+						yajl_t_string))) != NULL);
 	g_state.server_name = strdup(g_state.server_name);
 	yajl_tree_free(parsed);
 }

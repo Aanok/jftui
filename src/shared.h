@@ -62,9 +62,11 @@ typedef enum __attribute__((__packed__)) jf_item_type {
 	// Atoms
 	JF_ITEM_TYPE_NONE = 0,
 	JF_ITEM_TYPE_AUDIO = 1,
-	JF_ITEM_TYPE_EPISODE = 2,
-	JF_ITEM_TYPE_MOVIE = 3,
-	JF_ITEM_TYPE_AUDIOBOOK = 4,
+	JF_ITEM_TYPE_AUDIOBOOK = 2,
+	JF_ITEM_TYPE_EPISODE = 3,
+	JF_ITEM_TYPE_MOVIE = 4,
+	JF_ITEM_TYPE_VIDEO_SOURCE = 5,
+	JF_ITEM_TYPE_VIDEO_SUB = 6,
 
 	// Folders
 	JF_ITEM_TYPE_COLLECTION = 20,
@@ -202,7 +204,7 @@ typedef struct jf_global_state {
 	char *session_id;
 	char *server_name;
 	jf_jftui_state state;
-	jf_menu_item now_playing;
+	jf_menu_item *now_playing;
 } jf_global_state;
 //////////////////////////////////////////////
 

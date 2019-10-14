@@ -119,6 +119,11 @@ void *jf_json_sax_thread(void *arg);
 ////////////////////////////////
 
 
+////////// VIDEO PARSING //////////
+void jf_json_parse_video(jf_menu_item *item, const char *video, const char *additional_parts);
+///////////////////////////////////
+
+
 ////////// MISCELLANEOUS GARBAGE //////////
 char *jf_json_error_string(void);
 void jf_json_parse_login_response(const char *payload);
