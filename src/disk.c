@@ -15,6 +15,7 @@ static jf_file_cache s_playlist = (jf_file_cache){ 0 };
 ////////// STATIC FUNCTIONS ///////////
 static JF_FORCE_INLINE void jf_disk_align_to(jf_file_cache *cache, const size_t n);
 static JF_FORCE_INLINE void jf_disk_open(jf_file_cache *cache);
+static void jf_disk_add_next(jf_file_cache *cache, const jf_menu_item *item);
 static void jf_disk_add_item(jf_file_cache *cache, const jf_menu_item *item);
 static jf_menu_item *jf_disk_get_next(jf_file_cache *cache);
 static jf_menu_item *jf_disk_get_item(jf_file_cache *cache, const size_t n);
@@ -39,20 +40,10 @@ jf_disk_align_to(jf_file_cache *cache, const size_t n)
 }
 
 
-static void jf_disk_add_item(jf_file_cache *cache, const jf_menu_item *item)
+static void jf_disk_add_next(jf_file_cache *cache, const jf_menu_item *item)
 {
-	long starting_body_offset;
 	size_t name_length, i;
 
-	assert(item != NULL);
-
-	// header and alignment
-	assert(fseek(cache->header, 0, SEEK_END) == 0);
-	assert(fseek(cache->body, 0, SEEK_END) == 0);
-	assert((starting_body_offset = ftell(cache->body)) != -1);
-	assert(fwrite(&starting_body_offset, sizeof(long), 1, cache->header) == 1);
-
-	// body
 	assert(fwrite(&(item->type), sizeof(jf_item_type), 1, cache->body) == 1);
 	assert(fwrite(&(item->children_count), sizeof(size_t), 1, cache->body) == 1);
 	for (i = 0; i < item->children_count; i++) {
@@ -64,7 +55,21 @@ static void jf_disk_add_item(jf_file_cache *cache, const jf_menu_item *item)
 	assert(fwrite(&"\0", 1, 1, cache->body) == 1);
 	assert(fwrite(&(item->runtime_ticks), sizeof(long long), 1, cache->body) == 1);
 	assert(fwrite(&(item->playback_ticks), sizeof(long long), 1, cache->body) == 1);
+}
 
+
+static void jf_disk_add_item(jf_file_cache *cache, const jf_menu_item *item)
+{
+	long starting_body_offset;
+
+	assert(item != NULL);
+
+	assert(fseek(cache->header, 0, SEEK_END) == 0);
+	assert(fseek(cache->body, 0, SEEK_END) == 0);
+	assert((starting_body_offset = ftell(cache->body)) != -1);
+	assert(fwrite(&starting_body_offset, sizeof(long), 1, cache->header) == 1);
+
+	jf_disk_add_next(cache, item);
 	cache->count++;
 }
 
@@ -102,6 +107,7 @@ static jf_menu_item *jf_disk_get_next(jf_file_cache *cache)
 
 	return item;
 }
+
 
 static jf_menu_item *jf_disk_get_item(jf_file_cache *cache, const size_t n)
 {
@@ -178,11 +184,10 @@ void jf_disk_clear()
 }
 
 
-bool jf_disk_payload_add_item(const jf_menu_item *item)
+void jf_disk_payload_add_item(const jf_menu_item *item)
 {
-	if (item == NULL) return false;
+	if (item == NULL) return;
 	jf_disk_add_item(&s_payload, item);
-	return true;
 }
 
 
@@ -215,13 +220,10 @@ size_t jf_disk_payload_item_count()
 }
 
 
-bool jf_disk_playlist_add_item(const jf_menu_item *item)
+void jf_disk_playlist_add_item(const jf_menu_item *item)
 {
-	if (item == NULL || JF_ITEM_TYPE_IS_FOLDER(item->type)) {
-		return false;
-	}
+	if (item == NULL || JF_ITEM_TYPE_IS_FOLDER(item->type)) return;
 	jf_disk_add_item(&s_playlist, item);
-	return true;
 }
 
 
@@ -231,9 +233,20 @@ jf_menu_item *jf_disk_playlist_get_item(const size_t n)
 }
 
 
-bool jf_disk_playlist_replace_item(const size_t n, const jf_menu_item *item)
+void jf_disk_playlist_replace_item(const size_t n, const jf_menu_item *item)
 {
-	return true;
+	long starting_body_offset;
+
+	assert(item != NULL);
+
+	// overwrite old offset in header
+	assert(fseek(s_playlist.header, (long)((n - 1) * sizeof(long)), SEEK_SET) == 0);
+	assert((starting_body_offset = ftell(s_playlist.body)) != -1);
+	assert(fwrite(&starting_body_offset, sizeof(long), 1, s_playlist.header) == 1);
+
+	// add replacement to tail
+	assert(fseek(s_playlist.body, 0, SEEK_END) == 0);
+	jf_disk_add_next(&s_playlist, item);
 }
 
 
