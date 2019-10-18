@@ -56,17 +56,6 @@ void jf_menu_item_free(jf_menu_item *menu_item)
 		free(menu_item);
 	}
 }
-
-
-jf_menu_item *jf_menu_item_static_copy(jf_menu_item *dest, const jf_menu_item *src)
-{
-	if (dest != NULL) {
-		memcpy(dest, src, sizeof(jf_menu_item));
-		dest->children = NULL;
-		dest->children_count = 0;
-	}
-	return dest;
-}
 //////////////////////////////////
 
 

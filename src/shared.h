@@ -145,10 +145,6 @@ jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children,
 // Parameters:
 // 	- menu_item: a pointer to the struct to deallocate. It may be NULL, in which case the function will no-op.
 void jf_menu_item_free(jf_menu_item *menu_item);
-
-
-// children is set to NULL in dest
-jf_menu_item *jf_menu_item_static_copy(jf_menu_item *dest, const jf_menu_item *src);
 //////////////////////////////////////////////////////////
 
 
