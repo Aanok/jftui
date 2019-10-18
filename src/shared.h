@@ -35,6 +35,16 @@ do {																		\
 		jf_exit(JF_EXIT_FAILURE);											\
 	}																		\
 } while (false)
+
+#ifdef JF_DEBUG
+#define JF_PRINTF_INDENT(...)		\
+do {								\
+	for (i = 0; i < level; i++) {	\
+		putchar('\t');				\
+	}								\
+	printf(__VA_ARGS__);			\
+} while (false)
+#endif
 /////////////////////////////////
 
 
@@ -111,6 +121,9 @@ typedef enum __attribute__((__packed__)) jf_item_type {
 #define JF_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(t)	((t) < -1 || (t) >= 20)
 
 
+const char *jf_item_type_get_name(const jf_item_type type);
+
+
 typedef struct jf_menu_item {
 	jf_item_type type;
 	struct jf_menu_item **children;
@@ -145,6 +158,11 @@ jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children,
 // Parameters:
 // 	- menu_item: a pointer to the struct to deallocate. It may be NULL, in which case the function will no-op.
 void jf_menu_item_free(jf_menu_item *menu_item);
+
+
+#ifdef JF_DEBUG
+void jf_menu_item_print(const jf_menu_item *item);
+#endif
 //////////////////////////////////////////////////////////
 
 

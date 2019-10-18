@@ -6,7 +6,58 @@ extern jf_global_state g_state;
 /////////////////////////////
 
 
+////////// STATIC FUNCTIONS //////////
+#ifdef JF_DEBUG
+static void jf_menu_item_print_indented(const jf_menu_item *item, const size_t level);
+#endif
+//////////////////////////////////////
+
+
 ////////// JF_MENU_ITEM //////////
+const char *jf_item_type_get_name(const jf_item_type type)
+{
+	switch (type) {
+		case JF_ITEM_TYPE_NONE:
+			return "None";
+		case JF_ITEM_TYPE_AUDIO:
+			return "Audio";
+		case JF_ITEM_TYPE_AUDIOBOOK:
+			return "Audiobook";
+		case JF_ITEM_TYPE_EPISODE:
+			return "Episde";
+		case JF_ITEM_TYPE_MOVIE:
+			return "Movie";
+		case JF_ITEM_TYPE_VIDEO_SOURCE:
+			return "Video_Source";
+		case JF_ITEM_TYPE_VIDEO_SUB:
+			return "Video_Sub";
+		case JF_ITEM_TYPE_COLLECTION:
+		case JF_ITEM_TYPE_COLLECTION_MUSIC:
+		case JF_ITEM_TYPE_COLLECTION_SERIES:
+		case JF_ITEM_TYPE_COLLECTION_MOVIES:
+		case JF_ITEM_TYPE_USER_VIEW:
+		case JF_ITEM_TYPE_FOLDER:
+		case JF_ITEM_TYPE_PLAYLIST:
+		case JF_ITEM_TYPE_ARTIST:
+		case JF_ITEM_TYPE_ALBUM:
+		case JF_ITEM_TYPE_SEASON:
+		case JF_ITEM_TYPE_SERIES:
+			return "Folder";
+		case JF_ITEM_TYPE_SEARCH_RESULT:
+			return "Search_Result";
+		case JF_ITEM_TYPE_MENU_ROOT:
+		case JF_ITEM_TYPE_MENU_FAVORITES:
+		case JF_ITEM_TYPE_MENU_CONTINUE:
+		case JF_ITEM_TYPE_MENU_NEXT_UP:
+		case JF_ITEM_TYPE_MENU_LATEST_UNPLAYED:
+		case JF_ITEM_TYPE_MENU_LIBRARIES:
+			return "Persistent_Folder";
+		default:
+			return "Unrecognized";
+	}
+}
+
+
 jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children,
 		const char *id, const char *name, const long long runtime_ticks,
 		const long long playback_ticks)
@@ -56,6 +107,33 @@ void jf_menu_item_free(jf_menu_item *menu_item)
 		free(menu_item);
 	}
 }
+
+
+#ifdef JF_DEBUG
+static void jf_menu_item_print_indented(const jf_menu_item *item, const size_t level)
+{
+	size_t i;
+
+	if (item == NULL) return;
+
+	JF_PRINTF_INDENT("Name: %s\n", item->name);
+	JF_PRINTF_INDENT("Type: %s\n", jf_item_type_get_name(item->type));
+	JF_PRINTF_INDENT("Id: %s\n", item->id);
+	JF_PRINTF_INDENT("PB ticks: %lld, RT ticks: %lld\n", item->playback_ticks, item->runtime_ticks);
+	if (item->children_count > 0) {
+		JF_PRINTF_INDENT("Children:\n");
+		for (i = 0; i < item->children_count; i++) {
+			jf_menu_item_print_indented(item->children[i], level + 1);
+		}
+	}
+}
+
+
+void jf_menu_item_print(const jf_menu_item *item)
+{
+	jf_menu_item_print_indented(item, 0);
+}
+#endif
 //////////////////////////////////
 
 
