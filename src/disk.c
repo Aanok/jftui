@@ -15,7 +15,8 @@ static jf_file_cache s_playlist = (jf_file_cache){ 0 };
 ////////// STATIC FUNCTIONS ///////////
 static JF_FORCE_INLINE void jf_disk_align_to(jf_file_cache *cache, const size_t n);
 static JF_FORCE_INLINE void jf_disk_open(jf_file_cache *cache);
-static bool jf_disk_add_item(jf_file_cache *cache, const jf_menu_item *item);
+static void jf_disk_add_item(jf_file_cache *cache, const jf_menu_item *item);
+static jf_menu_item *jf_disk_get_next(jf_file_cache *cache);
 static jf_menu_item *jf_disk_get_item(jf_file_cache *cache, const size_t n);
 ///////////////////////////////////////
 
@@ -38,10 +39,10 @@ jf_disk_align_to(jf_file_cache *cache, const size_t n)
 }
 
 
-static bool jf_disk_add_item(jf_file_cache *cache, const jf_menu_item *item)
+static void jf_disk_add_item(jf_file_cache *cache, const jf_menu_item *item)
 {
 	long starting_body_offset;
-	size_t name_length;
+	size_t name_length, i;
 
 	assert(item != NULL);
 
@@ -53,7 +54,10 @@ static bool jf_disk_add_item(jf_file_cache *cache, const jf_menu_item *item)
 
 	// body
 	assert(fwrite(&(item->type), sizeof(jf_item_type), 1, cache->body) == 1);
-	// skip children and children_count
+	assert(fwrite(&(item->children_count), sizeof(size_t), 1, cache->body) == 1);
+	for (i = 0; i < item->children_count; i++) {
+		jf_disk_add_item(cache, item->children[i]);
+	}
 	assert(fwrite(item->id, 1, sizeof(item->id), cache->body) == sizeof(item->id));
 	name_length = item->name == NULL ? 0 : strlen(item->name);
 	assert(fwrite(item->name, 1, name_length, cache->body) == name_length);
@@ -62,27 +66,28 @@ static bool jf_disk_add_item(jf_file_cache *cache, const jf_menu_item *item)
 	assert(fwrite(&(item->playback_ticks), sizeof(long long), 1, cache->body) == 1);
 
 	cache->count++;
-
-	return true;
 }
 
 
-static jf_menu_item *jf_disk_get_item(jf_file_cache *cache, const size_t n)
+static jf_menu_item *jf_disk_get_next(jf_file_cache *cache)
 {
 	jf_menu_item *item;
 	char tmp[1];
-
-	if (n == 0 || n > cache->count) {
-		return NULL;
-	}
+	size_t i;
 
 	assert((item = malloc(sizeof(jf_menu_item))) != NULL);
 
-	jf_disk_align_to(cache, n);
 	assert(fread(&(item->type), sizeof(jf_item_type), 1, cache->body) == 1);
+	assert(fread(&(item->children_count), sizeof(size_t), 1, cache->body) == 1);
+	if (item->children_count > 0) {
+		assert((item->children = malloc(item->children_count * sizeof(jf_menu_item *))) != NULL);
+		for (i = 0; i < item->children_count; i++) {
+			item->children[i] = jf_disk_get_next(cache);
+		}
+	} else {
+		item->children = NULL;
+	}
 	assert(fread(item->id, 1, sizeof(item->id), cache->body) == sizeof(item->id));
-	item->children = NULL;
-	item->children_count = 0;
 	jf_growing_buffer_empty(s_buffer);
 	while (true) {
 		assert(fread(tmp, 1, 1, cache->body) == 1);
@@ -96,6 +101,14 @@ static jf_menu_item *jf_disk_get_item(jf_file_cache *cache, const size_t n)
 	assert(fread(&(item->playback_ticks), sizeof(long long), 1, cache->body) == 1);
 
 	return item;
+}
+
+static jf_menu_item *jf_disk_get_item(jf_file_cache *cache, const size_t n)
+{
+	if (n == 0 || n > cache->count) return NULL;
+
+	jf_disk_align_to(cache, n);
+	return jf_disk_get_next(cache);
 }
 
 
@@ -167,10 +180,9 @@ void jf_disk_clear()
 
 bool jf_disk_payload_add_item(const jf_menu_item *item)
 {
-	if (item == NULL) {
-		return false;
-	}
-	return jf_disk_add_item(&s_payload, item);
+	if (item == NULL) return false;
+	jf_disk_add_item(&s_payload, item);
+	return true;
 }
 
 
@@ -208,13 +220,20 @@ bool jf_disk_playlist_add_item(const jf_menu_item *item)
 	if (item == NULL || JF_ITEM_TYPE_IS_FOLDER(item->type)) {
 		return false;
 	}
-	return jf_disk_add_item(&s_playlist, item);
+	jf_disk_add_item(&s_playlist, item);
+	return true;
 }
 
 
 jf_menu_item *jf_disk_playlist_get_item(const size_t n)
 {
 	return jf_disk_get_item(&s_playlist, n);
+}
+
+
+bool jf_disk_playlist_replace_item(const size_t n, const jf_menu_item *item)
+{
+	return true;
 }
 
 

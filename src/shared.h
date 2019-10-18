@@ -24,6 +24,17 @@
 // for progress
 #define JF_TICKS_TO_SECS(t)	(t) / 10000000
 #define JF_SECS_TO_TICKS(s)	(s) * 10000000
+
+#define JF_MPV_ASSERT(_s)													\
+do {																		\
+	int _status = _s;														\
+	if (_status < 0) {														\
+		fprintf(stderr, "%s:%d: " #_s " failed.\n", __FILE__, __LINE__);	\
+		fprintf(stderr, "FATAL: mpv API error: %s.\n",						\
+				mpv_error_string(_status));									\
+		jf_exit(JF_EXIT_FAILURE);											\
+	}																		\
+} while (false)
 /////////////////////////////////
 
 
