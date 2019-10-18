@@ -19,14 +19,10 @@ jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children,
 	menu_item->children = children;
 	menu_item->children_count = 0;
 	if (children != NULL) {
-		while (menu_item->children != NULL) {
+		while (*(menu_item->children) != NULL) {
 			menu_item->children_count++;
 			menu_item->children++;
 		}
-		assert((menu_item->children =
-				malloc(menu_item->children_count * sizeof(jf_menu_item *))) != NULL);
-		memcpy(children, menu_item->children,
-				menu_item->children_count * sizeof(jf_menu_item *));
 		menu_item->children = children;
 	}
 	if (id == NULL) {
