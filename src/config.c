@@ -231,7 +231,9 @@ void jf_config_ask_user_login()
 		memset(password->buf, 0, password->used);
 		jf_growing_buffer_empty(password);
 		login_reply = jf_net_request("/emby/Users/authenticatebyname",
-				JF_REQUEST_IN_MEMORY, login_post);
+				JF_REQUEST_IN_MEMORY,
+				JF_HTTP_POST,
+				login_post);
 		free(login_post);
 		if (! JF_REPLY_PTR_HAS_ERROR(login_reply)) break;
 		if (JF_REPLY_PTR_ERROR_IS(login_reply, JF_REPLY_ERROR_HTTP_401)) {

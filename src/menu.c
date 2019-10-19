@@ -312,7 +312,10 @@ static void jf_menu_ask_resume(jf_menu_item *item)
 						g_options.userid,
 						"/items/",
 						item->children[i]->id);
-				replies[i - 1] = jf_net_request(tmp, JF_REQUEST_ASYNC_IN_MEMORY, NULL);
+				replies[i - 1] = jf_net_request(tmp,
+						JF_REQUEST_ASYNC_IN_MEMORY,
+						JF_HTTP_GET,
+						NULL);
 				free(tmp);
 			}
 			markers_count = item->children[0]->playback_ticks == 0 ? 0 : 1;
@@ -413,7 +416,7 @@ static bool jf_menu_print_context()
 #ifdef JF_DEBUG
 			printf("DEBUG: request_url = %s\n", request_url);
 #endif
-			reply = jf_net_request(request_url, request_type, NULL);
+			reply = jf_net_request(request_url, request_type, JF_HTTP_GET, NULL);
 			free(request_url);
 			if (JF_REPLY_PTR_HAS_ERROR(reply)) {
 				jf_menu_item_free(s_context);
@@ -516,10 +519,16 @@ static void jf_menu_play_item(jf_menu_item *item)
 				jf_menu_play_video(item);
 			} else {
 				request_url = jf_menu_item_get_request_url(item);
-				replies[0] = jf_net_request(request_url, JF_REQUEST_ASYNC_IN_MEMORY, NULL);
+				replies[0] = jf_net_request(request_url,
+						JF_REQUEST_ASYNC_IN_MEMORY,
+						JF_HTTP_GET,
+						NULL);
 				free(request_url);
 				request_url = jf_concat(3, "/videos/", item->id, "/additionalparts");
-				replies[1] = jf_net_request(request_url, JF_REQUEST_IN_MEMORY, NULL);
+				replies[1] = jf_net_request(request_url,
+						JF_REQUEST_IN_MEMORY,
+						JF_HTTP_GET,
+						NULL);
 				free(request_url);
 				if (JF_REPLY_PTR_HAS_ERROR(replies[0])) {
 					fprintf(stderr,
@@ -680,7 +689,7 @@ void jf_menu_mark_played(const jf_menu_item *item)
 {
 	char *url;
 	url = jf_concat(4, "/users/", g_options.userid, "/playeditems/", item->id);
-	jf_net_request(url, JF_REQUEST_ASYNC_DETACH, "");
+	jf_net_request(url, JF_REQUEST_ASYNC_DETACH, JF_HTTP_POST, NULL);
 	free(url);
 }
 

@@ -58,8 +58,9 @@ static CURL *jf_net_handle_init(void);
 
 static void jf_net_handle_before_perform(CURL *handle,
 		const char *resource,
-		jf_request_type request_type,
-		const char *POST_payload,
+		const jf_request_type request_type,
+		const jf_http_method method,
+		const char *payload,
 		const jf_reply *reply);
 
 static void jf_net_handle_after_perform(CURL *handle,
@@ -68,8 +69,9 @@ static void jf_net_handle_after_perform(CURL *handle,
 		jf_reply *reply);
 
 static jf_async_request *jf_async_request_new(const char *resource,
-		jf_request_type request_type,
-		const char *POST_payload);
+		const jf_request_type request_type,
+		const jf_http_method method,
+		const char *payload);
 
 // NB DOES NOT FREE a_r->reply!!!
 static void jf_async_request_free(jf_async_request *a_r);
@@ -330,7 +332,7 @@ void jf_net_clear()
 
 	for (i = 0; i < JF_NET_ASYNC_THREADS; i++) {
 		jf_synced_queue_enqueue(s_async_queue,
-				jf_async_request_new(NULL, JF_REQUEST_EXIT, NULL));
+				jf_async_request_new(NULL, JF_REQUEST_EXIT, JF_HTTP_GET, NULL));
 	}
 	curl_easy_cleanup(s_handle);
 	for (i = 0; i < JF_NET_ASYNC_THREADS; i++) {
@@ -375,7 +377,8 @@ static CURL *jf_net_handle_init(void)
 static void jf_net_handle_before_perform(CURL *handle,
 		const char *resource,
 		const jf_request_type request_type,
-		const char *POST_payload,
+		const jf_http_method method,
+		const char *payload,
 		const jf_reply *reply)
 {
 	char *url;
@@ -391,13 +394,22 @@ static void jf_net_handle_before_perform(CURL *handle,
 		free(url);
 	}
 
-	// POST and headers
-	if (POST_payload != NULL) {
-		JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_POSTFIELDS, POST_payload));
-		JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HTTPHEADER, s_headers_POST));
-	} else {
-		JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HTTPGET, 1));
-		JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HTTPHEADER, s_headers));
+	// HTTP method and headers
+	switch (method) {
+		case JF_HTTP_GET:
+			JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HTTPGET, 1));
+			JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HTTPHEADER, s_headers));
+			break;
+		case JF_HTTP_POST:
+			JF_CURL_ASSERT(curl_easy_setopt(handle,
+						CURLOPT_POSTFIELDS,
+						payload != NULL ? payload : ""));
+			JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HTTPHEADER, s_headers_POST));
+			break;
+		case JF_HTTP_DELETE:
+			JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_CUSTOMREQUEST, "DELETE"));
+			JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HTTPHEADER, s_headers));
+			break;
 	}
 	
 	// request
@@ -489,7 +501,8 @@ static void jf_net_handle_after_perform(CURL *handle,
 
 jf_reply *jf_net_request(const char *resource,
 		const jf_request_type request_type,
-		const char *POST_payload)
+		const jf_http_method method,
+		const char *payload)
 {
 	jf_reply *reply;
 	jf_async_request *a_r;
@@ -507,7 +520,8 @@ jf_reply *jf_net_request(const char *resource,
 	if (JF_REQUEST_TYPE_IS_ASYNC(request_type)) {
 		a_r = jf_async_request_new(resource,
 				request_type,
-				POST_payload);
+				method,
+				payload);
 		reply = a_r->reply;
 		jf_synced_queue_enqueue(s_async_queue, a_r);
 	} else {
@@ -515,7 +529,8 @@ jf_reply *jf_net_request(const char *resource,
 		jf_net_handle_before_perform(s_handle,
 				resource,
 				request_type,
-				POST_payload,
+				method,
+				payload,
 				reply);
 		jf_net_handle_after_perform(s_handle,
 				curl_easy_perform(s_handle),
@@ -530,8 +545,9 @@ jf_reply *jf_net_request(const char *resource,
 
 ////////// ASYNC NETWORKING //////////
 static jf_async_request *jf_async_request_new(const char *resource,
-		jf_request_type request_type,
-		const char *POST_payload)
+		const jf_request_type request_type,
+		const jf_http_method method,
+		const char *payload)
 {
 	jf_async_request *a_r;
 
@@ -543,10 +559,19 @@ static jf_async_request *jf_async_request_new(const char *resource,
 		assert((a_r->resource = strdup(resource)) != NULL);
 	}
 	a_r->type = request_type;
-	if (POST_payload == NULL) {
-		a_r->POST_payload = NULL;
-	} else {
-		assert((a_r->POST_payload = strdup(POST_payload)) != NULL);
+	a_r->method = method;
+	switch (method) {
+		case JF_HTTP_GET:
+		case JF_HTTP_DELETE:
+			a_r->payload = NULL;
+			break;
+		case JF_HTTP_POST:
+			if (payload == NULL) {
+				a_r->payload = NULL;
+			} else {
+				assert((a_r->payload = strdup(payload)) != NULL);
+			}
+			break;
 	}
 
 	return a_r;
@@ -557,7 +582,7 @@ static void jf_async_request_free(jf_async_request *a_r)
 {
 	if (a_r == NULL) return;
 	free(a_r->resource);
-	free(a_r->POST_payload);
+	free(a_r->payload);
 	free(a_r);
 }
 
@@ -602,7 +627,8 @@ static void *jf_net_async_worker_thread(__attribute__((unused)) void *arg)
 		jf_net_handle_before_perform(handle,
 				request->resource,
 				request->type,
-				request->POST_payload,
+				request->method,
+				request->payload,
 				request->reply);
 		jf_net_handle_after_perform(handle,
 				curl_easy_perform(handle),

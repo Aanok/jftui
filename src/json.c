@@ -536,8 +536,8 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
 
 	// TODO integrity checks
 	if (YAJL_GET_ARRAY(media_sources)->len > 1) {
-		printf("Please choose exactly one of the following available versions of item %s:\n",
-				item->name);
+		printf("\nThere are multiple versions available of %s.\n", item->name);
+		printf("Please choose one:\n");
 		for (i = 0; i < YAJL_GET_ARRAY(media_sources)->len; i++) {
 			source = YAJL_GET_ARRAY(media_sources)->values[i];
 			printf("%zu: %s (",

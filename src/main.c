@@ -112,7 +112,6 @@ static mpv_handle *jf_mpv_context_new()
 	JF_MPV_ASSERT(JF_MPV_SET_OPTPROP_STRING(ctx, "http-header-fields", x_emby_token));
 	free(x_emby_token);
 	JF_MPV_ASSERT(mpv_observe_property(ctx, 0, "time-pos", MPV_FORMAT_INT64));
-	JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "merge-files", MPV_FORMAT_FLAG, &mpv_flag_yes));
 
 	JF_MPV_ASSERT(mpv_initialize(ctx));
 
@@ -132,11 +131,6 @@ static void jf_now_playing_update_progress(int64_t playback_ticks)
 		progress_id = g_state.now_playing->children[0]->id;
 		while (playback_ticks > g_state.now_playing->children[i]->runtime_ticks
 				&& i < g_state.now_playing->children_count - 1) {
-			printf("DEBUG: part %zu, id %s, RT ticks: %lld; PB ticks: %ld\n",
-					i,
-					g_state.now_playing->children[i]->id,
-					g_state.now_playing->children[i]->runtime_ticks,
-					playback_ticks);
 			playback_ticks -= g_state.now_playing->children[i]->runtime_ticks;
 			progress_id = g_state.now_playing->children[i + 1]->id;
 			i++;
@@ -146,7 +140,10 @@ static void jf_now_playing_update_progress(int64_t playback_ticks)
 	}
 
 	progress_post = jf_json_generate_progress_post(progress_id, playback_ticks);
-	jf_net_request("/sessions/playing/progress", JF_REQUEST_ASYNC_DETACH, progress_post);
+	jf_net_request("/sessions/playing/progress",
+			JF_REQUEST_ASYNC_DETACH,
+			JF_HTTP_POST,
+			progress_post);
 	free(progress_post);
 	g_state.now_playing->playback_ticks = playback_ticks;
 }
@@ -155,10 +152,12 @@ static void jf_now_playing_update_progress(int64_t playback_ticks)
 static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 {
 	int64_t playback_ticks;
+	long long lapsed_ticks;
+	size_t i;
 	int mpv_flag_yes = 1, mpv_flag_no = 0;
 
 #ifdef JF_DEBUG
-// 	printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
+	printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
 #endif
 	switch (event->event_id) {
 		case MPV_EVENT_CLIENT_MESSAGE:
@@ -187,9 +186,26 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 			}
 			break;
 		case MPV_EVENT_SEEK:
+			// syncing to user progress marker
 			if (g_state.state == JF_STATE_PLAYBACK_START_MARK) {
 				mpv_set_property_string(g_mpv_ctx, "start", "none");
 				g_state.state = JF_STATE_PLAYBACK;
+				break;
+			}
+			// clear progress marker for parts we're not watching
+			if (g_state.now_playing->type == JF_ITEM_TYPE_EPISODE
+					|| g_state.now_playing->type == JF_ITEM_TYPE_MOVIE) {
+				if (mpv_get_property(g_mpv_ctx, "time-pos", MPV_FORMAT_INT64, &playback_ticks) != 0) break;
+				playback_ticks = JF_SECS_TO_TICKS(playback_ticks);
+				lapsed_ticks = 0;
+				for (i = 0; i < g_state.now_playing->children_count; i++) {
+					// mark all parts except currently playing one as 
+					if (playback_ticks < lapsed_ticks
+							|| playback_ticks > lapsed_ticks + g_state.now_playing->children[i]->runtime_ticks) {
+						jf_menu_mark_played(g_state.now_playing->children[i]);
+					}
+					lapsed_ticks += g_state.now_playing->children[i]->runtime_ticks;
+				}
 			}
 			break;
 		case MPV_EVENT_PROPERTY_CHANGE:
@@ -366,7 +382,7 @@ int main(int argc, char *argv[])
 	// UPDATE CHECK
 	// it runs asynchronously while we do other stuff
 	if (g_options.check_updates) {
-		reply_alt = jf_net_request(NULL, JF_REQUEST_CHECK_UPDATE, NULL);
+		reply_alt = jf_net_request(NULL, JF_REQUEST_CHECK_UPDATE, JF_HTTP_GET, NULL);
 	}
 	///////////////
 
@@ -398,7 +414,7 @@ int main(int argc, char *argv[])
 
 	// SERVER NAME
 	// this doubles up as a check for connectivity and correct login parameters
-	reply = jf_net_request("/system/info", JF_REQUEST_IN_MEMORY, NULL);
+	reply = jf_net_request("/system/info", JF_REQUEST_IN_MEMORY, JF_HTTP_GET, NULL);
 	if (JF_REPLY_PTR_HAS_ERROR(reply)) {
 		fprintf(stderr, "FATAL: could not reach server: %s.\n", jf_reply_error_string(reply));
 		jf_exit(JF_EXIT_FAILURE);

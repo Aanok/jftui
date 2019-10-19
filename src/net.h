@@ -77,7 +77,18 @@ char *jf_reply_error_string(const jf_reply *r);
 //////////////////////////////
 
 
-////////// REQUEST TYPES //////////
+////////// PARSER THREAD COMMUNICATION //////////
+size_t jf_thread_buffer_item_count(void);
+void jf_thread_buffer_clear_error(void);
+/////////////////////////////////////////////////
+
+
+////////// NETWORK UNIT //////////
+void jf_net_clear(void);
+//////////////////////////////////
+
+
+////////// NETWORKING //////////
 typedef enum jf_request_type {
 	JF_REQUEST_IN_MEMORY = 0,
 	JF_REQUEST_SAX = 1,
@@ -91,21 +102,14 @@ typedef enum jf_request_type {
 } jf_request_type;
 
 #define JF_REQUEST_TYPE_IS_ASYNC(_t) ((_t) < 0)
-///////////////////////////////////
 
 
-////////// PARSER THREAD COMMUNICATION //////////
-size_t jf_thread_buffer_item_count(void);
-void jf_thread_buffer_clear_error(void);
-/////////////////////////////////////////////////
+typedef enum jf_http_method {
+	JF_HTTP_GET,
+	JF_HTTP_POST,
+	JF_HTTP_DELETE
+} jf_http_method;
 
-
-////////// NETWORK UNIT //////////
-void jf_net_clear(void);
-//////////////////////////////////
-
-
-////////// NETWORKING //////////
 
 // Executes a network request to the Jellyfin server. The response may be
 // entirely put in a single jf_reply in memory or passed step by step to the
@@ -140,9 +144,12 @@ void jf_net_clear(void);
 // 			one required for the optional update check against github.com
 // 		- JF_REQUEST_EXIT should not be used here and will return a reply
 // 			containing an error code without performing any network activity.
-//	POST_payload:
-//		If NULL, the request will be an HTTP GET. Otherwise, the argument will
-//		constitute the body of an HTTP POST.
+//	method:
+//		Can be JF_HTTP_GET, JF_HTTP_POST, JF_HTTP_DELETE, with the obvious
+//		semantics.
+//	payload:
+//		Ignored for GET and DELETE requests. Constitutes the requests' body
+//		for POST (may be NULL for an empty body).
 //
 // Returns:
 // 	A jf_reply which either:
@@ -156,7 +163,8 @@ void jf_net_clear(void);
 // CAN FATAL.
 jf_reply *jf_net_request(const char *resource,
 		jf_request_type request_type,
-		const char *POST_payload);
+		const jf_http_method method,
+		const char *payload);
 ////////////////////////////////
 
 
@@ -165,7 +173,8 @@ typedef struct jf_async_request {
 	jf_reply *reply;
 	char *resource;
 	jf_request_type type;
-	char *POST_payload;
+	jf_http_method method;
+	char *payload;
 } jf_async_request;
 
 
