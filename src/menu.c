@@ -271,7 +271,7 @@ static void jf_menu_ask_resume_yn(const jf_menu_item *item, const long long tick
 	if (ticks == 0) return;
 	timestamp = jf_make_timestamp(item->playback_ticks);
 	question = jf_concat(5,
-					"Would you like to resume ",
+					"\nWould you like to resume ",
 					item->name,
 					" at the ",
 					timestamp,
@@ -340,23 +340,26 @@ static void jf_menu_ask_resume(jf_menu_item *item)
 			}
 			assert((timestamps = malloc(markers_count * sizeof(char *))) != NULL);
 			ticks = 0;
-			j = 1;
+			j = 2;
 			printf("\n%s is a split-file on the server and there is progress marked on more than one part.\n",
 					item->name);
 			printf("Please choose at what time you'd like to resume watching:\n");
+			printf("1. 00:00:00 (start)\n");
 			for (i = 0; i < item->children_count; i++) {
 				if (item->children[i]->playback_ticks != 0) {
 					ticks += item->children[i]->playback_ticks;
-					timestamps[j - 1] = jf_make_timestamp(ticks);
-					printf("%zu. %s\n", j, timestamps[j - 1]);
+					timestamps[j - 2] = jf_make_timestamp(ticks);
+					printf("%zu. %s\n", j, timestamps[j - 2]);
 					ticks += item->children[i]->runtime_ticks - item->children[i]->playback_ticks;
 					j++;
 				} else {
 					ticks += item->children[i]->runtime_ticks;
 				}
 			}
-			j = jf_menu_user_ask_selection(1, markers_count);
-			JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "start", timestamps[j - 1]));
+			j = jf_menu_user_ask_selection(1, markers_count + 1);
+			if (j != 1){
+				JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "start", timestamps[j - 2]));
+			}
 			g_state.state = JF_STATE_PLAYBACK_START_MARK;
 			for (i = 0; i < markers_count; i++) {
 				free(timestamps[i]);
@@ -448,7 +451,6 @@ static void jf_menu_play_video(const jf_menu_item *item)
 	jf_growing_buffer *filename;
 	size_t i;
 
-	jf_menu_item_print(item);
 	JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "title", item->name));
 	filename = jf_growing_buffer_new(128);
 	jf_growing_buffer_append(filename, "edl://", JF_STATIC_STRLEN("edl://"));
@@ -549,8 +551,8 @@ static void jf_menu_play_item(jf_menu_item *item)
 			break;
 		default:
 			fprintf(stderr,
-					"Error: jf_menu_play_item unsupported type (%d). This is a bug.\n",
-					item->type);
+					"Error: jf_menu_play_item unsupported type (%s). This is a bug.\n",
+					jf_item_type_get_name(item->type));
 			break;
 	}
 }
