@@ -47,17 +47,30 @@ do {																				\
 
 
 // NB THIS WILL NOT BE NULL-TERMINATED ON ITS OWN!!!
-#define JF_SAX_TRY_APPEND_NAME(prefix, field, suffix)						\
-	do {																	\
-		if (context->field ## _len > 0) {									\
-			jf_growing_buffer_append(context->current_item_display_name,	\
-					prefix, JF_STATIC_STRLEN(prefix));						\
-			jf_growing_buffer_append(context->current_item_display_name,	\
-					context->field, context->field ## _len);				\
-			jf_growing_buffer_append(context->current_item_display_name,	\
-					suffix, JF_STATIC_STRLEN(suffix));						\
-		}																	\
-	} while (false)
+#define JF_SAX_TRY_APPEND_NAME(prefix, field, suffix)					\
+do {																	\
+	if (context->field ## _len > 0) {									\
+		jf_growing_buffer_append(context->current_item_display_name,	\
+				prefix, JF_STATIC_STRLEN(prefix));						\
+		jf_growing_buffer_append(context->current_item_display_name,	\
+				context->field, context->field ## _len);				\
+		jf_growing_buffer_append(context->current_item_display_name,	\
+				suffix, JF_STATIC_STRLEN(suffix));						\
+	}																	\
+} while (false)
+
+
+#define JF_JSON_TREE_PARSE_ASSERT(_s)										\
+do {																		\
+	s_error_buffer[0] = '\0';												\
+	bool _success = _s;														\
+	if (! _success) {														\
+		fprintf(stderr, "%s:%d: " #_s " failed.\n", __FILE__, __LINE__);	\
+		fprintf(stderr, "FATAL: yajl_parse error: %s\n",					\
+				s_error_buffer[0] == '\0' ? "unknown" : s_error_buffer);	\
+		jf_exit(JF_EXIT_FAILURE);											\
+	}																		\
+} while (false)
 /////////////////////////////////
 
 
@@ -121,6 +134,7 @@ void *jf_json_sax_thread(void *arg);
 
 ////////// VIDEO PARSING //////////
 void jf_json_parse_video(jf_menu_item *item, const char *video, const char *additional_parts);
+void jf_json_parse_playback_ticks(jf_menu_item *item, const char *payload);
 ///////////////////////////////////
 
 

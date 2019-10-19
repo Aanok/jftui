@@ -66,5 +66,8 @@ char *jf_menu_linenoise(const char *prompt);
 // 	- false if reply starts with 'n' or 'N'.
 // CAN'T FAIL.
 bool jf_menu_user_ask_yn(const char *question);
+
+
+size_t jf_menu_user_ask_selection(const size_t l, const size_t r);
 ///////////////////////////////////
 #endif

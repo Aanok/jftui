@@ -556,19 +556,8 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
 			}
 			printf(")\n");
 		}
-		// read the number, kronk
-		while (true) {
-			i = 0; // 1-indexed
-			tmp = jf_menu_linenoise("> ");
-			if (sscanf(tmp, " %zu ", &i) == 1
-					&& i > 0
-					&& i <= YAJL_GET_ARRAY(media_sources)->len) {
-				i--;
-				break;
-			}
-			// wrong numbeeeeeer...
-			fprintf(stderr, "Error: please choose exactly one listed item.\n");
-		}
+		i = jf_menu_user_ask_selection(1, YAJL_GET_ARRAY(media_sources)->len);
+		i--;
 	} else {
 		i = 0;
 	}
@@ -578,7 +567,6 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
 				(const char *[]){ "MediaStreams", NULL },
 				yajl_t_array);
 	for (j = 0; j < YAJL_GET_ARRAY(media_streams)->len; j++) {
-		printf("DEBUG: stream %zu\n", j);
 		stream = YAJL_GET_ARRAY(media_streams)->values[j];
 		if (strcmp(YAJL_GET_STRING(yajl_tree_get(stream,
 							(const char *[]){ "Type", NULL },
@@ -610,14 +598,12 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
 	assert((subs = realloc(subs, (subs_count + 1) * sizeof(jf_menu_item *))) != NULL);
 	subs[subs_count] = NULL;
 
-
-	printf("DEBUG: leaving parse_versions\n");
-
 	return jf_menu_item_new(JF_ITEM_TYPE_VIDEO_SOURCE,
 			subs,
 			YAJL_GET_STRING(yajl_tree_get(source, (const char *[]){ "Id", NULL }, yajl_t_string)),
 			NULL,
-			0, 0);
+			YAJL_GET_INTEGER(yajl_tree_get(source, (const char *[]){ "RunTimeTicks", NULL }, yajl_t_number)), // RT ticks
+			0);
 }
 
 
@@ -626,12 +612,7 @@ void jf_json_parse_video(jf_menu_item *item, const char *video, const char *addi
 	yajl_val parsed, part_count, part_item;
 	size_t i;
 
-	s_error_buffer[0] = '\0';
-	if ((parsed = yajl_tree_parse(video, s_error_buffer, JF_PARSER_ERROR_BUFFER_SIZE)) == NULL) {
-		fprintf(stderr, "FATAL: jf_json_parse_video: %s\n",
-				s_error_buffer[0] == '\0' ? "yajl_tree_parse unknown error" : s_error_buffer);
-		jf_exit(JF_EXIT_FAILURE);
-	}
+	JF_JSON_TREE_PARSE_ASSERT((parsed = yajl_tree_parse(video, s_error_buffer, JF_PARSER_ERROR_BUFFER_SIZE)) != NULL);
 	// PartCount is not defined when it is == 1
 	if ((part_count =  yajl_tree_get(parsed, (const char *[]){ "PartCount", NULL }, yajl_t_number)) == NULL) {
 		item->children_count = 1;
@@ -666,6 +647,23 @@ void jf_json_parse_video(jf_menu_item *item, const char *video, const char *addi
 		}
 		yajl_tree_free(parsed);
 	}
+
+	// the parent item refers the same part as the first child. for the sake
+	// of the resume interface, copy playback_ticks from parent to firstborn
+	item->children[0]->playback_ticks = item->playback_ticks;
+}
+
+
+void jf_json_parse_playback_ticks(jf_menu_item *item, const char *payload)
+{
+	yajl_val parsed, ticks;
+
+	JF_JSON_TREE_PARSE_ASSERT((parsed = yajl_tree_parse(payload, s_error_buffer, JF_PARSER_ERROR_BUFFER_SIZE)) != NULL);
+	ticks = yajl_tree_get(parsed, (const char *[]){ "UserData", "PlaybackPositionTicks", NULL}, yajl_t_number);
+	if (ticks != NULL) {
+		item->playback_ticks = YAJL_GET_INTEGER(ticks);
+	}
+	yajl_tree_free(parsed);
 }
 ///////////////////////////////////
 
@@ -685,12 +683,7 @@ void jf_json_parse_login_response(const char *payload)
 	char *userid;
 	char *token;
 
-	s_error_buffer[0] = '\0';
-	if ((parsed = yajl_tree_parse(payload, s_error_buffer, JF_PARSER_ERROR_BUFFER_SIZE)) == NULL) {
-		fprintf(stderr, "FATAL: jf_json_parse_login_response: %s\n",
-				s_error_buffer[0] == '\0' ? "yajl_tree_parse unknown error" : s_error_buffer);
-		jf_exit(JF_EXIT_FAILURE);
-	}
+	JF_JSON_TREE_PARSE_ASSERT((parsed = yajl_tree_parse(payload, s_error_buffer, JF_PARSER_ERROR_BUFFER_SIZE)) != NULL);
 	// NB macros propagate NULL
 	userid = YAJL_GET_STRING(yajl_tree_get(parsed, userid_selector, yajl_t_string));
 	token = YAJL_GET_STRING(yajl_tree_get(parsed, token_selector, yajl_t_string));
@@ -729,12 +722,7 @@ void jf_json_parse_server_info_response(const char *payload)
 {
 	yajl_val parsed;
 
-	s_error_buffer[0] = '\0';
-	if ((parsed = yajl_tree_parse(payload, s_error_buffer, JF_PARSER_ERROR_BUFFER_SIZE)) == NULL) {
-		fprintf(stderr, "FATAL: jf_json_parse_login_response: %s\n",
-				s_error_buffer[0] == '\0' ? "yajl_tree_parse unknown error" : s_error_buffer);
-		jf_exit(JF_EXIT_FAILURE);
-	}
+	JF_JSON_TREE_PARSE_ASSERT((parsed = yajl_tree_parse(payload, s_error_buffer, JF_PARSER_ERROR_BUFFER_SIZE)) != NULL);
 	// NB macros propagate NULL
 	assert((g_state.server_name = YAJL_GET_STRING(yajl_tree_get(parsed,
 						(const char *[]){ "ServerName", NULL },

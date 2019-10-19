@@ -98,7 +98,8 @@ static jf_menu_item *jf_menu_child_get(size_t n);
 static char *jf_menu_item_get_request_url(const jf_menu_item *item);
 static bool jf_menu_print_context(void);
 static void jf_menu_play_video(const jf_menu_item *item);
-static void jf_menu_ask_resume(const jf_menu_item *item);
+static void jf_menu_ask_resume_yn(const jf_menu_item *item, const long long ticks);
+static void jf_menu_ask_resume(jf_menu_item *item);
 static void jf_menu_play_item(jf_menu_item *item);
 static void jf_menu_try_play(void);
 //////////////////////////////////////
@@ -263,6 +264,111 @@ static jf_menu_item *jf_menu_child_get(size_t n)
 }
 
 
+static void jf_menu_ask_resume_yn(const jf_menu_item *item, const long long ticks)
+{
+	char *timestamp, *question;
+
+	if (ticks == 0) return;
+	timestamp = jf_make_timestamp(item->playback_ticks);
+	question = jf_concat(5,
+					"Would you like to resume ",
+					item->name,
+					" at the ",
+					timestamp,
+					" mark?");
+	if (jf_menu_user_ask_yn(question)) {
+		JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "start", timestamp));
+		g_state.state = JF_STATE_PLAYBACK_START_MARK;
+	}
+	free(timestamp);
+	free(question);
+}
+
+
+static void jf_menu_ask_resume(jf_menu_item *item)
+{
+	char **timestamps, *tmp;
+	long long ticks;
+	size_t i, j, markers_count;
+	jf_reply **replies;
+
+	switch (item->type) {
+		case JF_ITEM_TYPE_AUDIO:
+		case JF_ITEM_TYPE_AUDIOBOOK:
+			if (item->playback_ticks != 0) {
+				jf_menu_ask_resume_yn(item, item->playback_ticks);
+			}
+			break;
+		case JF_ITEM_TYPE_EPISODE:
+		case JF_ITEM_TYPE_MOVIE:
+			// the Emby interface was designed by a drunk gibbon. to check for
+			// a progress marker, we have to request the items corresponding to
+			// the additionalparts and look at them individually
+			// ...and each may have its own bookmark!
+			assert((replies = malloc((item->children_count - 1) * sizeof(jf_menu_item *))) != NULL);
+			for (i = 1; i < item->children_count; i++) {
+				tmp = jf_concat(4,
+						"/users/",
+						g_options.userid,
+						"/items/",
+						item->children[i]->id);
+				replies[i - 1] = jf_net_request(tmp, JF_REQUEST_ASYNC_IN_MEMORY, NULL);
+				free(tmp);
+			}
+			markers_count = item->children[0]->playback_ticks == 0 ? 0 : 1;
+			for (i = 1; i < item->children_count; i++) {
+				jf_net_await(replies[i - 1]);
+				jf_json_parse_playback_ticks(item->children[i], replies[i - 1]->payload);
+				jf_reply_free(replies[i - 1]);
+				if (item->children[i]->playback_ticks != 0) {
+					markers_count++;
+				}
+			}
+			free(replies);
+			if (markers_count == 0) break;
+			if (markers_count == 1) {
+				i = 0;
+				ticks = 0;
+				while(item->children[i]->playback_ticks == 0
+						&& i < item->children_count - 1) {
+					ticks += item->children[i]->runtime_ticks;
+					i++;
+				}
+				ticks += item->children[i]->playback_ticks;
+				jf_menu_ask_resume_yn(item, ticks);
+				break;
+			}
+			assert((timestamps = malloc(markers_count * sizeof(char *))) != NULL);
+			ticks = 0;
+			j = 1;
+			printf("\n%s is a split-file on the server and there is progress marked on more than one part.\n",
+					item->name);
+			printf("Please choose at what time you'd like to resume watching:\n");
+			for (i = 0; i < item->children_count; i++) {
+				if (item->children[i]->playback_ticks != 0) {
+					ticks += item->children[i]->playback_ticks;
+					timestamps[j - 1] = jf_make_timestamp(ticks);
+					printf("%zu. %s\n", j, timestamps[j - 1]);
+					ticks += item->children[i]->runtime_ticks - item->children[i]->playback_ticks;
+					j++;
+				} else {
+					ticks += item->children[i]->runtime_ticks;
+				}
+			}
+			j = jf_menu_user_ask_selection(1, markers_count);
+			JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "start", timestamps[j - 1]));
+			g_state.state = JF_STATE_PLAYBACK_START_MARK;
+			for (i = 0; i < markers_count; i++) {
+				free(timestamps[i]);
+			}
+			free(timestamps);
+			break;
+		default:
+			break;
+	}
+}
+
+
 static bool jf_menu_print_context()
 {
 	size_t i;
@@ -342,6 +448,7 @@ static void jf_menu_play_video(const jf_menu_item *item)
 	jf_growing_buffer *filename;
 	size_t i;
 
+	jf_menu_item_print(item);
 	JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "title", item->name));
 	filename = jf_growing_buffer_new(128);
 	jf_growing_buffer_append(filename, "edl://", JF_STATIC_STRLEN("edl://"));
@@ -371,30 +478,10 @@ static void jf_menu_play_video(const jf_menu_item *item)
 }
 
 
-static void jf_menu_ask_resume(const jf_menu_item *item)
-{
-	char *timestamp, *question;
-
-	timestamp = jf_make_timestamp(item->playback_ticks);
-	question = jf_concat(5,
-					"Would you like to resume ",
-					item->name,
-					" at the ",
-					timestamp,
-					" mark?");
-	if (jf_menu_user_ask_yn(question)) {
-		mpv_set_property_string(g_mpv_ctx, "start", timestamp);
-		g_state.state = JF_STATE_PLAYBACK_START_MARK;
-	}
-	free(timestamp);
-	free(question);
-}
-
-
 static void jf_menu_play_item(jf_menu_item *item)
 {
 	char *request_url;
-	jf_reply *r1, *r2;
+	jf_reply *replies[2];
 
 	if (item == NULL) {
 		return;
@@ -411,9 +498,7 @@ static void jf_menu_play_item(jf_menu_item *item)
 			if ((request_url = jf_menu_item_get_request_url(item)) == NULL) {
 				return;
 			}
-			if (item->playback_ticks != 0) {
-				jf_menu_ask_resume(item);
-			}
+			jf_menu_ask_resume(item);
 			JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "title", item->name));
 			const char *loadfile[] = { "loadfile", request_url, NULL };
 			mpv_command(g_mpv_ctx, loadfile); 
@@ -423,41 +508,39 @@ static void jf_menu_play_item(jf_menu_item *item)
 			break;
 		case JF_ITEM_TYPE_EPISODE:
 		case JF_ITEM_TYPE_MOVIE:
-			if (item->playback_ticks != 0) {
-				jf_menu_ask_resume(item);
-			}
 			// check if item was already evaded re: split file and versions
 			if (item->children_count > 0) {
+				jf_menu_ask_resume(item);
 				jf_menu_play_video(item);
 			} else {
 				request_url = jf_menu_item_get_request_url(item);
-				r1 = jf_net_request(request_url, JF_REQUEST_ASYNC_IN_MEMORY, NULL);
+				replies[0] = jf_net_request(request_url, JF_REQUEST_ASYNC_IN_MEMORY, NULL);
 				free(request_url);
 				request_url = jf_concat(3, "/videos/", item->id, "/additionalparts");
-				printf("DEBUG: additional parts url: %s\n", request_url);
-				r2 = jf_net_request(request_url, JF_REQUEST_IN_MEMORY, NULL);
+				replies[1] = jf_net_request(request_url, JF_REQUEST_IN_MEMORY, NULL);
 				free(request_url);
-				if (JF_REPLY_PTR_HAS_ERROR(r2)) {
+				if (JF_REPLY_PTR_HAS_ERROR(replies[0])) {
 					fprintf(stderr,
 							"Error: network request for /additionalparts of item %s failed: %s.\n",
 							item->name,
-							jf_reply_error_string(r2));
-					jf_reply_free(r2);
-					jf_reply_free(jf_net_await(r1));
+							jf_reply_error_string(replies[1]));
+					jf_reply_free(replies[1]);
+					jf_reply_free(jf_net_await(replies[0]));
 					return;
 				}
-				if (JF_REPLY_PTR_HAS_ERROR(jf_net_await(r1))) {
+				if (JF_REPLY_PTR_HAS_ERROR(jf_net_await(replies[0]))) {
 					fprintf(stderr,
 							"Error: network request for item %s failed: %s.\n",
 							item->name,
-							jf_reply_error_string(r1));
-					jf_reply_free(r1);
-					jf_reply_free(r2);
+							jf_reply_error_string(replies[0]));
+					jf_reply_free(replies[0]);
+					jf_reply_free(replies[1]);
 					return;
 				}
-				jf_json_parse_video(item, r1->payload, r2->payload);
-				jf_reply_free(r1);
-				jf_reply_free(r2);
+				jf_json_parse_video(item, replies[0]->payload, replies[1]->payload);
+				jf_reply_free(replies[0]);
+				jf_reply_free(replies[1]);
+				jf_menu_ask_resume(item);
 				jf_menu_play_video(item);
 				jf_disk_playlist_replace_item(s_playlist_current, item);
 				jf_menu_item_free(g_state.now_playing);
@@ -743,5 +826,23 @@ bool jf_menu_user_ask_yn(const char *question)
 	}
 
 	return reply == 'y' || reply == 'Y';
+}
+
+
+size_t jf_menu_user_ask_selection(const size_t l, const size_t r)
+{
+	char *tmp;
+	size_t i;
+
+	// read the number, kronk
+	while (true) {
+		tmp = jf_menu_linenoise("> ");
+		if (sscanf(tmp, " %zu ", &i) == 1 && l <= i && i <= r) {
+			free(tmp);
+			return i;
+		}
+		// wrong numbeeeeeer...
+		fprintf(stderr, "Error: please choose exactly one listed item.\n");
+	}
 }
 ///////////////////////////////////

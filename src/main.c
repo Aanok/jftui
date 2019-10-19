@@ -37,6 +37,7 @@ static void jf_print_usage(void);
 static JF_FORCE_INLINE void jf_missing_arg(const char *arg);
 static mpv_handle *jf_mpv_context_new(void);
 static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event);
+static void jf_now_playing_update_progress(int64_t playback_ticks);
 //////////////////////////////////////
 
 
@@ -119,9 +120,40 @@ static mpv_handle *jf_mpv_context_new()
 }
 
 
-static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
+static void jf_now_playing_update_progress(int64_t playback_ticks)
 {
 	char *progress_post;
+	char *progress_id;
+	size_t i;
+
+	if (g_state.now_playing->type == JF_ITEM_TYPE_EPISODE
+			|| g_state.now_playing->type == JF_ITEM_TYPE_MOVIE) {
+		i = 0;
+		progress_id = g_state.now_playing->children[0]->id;
+		while (playback_ticks > g_state.now_playing->children[i]->runtime_ticks
+				&& i < g_state.now_playing->children_count - 1) {
+			printf("DEBUG: part %zu, id %s, RT ticks: %lld; PB ticks: %ld\n",
+					i,
+					g_state.now_playing->children[i]->id,
+					g_state.now_playing->children[i]->runtime_ticks,
+					playback_ticks);
+			playback_ticks -= g_state.now_playing->children[i]->runtime_ticks;
+			progress_id = g_state.now_playing->children[i + 1]->id;
+			i++;
+		}
+	} else {
+		progress_id = g_state.now_playing->id;
+	}
+
+	progress_post = jf_json_generate_progress_post(progress_id, playback_ticks);
+	jf_net_request("/sessions/playing/progress", JF_REQUEST_ASYNC_DETACH, progress_post);
+	free(progress_post);
+	g_state.now_playing->playback_ticks = playback_ticks;
+}
+
+
+static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
+{
 	int64_t playback_ticks;
 	int mpv_flag_yes = 1, mpv_flag_no = 0;
 
@@ -146,9 +178,7 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 			playback_ticks =
 				mpv_get_property(g_mpv_ctx, "time-pos", MPV_FORMAT_INT64, &playback_ticks) == 0 ?
 				JF_SECS_TO_TICKS(playback_ticks) : g_state.now_playing->playback_ticks;
-			progress_post = jf_json_generate_progress_post(g_state.now_playing->id, playback_ticks);
-			jf_net_request("/sessions/playing/stopped", JF_REQUEST_ASYNC_DETACH, progress_post);
-			free(progress_post);
+			jf_now_playing_update_progress(playback_ticks);
 			// move to next item in playlist, if any
 			if (((mpv_event_end_file *)event->data)->reason == MPV_END_FILE_REASON_EOF) {
 				if (jf_menu_playlist_forward()) {
@@ -169,10 +199,7 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 			playback_ticks = JF_SECS_TO_TICKS(*(int64_t *)((mpv_event_property *)event->data)->data);
 			if (llabs(playback_ticks - g_state.now_playing->playback_ticks) < JF_SECS_TO_TICKS(10)) break;
 			// good for update; note this will also start a playback session if none are there
-			progress_post = jf_json_generate_progress_post(g_state.now_playing->id, playback_ticks);
-			jf_net_request("/sessions/playing/progress", JF_REQUEST_ASYNC_DETACH, progress_post);
-			free(progress_post);
-			g_state.now_playing->playback_ticks = playback_ticks;
+			jf_now_playing_update_progress(playback_ticks);
 			break;
 		case MPV_EVENT_IDLE:
 			if (g_state.state == JF_STATE_PLAYBACK_NAVIGATING) {
@@ -189,9 +216,7 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 		case MPV_EVENT_SHUTDOWN:
 			// tell jellyfin playback stopped
 			// NB we can't call mpv_get_property because mpv core has aborted!
-			progress_post = jf_json_generate_progress_post(g_state.now_playing->id, g_state.now_playing->playback_ticks);
-			jf_net_request("/sessions/playing/stopped", JF_REQUEST_ASYNC_DETACH, progress_post);
-			free(progress_post);
+			jf_now_playing_update_progress(g_state.now_playing->playback_ticks);
 			// it is unfortunate, but the cleanest way to handle this case
 			// (which is when mpv receives a "quit" command)
 			// is to comply and create a new context
