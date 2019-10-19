@@ -238,7 +238,7 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 			return jf_concat(3, "/shows/nextup?userid=", g_options.userid, "&limit=15");
 		case JF_ITEM_TYPE_MENU_LATEST_UNPLAYED:
 			// TODO figure out what fresh insanity drives the limit amount in this case
-			return jf_concat(3, "/users/", g_options.userid, "/items/latest?limit=115");
+			return jf_concat(3, "/users/", g_options.userid, "/items/latest?limit=32");
 		case JF_ITEM_TYPE_MENU_LIBRARIES:
 			return jf_concat(3, "/users/", g_options.userid, "/views");
 		default:
