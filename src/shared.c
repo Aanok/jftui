@@ -164,11 +164,15 @@ jf_growing_buffer *jf_growing_buffer_new(const size_t size)
 
 
 void jf_growing_buffer_append(jf_growing_buffer *buffer, const void *data,
-		const size_t length)
+		size_t length)
 {
 	size_t estimate;
 
 	if (buffer == NULL) return;
+
+	if (length == 0) {
+		length = strlen(data);
+	}
 
 	if (buffer->used + length > buffer->size) {
 		estimate = (buffer->used + length) / 2 * 3;
