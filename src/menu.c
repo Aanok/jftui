@@ -269,7 +269,7 @@ static void jf_menu_ask_resume_yn(const jf_menu_item *item, const long long tick
 	char *timestamp, *question;
 
 	if (ticks == 0) return;
-	timestamp = jf_make_timestamp(item->playback_ticks);
+	timestamp = jf_make_timestamp(ticks);
 	question = jf_concat(5,
 					"\nWould you like to resume ",
 					item->name,
@@ -332,7 +332,7 @@ static void jf_menu_ask_resume(jf_menu_item *item)
 			if (markers_count == 1) {
 				i = 0;
 				ticks = 0;
-				while(item->children[i]->playback_ticks == 0
+				while (item->children[i]->playback_ticks == 0
 						&& i < item->children_count - 1) {
 					ticks += item->children[i]->runtime_ticks;
 					i++;

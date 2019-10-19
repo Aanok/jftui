@@ -37,6 +37,7 @@ static void jf_print_usage(void);
 static JF_FORCE_INLINE void jf_missing_arg(const char *arg);
 static mpv_handle *jf_mpv_context_new(void);
 static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event);
+static void jf_update_progress_remote(const char *id, int64_t playback_ticks);
 static void jf_now_playing_update_progress(int64_t playback_ticks);
 //////////////////////////////////////
 
@@ -119,32 +120,37 @@ static mpv_handle *jf_mpv_context_new()
 }
 
 
-static void jf_now_playing_update_progress(int64_t playback_ticks)
+static void jf_update_progress_remote(const char *id, int64_t playback_ticks)
 {
 	char *progress_post;
-	char *progress_id;
-	size_t i;
 
-	if (g_state.now_playing->type == JF_ITEM_TYPE_EPISODE
-			|| g_state.now_playing->type == JF_ITEM_TYPE_MOVIE) {
-		i = 0;
-		progress_id = g_state.now_playing->children[0]->id;
-		while (playback_ticks > g_state.now_playing->children[i]->runtime_ticks
-				&& i < g_state.now_playing->children_count - 1) {
-			playback_ticks -= g_state.now_playing->children[i]->runtime_ticks;
-			progress_id = g_state.now_playing->children[i + 1]->id;
-			i++;
-		}
-	} else {
-		progress_id = g_state.now_playing->id;
-	}
-
-	progress_post = jf_json_generate_progress_post(progress_id, playback_ticks);
+	progress_post = jf_json_generate_progress_post(id, playback_ticks);
 	jf_net_request("/sessions/playing/progress",
 			JF_REQUEST_ASYNC_DETACH,
 			JF_HTTP_POST,
 			progress_post);
 	free(progress_post);
+}
+
+
+static void jf_now_playing_update_progress(int64_t playback_ticks)
+{
+	size_t i;
+
+	if (g_state.now_playing->type == JF_ITEM_TYPE_EPISODE
+			|| g_state.now_playing->type == JF_ITEM_TYPE_MOVIE) {
+		i = 0;
+		while (playback_ticks > g_state.now_playing->children[i]->runtime_ticks
+				&& i < g_state.now_playing->children_count - 1) {
+			playback_ticks -= g_state.now_playing->children[i]->runtime_ticks;
+			i++;
+		}
+		jf_update_progress_remote(g_state.now_playing->children[i]->id,
+				playback_ticks);
+	} else {
+		jf_update_progress_remote(g_state.now_playing->id, playback_ticks);
+	}
+
 	g_state.now_playing->playback_ticks = playback_ticks;
 }
 
@@ -199,10 +205,17 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 				playback_ticks = JF_SECS_TO_TICKS(playback_ticks);
 				lapsed_ticks = 0;
 				for (i = 0; i < g_state.now_playing->children_count; i++) {
-					// mark all parts except currently playing one as 
-					if (playback_ticks < lapsed_ticks
-							|| playback_ticks > lapsed_ticks + g_state.now_playing->children[i]->runtime_ticks) {
+					if (playback_ticks > lapsed_ticks + g_state.now_playing->children[i]->runtime_ticks) {
+						// parts before current
 						jf_menu_mark_played(g_state.now_playing->children[i]);
+					} else if (playback_ticks < lapsed_ticks) {
+						// parts after current
+						jf_menu_mark_unplayed(g_state.now_playing->children[i]);
+					} else {
+						// current part
+						jf_update_progress_remote(g_state.now_playing->children[i]->id,
+								playback_ticks);
+						g_state.now_playing->playback_ticks = playback_ticks;
 					}
 					lapsed_ticks += g_state.now_playing->children[i]->runtime_ticks;
 				}
