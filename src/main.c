@@ -198,7 +198,11 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 				g_state.state = JF_STATE_PLAYBACK;
 				break;
 			}
-			// clear progress marker for parts we're not watching
+			// in case of seek, we may be moving across parts of a split-part
+			// in which case it makes sense to clear the playback markers of
+			// all other parts
+			// note: if playback graciously glides across parts, the old one has
+			// been marked watched by normal progress updates
 			if (g_state.now_playing->type == JF_ITEM_TYPE_EPISODE
 					|| g_state.now_playing->type == JF_ITEM_TYPE_MOVIE) {
 				if (mpv_get_property(g_mpv_ctx, "time-pos", MPV_FORMAT_INT64, &playback_ticks) != 0) break;

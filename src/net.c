@@ -308,7 +308,7 @@ static void jf_net_init()
 	assert(pthread_detach(sax_parser_thread) == 0);
 
 	// async networking
-	s_async_queue = jf_synced_queue_new(10);
+	s_async_queue = jf_synced_queue_new(16);
 	assert(pthread_mutex_init(&s_async_mut, NULL) == 0);
 	assert(pthread_cond_init(&s_async_cv, NULL) == 0);
 
@@ -360,8 +360,8 @@ static CURL *jf_net_handle_init(void)
 	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_ERRORBUFFER, s_curl_errorbuffer));
 
 	// be a good neighbour
-	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_SHARE, s_curl_sh));
-	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_NOSIGNAL, 1L));
+// 	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_SHARE, s_curl_sh));
+// 	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_NOSIGNAL, 1L));
 
 	// ask for all supported kinds of compression
 	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_ACCEPT_ENCODING, ""));
