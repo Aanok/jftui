@@ -133,22 +133,23 @@ static void jf_update_progress_remote(const char *id, int64_t playback_ticks)
 }
 
 
-static void jf_now_playing_update_progress(int64_t playback_ticks)
+static void jf_now_playing_update_progress(const int64_t playback_ticks)
 {
 	size_t i;
+	int64_t progress_ticks = playback_ticks;
 
 	if (g_state.now_playing->type == JF_ITEM_TYPE_EPISODE
 			|| g_state.now_playing->type == JF_ITEM_TYPE_MOVIE) {
 		i = 0;
 		while (playback_ticks > g_state.now_playing->children[i]->runtime_ticks
 				&& i < g_state.now_playing->children_count - 1) {
-			playback_ticks -= g_state.now_playing->children[i]->runtime_ticks;
+			progress_ticks -= g_state.now_playing->children[i]->runtime_ticks;
 			i++;
 		}
 		jf_update_progress_remote(g_state.now_playing->children[i]->id,
-				playback_ticks);
+				progress_ticks);
 	} else {
-		jf_update_progress_remote(g_state.now_playing->id, playback_ticks);
+		jf_update_progress_remote(g_state.now_playing->id, progress_ticks);
 	}
 
 	g_state.now_playing->playback_ticks = playback_ticks;
@@ -194,7 +195,12 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 		case MPV_EVENT_SEEK:
 			// syncing to user progress marker
 			if (g_state.state == JF_STATE_PLAYBACK_START_MARK) {
-				mpv_set_property_string(g_mpv_ctx, "start", "none");
+				JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "start", "none"));
+				// ensure parent playback ticks refer to merged item
+				playback_ticks =
+					mpv_get_property(g_mpv_ctx, "time-pos", MPV_FORMAT_INT64, &playback_ticks) == 0 ?
+					JF_SECS_TO_TICKS(playback_ticks) : 0;
+				g_state.now_playing->playback_ticks = playback_ticks;
 				g_state.state = JF_STATE_PLAYBACK;
 				break;
 			}
@@ -207,6 +213,7 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 					|| g_state.now_playing->type == JF_ITEM_TYPE_MOVIE) {
 				if (mpv_get_property(g_mpv_ctx, "time-pos", MPV_FORMAT_INT64, &playback_ticks) != 0) break;
 				playback_ticks = JF_SECS_TO_TICKS(playback_ticks);
+				g_state.now_playing->playback_ticks = playback_ticks;
 				lapsed_ticks = 0;
 				for (i = 0; i < g_state.now_playing->children_count; i++) {
 					if (playback_ticks > lapsed_ticks + g_state.now_playing->children[i]->runtime_ticks) {
@@ -218,7 +225,7 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 					} else {
 						// current part
 						jf_update_progress_remote(g_state.now_playing->children[i]->id,
-								playback_ticks);
+								playback_ticks - lapsed_ticks);
 						g_state.now_playing->playback_ticks = playback_ticks;
 					}
 					lapsed_ticks += g_state.now_playing->children[i]->runtime_ticks;
