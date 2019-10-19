@@ -836,16 +836,18 @@ char *jf_menu_linenoise(const char *prompt)
 	return str;
 }
 
+
 bool jf_menu_user_ask_yn(const char *question)
 {
-	int reply = '\0';
-	while (reply != 'y' && reply != 'Y' && reply != 'n' && reply != 'N') {
-		printf("%s [y/n]\n", question);
-		reply = fgetc(stdin);
-		jf_clear_stdin();
-	}
+	char *str;
 
-	return reply == 'y' || reply == 'Y';
+	printf("%s [y/n]\n", question);
+	while (true) {
+		str = jf_menu_linenoise("> ");
+		if (strcasecmp(str, "y") == 0) return true;
+		if (strcasecmp(str, "n") == 0) return false;
+		printf("Error: please answer \"y\" or \"n\".\n");
+	}
 }
 
 
