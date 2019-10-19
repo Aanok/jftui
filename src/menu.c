@@ -146,7 +146,6 @@ static JF_FORCE_INLINE const jf_menu_item *jf_menu_stack_peek()
 
 ////////// USER INTERFACE LOOP //////////
 
-// TODO: EXTREMELY incomplete, stub
 static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 {
 	const jf_menu_item *parent;
@@ -182,7 +181,7 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 				return jf_concat(4,
 						"/users/",
 						g_options.userid,
-						"/items?sortby=isfolder,sortname&parentid=",
+						"/items?sortby=isfolder,parentindexnumber,indexnumber,productionyear,sortname&parentid=",
 						item->id);
 			}
 		case JF_ITEM_TYPE_COLLECTION_MUSIC:
@@ -216,7 +215,7 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
 			return jf_concat(4,
 					"/users/",
 					g_options.userid,
-					"/items?recursive=true&includeitemtypes=musicalbum&sortby=isfolder,sortname&sortorder=ascending&albumartistids=",
+					"/items?recursive=true&includeitemtypes=musicalbum&sortby=isfolder,productionyear,sortname&sortorder=ascending&albumartistids=",
 					item->id);
 		case JF_ITEM_TYPE_SEARCH_RESULT:
 			return jf_concat(4,
