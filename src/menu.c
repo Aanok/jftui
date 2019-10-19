@@ -694,6 +694,15 @@ void jf_menu_mark_played(const jf_menu_item *item)
 }
 
 
+void jf_menu_mark_unplayed(const jf_menu_item *item)
+{
+	char *url;
+	url = jf_concat(4, "/users/", g_options.userid, "/playeditems/", item->id);
+	jf_net_request(url, JF_REQUEST_ASYNC_DETACH, JF_HTTP_DELETE, NULL);
+	free(url);
+}
+
+
 bool jf_menu_playlist_forward()
 {
 	if (s_playlist_current < jf_disk_playlist_item_count()) {
