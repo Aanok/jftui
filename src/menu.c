@@ -339,29 +339,35 @@ static bool jf_menu_print_context()
 
 static void jf_menu_play_video(const jf_menu_item *item)
 {
-	char *tmp;
+	jf_growing_buffer *filename;
 	size_t i;
 
-	//TODO set merge-files
-	tmp = jf_menu_item_get_request_url(item->children[0]);
-	const char *loadfile[] = { "loadfile", tmp, NULL };
-	mpv_command(g_mpv_ctx, loadfile);
-	free(tmp);
+	JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "title", item->name));
+	filename = jf_growing_buffer_new(128);
+	jf_growing_buffer_append(filename, "edl://", JF_STATIC_STRLEN("edl://"));
+	jf_growing_buffer_append(filename,
+			jf_menu_item_get_request_url(item->children[0]),
+			0);
 	for (i = 1; i < item->children_count; i++) {
 		if (item->children[i]->type == JF_ITEM_TYPE_VIDEO_SOURCE) {
-			tmp = jf_menu_item_get_request_url(item->children[i]);
-			const char *command[] = { "loadfile", "append", tmp, NULL };
-			mpv_command(g_mpv_ctx, command);
-			free(tmp);
+			jf_growing_buffer_append(filename, ";", 1);
+			jf_growing_buffer_append(filename,
+					jf_menu_item_get_request_url(item->children[i]),
+					0);
 		} else if (item->children[i]->type == JF_ITEM_TYPE_VIDEO_SUB) {
 			const char *command[] = { "sub-add", "auto", item->children[i]->name, NULL };
 			mpv_command(g_mpv_ctx, command);
 		} else {
-			// TODO print warning
+			fprintf(stderr,
+					"Warning: unrecognized item type (%s) for %s part %zu. This is a bug.\n",
+					jf_item_type_get_name(item->children[i]->type), item->name, i);
 			return;
 		}
 	}
-	//TODO unset merge-files
+	jf_growing_buffer_append(filename, "", 1);
+	const char *loadfile[] = { "loadfile", filename->buf, NULL };
+	JF_MPV_ASSERT(mpv_command(g_mpv_ctx, loadfile));
+	jf_growing_buffer_free(filename);
 }
 
 
@@ -408,6 +414,7 @@ static void jf_menu_play_item(jf_menu_item *item)
 			if (item->playback_ticks != 0) {
 				jf_menu_ask_resume(item);
 			}
+			JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "title", item->name));
 			const char *loadfile[] = { "loadfile", request_url, NULL };
 			mpv_command(g_mpv_ctx, loadfile); 
 			jf_menu_item_free(g_state.now_playing);
@@ -426,7 +433,8 @@ static void jf_menu_play_item(jf_menu_item *item)
 				request_url = jf_menu_item_get_request_url(item);
 				r1 = jf_net_request(request_url, JF_REQUEST_ASYNC_IN_MEMORY, NULL);
 				free(request_url);
-				request_url = jf_concat(4, g_options.server, "/videos/", item->id, "/additionalparts");
+				request_url = jf_concat(3, "/videos/", item->id, "/additionalparts");
+				printf("DEBUG: additional parts url: %s\n", request_url);
 				r2 = jf_net_request(request_url, JF_REQUEST_IN_MEMORY, NULL);
 				free(request_url);
 				if (JF_REPLY_PTR_HAS_ERROR(r2)) {
@@ -474,7 +482,6 @@ static void jf_menu_try_play()
 		s_playlist_current = 1;
 		item = jf_disk_playlist_get_item(1);
 		jf_menu_play_item(item);
-		jf_menu_item_free(item);
 	}
 }
 

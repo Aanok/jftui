@@ -538,7 +538,7 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
 	if (YAJL_GET_ARRAY(media_sources)->len > 1) {
 		printf("Please choose exactly one of the following available versions of item %s:\n",
 				item->name);
-		for (i = 0; i <= YAJL_GET_ARRAY(media_sources)->len; i++) {
+		for (i = 0; i < YAJL_GET_ARRAY(media_sources)->len; i++) {
 			source = YAJL_GET_ARRAY(media_sources)->values[i];
 			printf("%zu: %s (",
 					i + 1,
@@ -578,6 +578,8 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
 				(const char *[]){ "MediaStreams", NULL },
 				yajl_t_array);
 	for (j = 0; j < YAJL_GET_ARRAY(media_streams)->len; j++) {
+		printf("DEBUG: stream %zu\n", j);
+		stream = YAJL_GET_ARRAY(media_streams)->values[j];
 		if (strcmp(YAJL_GET_STRING(yajl_tree_get(stream,
 							(const char *[]){ "Type", NULL },
 							yajl_t_string)),
@@ -604,6 +606,12 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
 			free(tmp);
 		}
 	}
+	// NULL-terminate children
+	assert((subs = realloc(subs, (subs_count + 1) * sizeof(jf_menu_item *))) != NULL);
+	subs[subs_count] = NULL;
+
+
+	printf("DEBUG: leaving parse_versions\n");
 
 	return jf_menu_item_new(JF_ITEM_TYPE_VIDEO_SOURCE,
 			subs,
@@ -615,7 +623,7 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
 
 void jf_json_parse_video(jf_menu_item *item, const char *video, const char *additional_parts)
 {
-	yajl_val parsed, part_item;
+	yajl_val parsed, part_count, part_item;
 	size_t i;
 
 	s_error_buffer[0] = '\0';
@@ -624,9 +632,12 @@ void jf_json_parse_video(jf_menu_item *item, const char *video, const char *addi
 				s_error_buffer[0] == '\0' ? "yajl_tree_parse unknown error" : s_error_buffer);
 		jf_exit(JF_EXIT_FAILURE);
 	}
-	item->children_count = (size_t)YAJL_GET_INTEGER(yajl_tree_get(parsed,
-					(const char *[]){ "PartCount", NULL },
-					yajl_t_number));
+	// PartCount is not defined when it is == 1
+	if ((part_count =  yajl_tree_get(parsed, (const char *[]){ "PartCount", NULL }, yajl_t_number)) == NULL) {
+		item->children_count = 1;
+	} else {
+		item->children_count = (size_t)YAJL_GET_INTEGER(part_count);
+	}
 	assert((item->children = malloc(item->children_count * sizeof(jf_menu_item *))) != NULL);
 	item->children[0] = jf_json_parse_versions(item,
 			yajl_tree_get(parsed,
@@ -640,7 +651,7 @@ void jf_json_parse_video(jf_menu_item *item, const char *video, const char *addi
 		if ((parsed = yajl_tree_parse(additional_parts,
 						s_error_buffer,
 						JF_PARSER_ERROR_BUFFER_SIZE)) == NULL) {
-			fprintf(stderr, "FATAL: jf_json_parse_video: %s\n",
+			fprintf(stderr, "FATAL: jf_json_parse_additional_parts: %s\n",
 					s_error_buffer[0] == '\0' ? "yajl_tree_parse unknown error" : s_error_buffer);
 			jf_exit(JF_EXIT_FAILURE);
 		}

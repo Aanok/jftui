@@ -24,20 +24,6 @@
 #endif
 
 
-////////// CODE MACROS //////////
-#define JF_MPV_ASSERT(_s)													\
-do {																		\
-	int _status = _s;														\
-	if (_status < 0) {														\
-		fprintf(stderr, "%s:%d: " #_s " failed.\n", __FILE__, __LINE__);	\
-		fprintf(stderr, "FATAL: mpv API error: %s.\n",						\
-				mpv_error_string(_status));									\
-		jf_exit(JF_EXIT_FAILURE);											\
-	}																		\
-} while (false)
-/////////////////////////////////
-
-
 ////////// GLOBAL VARIABLES //////////
 jf_options g_options;
 jf_global_state g_state;
@@ -125,6 +111,7 @@ static mpv_handle *jf_mpv_context_new()
 	JF_MPV_ASSERT(JF_MPV_SET_OPTPROP_STRING(ctx, "http-header-fields", x_emby_token));
 	free(x_emby_token);
 	JF_MPV_ASSERT(mpv_observe_property(ctx, 0, "time-pos", MPV_FORMAT_INT64));
+	JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "merge-files", MPV_FORMAT_FLAG, &mpv_flag_yes));
 
 	JF_MPV_ASSERT(mpv_initialize(ctx));
 
@@ -139,7 +126,7 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 	int mpv_flag_yes = 1, mpv_flag_no = 0;
 
 #ifdef JF_DEBUG
-	printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
+// 	printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
 #endif
 	switch (event->event_id) {
 		case MPV_EVENT_CLIENT_MESSAGE:
