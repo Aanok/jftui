@@ -402,8 +402,10 @@ static void jf_net_handle_before_perform(CURL *handle,
 			JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HTTPHEADER, s_headers));
 			break;
 		case JF_HTTP_POST:
+            // for ASYNC_DETACH we must assume the caller unwilling or unable
+            // to keep the payload live till completion
 			JF_CURL_ASSERT(curl_easy_setopt(handle,
-						request_type,
+						request_type == JF_REQUEST_ASYNC_DETACH ? CURLOPT_COPYPOSTFIELDS : CURLOPT_POSTFIELDS,
 						payload != NULL ? payload : ""));
 			JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HTTPHEADER, s_headers_POST));
 			break;
