@@ -1,4 +1,5 @@
 #include "net.h"
+#include <sys/syscall.h>
 
 
 ////////// GLOBAL VARIABLES //////////
@@ -360,8 +361,8 @@ static CURL *jf_net_handle_init(void)
 	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_ERRORBUFFER, s_curl_errorbuffer));
 
 	// be a good neighbour
-// 	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_SHARE, s_curl_sh));
-// 	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_NOSIGNAL, 1L));
+	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_SHARE, s_curl_sh));
+	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_NOSIGNAL, 1L));
 
 	// ask for all supported kinds of compression
 	JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_ACCEPT_ENCODING, ""));
@@ -402,7 +403,7 @@ static void jf_net_handle_before_perform(CURL *handle,
 			break;
 		case JF_HTTP_POST:
 			JF_CURL_ASSERT(curl_easy_setopt(handle,
-						CURLOPT_POSTFIELDS,
+						request_type,
 						payload != NULL ? payload : ""));
 			JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HTTPHEADER, s_headers_POST));
 			break;
@@ -550,6 +551,8 @@ static jf_async_request *jf_async_request_new(const char *resource,
 		const char *payload)
 {
 	jf_async_request *a_r;
+	static pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
+	static size_t id = 0;
 
 	assert((a_r = malloc(sizeof(jf_async_request))) != NULL);
 	a_r->reply = request_type == JF_REQUEST_ASYNC_DETACH ? NULL : jf_reply_new();
@@ -573,6 +576,9 @@ static jf_async_request *jf_async_request_new(const char *resource,
 			}
 			break;
 	}
+	pthread_mutex_lock(&mut);
+	a_r->id = id++;
+	pthread_mutex_unlock(&mut);
 
 	return a_r;
 }
@@ -619,6 +625,7 @@ static void *jf_net_async_worker_thread(__attribute__((unused)) void *arg)
 
 	while (true) {
 		request = (jf_async_request *)jf_synced_queue_dequeue(s_async_queue);
+		printf("DEBUG: thread %lu handling request %zu.\n", syscall(SYS_gettid), request->id);
 		if (request->type == JF_REQUEST_EXIT) {
 			jf_async_request_free(request);
 			curl_easy_cleanup(handle);

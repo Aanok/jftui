@@ -175,6 +175,7 @@ typedef struct jf_async_request {
 	jf_request_type type;
 	jf_http_method method;
 	char *payload;
+	size_t id;
 } jf_async_request;
 
 
