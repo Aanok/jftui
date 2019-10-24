@@ -1,5 +1,4 @@
 #include "net.h"
-#include <sys/syscall.h>
 
 
 ////////// GLOBAL VARIABLES //////////
@@ -627,7 +626,6 @@ static void *jf_net_async_worker_thread(__attribute__((unused)) void *arg)
 
 	while (true) {
 		request = (jf_async_request *)jf_synced_queue_dequeue(s_async_queue);
-		printf("DEBUG: thread %lu handling request %zu.\n", syscall(SYS_gettid), request->id);
 		if (request->type == JF_REQUEST_EXIT) {
 			jf_async_request_free(request);
 			curl_easy_cleanup(handle);

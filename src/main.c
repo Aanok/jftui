@@ -50,7 +50,9 @@ static void jf_update_progress_remote(const char *id, int64_t playback_ticks);
 // Parameters:
 //  - playback_ticks: current position in Jellyfin ticks, referring to the
 //    whole merged file in case of split-part.
-static void jf_now_playing_update_progress(int64_t playback_ticks);
+static void jf_now_playing_update_progress(const int64_t playback_ticks);
+
+static inline void jf_align_subtitle(const int64_t sid);
 //////////////////////////////////////
 
 
@@ -125,6 +127,7 @@ static mpv_handle *jf_mpv_context_new()
 	JF_MPV_ASSERT(JF_MPV_SET_OPTPROP_STRING(ctx, "http-header-fields", x_emby_token));
 	free(x_emby_token);
 	JF_MPV_ASSERT(mpv_observe_property(ctx, 0, "time-pos", MPV_FORMAT_INT64));
+	JF_MPV_ASSERT(mpv_observe_property(ctx, 0, "sid", MPV_FORMAT_INT64));
 
 	JF_MPV_ASSERT(mpv_initialize(ctx));
 
@@ -174,8 +177,6 @@ static void jf_now_playing_update_progress(const int64_t playback_ticks)
         }
         accounted_ticks += g_state.now_playing->children[i]->runtime_ticks;
     }
-    printf("DEBUG: current_part %zu, last_part %zu.\n", current_part, last_part);
-    printf("DEBUG: playback_ticks: %lld, offset: %lld\n", playback_ticks, current_tick_offset);
 
     // update progress of current part and record last update
     jf_update_progress_remote(g_state.now_playing->children[current_part]->id,
@@ -191,6 +192,95 @@ static void jf_now_playing_update_progress(const int64_t playback_ticks)
             jf_menu_mark_unplayed(g_state.now_playing->children[i]);
         }
     }
+}
+
+
+static inline void jf_align_subtitle(const int64_t sid)
+{
+    int64_t track_count, track_id, playback_ticks, sub_delay;
+    size_t i;
+    long long offset_ticks;
+    int success, is_external;
+    bool is_sub;
+    char num[3];
+    char *track_type, *tmp;
+
+    if (g_state.now_playing->children_count <= 1) return;
+
+    // look for right track
+	if (mpv_get_property(g_mpv_ctx, "track-list/count", MPV_FORMAT_INT64, &track_count) != 0) return;
+    i = 0;
+    while (true) {
+        if (i >= g_state.now_playing->children_count) return;
+        if (snprintf(num, 3, "%ld", i) >= 3) {
+            i++;
+            continue;
+        }
+        tmp = jf_concat(3, "track-list/", num, "/id");
+	    success = mpv_get_property(g_mpv_ctx, tmp, MPV_FORMAT_INT64, &track_id);
+        free(tmp);
+        if (success != 0) {
+            i++;
+            continue;
+        }
+        tmp = jf_concat(3, "track-list/", num, "/type");
+	    success = mpv_get_property(g_mpv_ctx, tmp, MPV_FORMAT_STRING, &track_type);
+        free(tmp);
+        if (success != 0) {
+            i++;
+            continue;
+        }
+        is_sub = strcmp(track_type, "sub") == 0;
+        mpv_free(track_type);
+        if (track_id == sid && is_sub) break;
+    }
+
+    // check if external
+    tmp = jf_concat(3, "track-list/", num, "/external");
+    success = mpv_get_property(g_mpv_ctx, tmp, MPV_FORMAT_FLAG, &is_external);
+    free(tmp);
+    if (success != 0) {
+        fprintf(stderr, 
+                "Warning: could not align subtitle track to split-file: mpv_get_property (external): %s.\n",
+                mpv_error_string(success));
+        return;
+    }
+//     if (is_external) {
+        // compute offset
+        success = mpv_get_property(g_mpv_ctx, "time-pos", MPV_FORMAT_INT64, &playback_ticks);
+        if (success != 0) {
+            fprintf(stderr, 
+                    "Warning: could not align subtitle track to split-file: mpv_get_property (time-pos): %s.\n",
+                    mpv_error_string(success));
+            return;
+        }
+        playback_ticks = JF_SECS_TO_TICKS(playback_ticks);
+        offset_ticks = 0;
+        i = 0;
+        while (i < g_state.now_playing->children_count
+                && offset_ticks + g_state.now_playing->children[i]->runtime_ticks <= playback_ticks) {
+            offset_ticks += g_state.now_playing->children[i]->runtime_ticks;
+            i++;
+        }
+        sub_delay = JF_TICKS_TO_SECS(offset_ticks);
+
+        // apply
+        success = mpv_set_property(g_mpv_ctx, "sub-delay", MPV_FORMAT_INT64, &sub_delay);
+        if (success != 0) {
+            fprintf(stderr,
+                    "Warning: could not align subtitle track to split-file: mpv_set_property: %s.\n",
+                    mpv_error_string(success));
+        }
+//     } else {
+//         // internal are graciously aligned by EDL protocol: 0 offset
+//         sub_delay = 0;
+//         success = mpv_set_property(g_mpv_ctx, "sub-delay", MPV_FORMAT_INT64, &sub_delay);
+//         if (success != 0) {
+//             fprintf(stderr,
+//                     "Warning: could not align subtitle track to split-file: mpv_set_property: %s.\n",
+//                     mpv_error_string(success));
+//         }
+//     }
 }
 
 
@@ -251,6 +341,8 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
                 if (llabs(playback_ticks - g_state.now_playing->playback_ticks) < JF_SECS_TO_TICKS(10)) break;
                 // good for update; note this will also start a playback session if none are there
                 jf_now_playing_update_progress(playback_ticks);
+            } else if (strcmp("sid", ((mpv_event_property *)event->data)->name) == 0) {
+                jf_align_subtitle(*(int64_t *)((mpv_event_property *)event->data)->data);
             }
 			break;
 		case MPV_EVENT_IDLE:

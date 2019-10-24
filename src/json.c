@@ -579,7 +579,7 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
 			assert((subs = realloc(subs, subs_count * sizeof(jf_menu_item *))) != NULL);
 			tmp = jf_concat(8,
 					"/videos/",
-					item->id,
+					YAJL_GET_STRING(yajl_tree_get(source, (const char *[]){ "Id", NULL }, yajl_t_string)),
 					"/",
 					YAJL_GET_STRING(yajl_tree_get(source, (const char *[]){ "Id", NULL }, yajl_t_string)),
 					"/subtitles/",
