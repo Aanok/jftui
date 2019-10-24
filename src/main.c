@@ -37,7 +37,19 @@ static void jf_print_usage(void);
 static JF_FORCE_INLINE void jf_missing_arg(const char *arg);
 static mpv_handle *jf_mpv_context_new(void);
 static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event);
+
+// playback_ticks refers to segment referred by id
 static void jf_update_progress_remote(const char *id, int64_t playback_ticks);
+
+
+// Updates playback progress marker of the currently playing item on the server.
+// Detects if we moved across split-file parts since the last such update and
+// marks parts previous to current as played, next to current as unplayed (so
+// that the item only has one overall progress marker on the server).
+//
+// Parameters:
+//  - playback_ticks: current position in Jellyfin ticks, referring to the
+//    whole merged file in case of split-part.
 static void jf_now_playing_update_progress(int64_t playback_ticks);
 //////////////////////////////////////
 
@@ -135,32 +147,56 @@ static void jf_update_progress_remote(const char *id, int64_t playback_ticks)
 
 static void jf_now_playing_update_progress(const int64_t playback_ticks)
 {
-	size_t i;
-	int64_t progress_ticks = playback_ticks;
+	size_t i, last_part, current_part;
+	int64_t accounted_ticks, current_tick_offset;
 
-	if (g_state.now_playing->type == JF_ITEM_TYPE_EPISODE
-			|| g_state.now_playing->type == JF_ITEM_TYPE_MOVIE) {
-		i = 0;
-		while (playback_ticks > g_state.now_playing->children[i]->runtime_ticks
-				&& i < g_state.now_playing->children_count - 1) {
-			progress_ticks -= g_state.now_playing->children[i]->runtime_ticks;
-			i++;
-		}
-		jf_update_progress_remote(g_state.now_playing->children[i]->id,
-				progress_ticks);
-	} else {
-		jf_update_progress_remote(g_state.now_playing->id, progress_ticks);
-	}
+    // single-part items are blissfully simple and I lament my toil elsewise
+    if (g_state.now_playing->children_count <= 1) {
+		jf_update_progress_remote(g_state.now_playing->id, playback_ticks);
+	    g_state.now_playing->playback_ticks = playback_ticks;
+        return;
+    }
 
-	g_state.now_playing->playback_ticks = playback_ticks;
+    // split-part: figure out part number of current pos and last update
+    accounted_ticks = 0;
+    current_tick_offset = 0;
+    for (i = 0; i < g_state.now_playing->children_count; i++) {
+        if (accounted_ticks <= playback_ticks) {
+            if (playback_ticks < accounted_ticks + g_state.now_playing->children[i]->runtime_ticks) {
+                current_part = i;
+            } else {
+                current_tick_offset += g_state.now_playing->children[i]->runtime_ticks;
+            }
+        }
+        if (accounted_ticks <= g_state.now_playing->playback_ticks
+                && g_state.now_playing->playback_ticks < accounted_ticks + g_state.now_playing->children[i]->runtime_ticks) {
+            last_part = i;
+        }
+        accounted_ticks += g_state.now_playing->children[i]->runtime_ticks;
+    }
+    printf("DEBUG: current_part %zu, last_part %zu.\n", current_part, last_part);
+    printf("DEBUG: playback_ticks: %lld, offset: %lld\n", playback_ticks, current_tick_offset);
+
+    // update progress of current part and record last update
+    jf_update_progress_remote(g_state.now_playing->children[current_part]->id,
+            playback_ticks - current_tick_offset);
+    g_state.now_playing->playback_ticks = playback_ticks;
+    
+    // check if moved across parts and in case update
+    if (last_part == current_part) return;
+    for (i = 0; i < g_state.now_playing->children_count; i++) {
+        if (i < current_part) {
+            jf_menu_mark_played(g_state.now_playing->children[i]);
+        } else if (i > current_part) {
+            jf_menu_mark_unplayed(g_state.now_playing->children[i]);
+        }
+    }
 }
 
 
 static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 {
 	int64_t playback_ticks;
-	long long lapsed_ticks;
-	size_t i;
 	int mpv_flag_yes = 1, mpv_flag_no = 0;
 
 #ifdef JF_DEBUG
@@ -204,42 +240,18 @@ static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
 				g_state.state = JF_STATE_PLAYBACK;
 				break;
 			}
-			// in case of seek, we may be moving across parts of a split-part
-			// in which case it makes sense to clear the playback markers of
-			// all other parts
-			// note: if playback graciously glides across parts, the old one has
-			// been marked watched by normal progress updates
-			if (g_state.now_playing->type == JF_ITEM_TYPE_EPISODE
-					|| g_state.now_playing->type == JF_ITEM_TYPE_MOVIE) {
-				if (mpv_get_property(g_mpv_ctx, "time-pos", MPV_FORMAT_INT64, &playback_ticks) != 0) break;
-				playback_ticks = JF_SECS_TO_TICKS(playback_ticks);
-				g_state.now_playing->playback_ticks = playback_ticks;
-				lapsed_ticks = 0;
-				for (i = 0; i < g_state.now_playing->children_count; i++) {
-					if (playback_ticks > lapsed_ticks + g_state.now_playing->children[i]->runtime_ticks) {
-						// parts before current
-						jf_menu_mark_played(g_state.now_playing->children[i]);
-					} else if (playback_ticks < lapsed_ticks) {
-						// parts after current
-						jf_menu_mark_unplayed(g_state.now_playing->children[i]);
-					} else {
-						// current part
-						jf_update_progress_remote(g_state.now_playing->children[i]->id,
-								playback_ticks - lapsed_ticks);
-						g_state.now_playing->playback_ticks = playback_ticks;
-					}
-					lapsed_ticks += g_state.now_playing->children[i]->runtime_ticks;
-				}
-			}
+            // no need to update progress as a time-pos event gets fired
+            // immediately after
 			break;
 		case MPV_EVENT_PROPERTY_CHANGE:
-			if (strcmp("time-pos", ((mpv_event_property *)event->data)->name) != 0) break;
-			if (((mpv_event_property *)event->data)->format == MPV_FORMAT_NONE) break;
-			// event valid, check if need to update the server
-			playback_ticks = JF_SECS_TO_TICKS(*(int64_t *)((mpv_event_property *)event->data)->data);
-			if (llabs(playback_ticks - g_state.now_playing->playback_ticks) < JF_SECS_TO_TICKS(10)) break;
-			// good for update; note this will also start a playback session if none are there
-			jf_now_playing_update_progress(playback_ticks);
+            if (((mpv_event_property *)event->data)->format == MPV_FORMAT_NONE) break;
+			if (strcmp("time-pos", ((mpv_event_property *)event->data)->name) == 0) {
+                // event valid, check if need to update the server
+                playback_ticks = JF_SECS_TO_TICKS(*(int64_t *)((mpv_event_property *)event->data)->data);
+                if (llabs(playback_ticks - g_state.now_playing->playback_ticks) < JF_SECS_TO_TICKS(10)) break;
+                // good for update; note this will also start a playback session if none are there
+                jf_now_playing_update_progress(playback_ticks);
+            }
 			break;
 		case MPV_EVENT_IDLE:
 			if (g_state.state == JF_STATE_PLAYBACK_NAVIGATING) {
