@@ -85,6 +85,16 @@ typedef enum __attribute__((__packed__)) jf_item_type {
 	JF_ITEM_TYPE_EPISODE = 3,
 	JF_ITEM_TYPE_MOVIE = 4,
 	JF_ITEM_TYPE_VIDEO_SOURCE = 5,
+    // Subs break the usual format:
+    //  name: suffix URL for the stream. This is better computed at parse time
+    //      and cached for later use instead of computed on the fly by
+    //      as usual, since it requires more information (id, stream number,
+    //      format) than normal.
+    //  id: given the above it would be redundant, so we use it for additional
+    //      information in the format "xxxDisplayTitle": the first three
+    //      characters mark an ISO language code (id[0] == '\0' if not
+    //      available) while the remaining 29 characters contain as much of
+    //      the JF DisplayTitle as possible.
 	JF_ITEM_TYPE_VIDEO_SUB = 6,
 
 	// Folders

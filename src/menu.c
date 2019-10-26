@@ -303,7 +303,7 @@ static bool jf_menu_print_context()
 				return false;
 			}
 #ifdef JF_DEBUG
-			printf("DEBUG: request_url = %s\n", request_url);
+			printf("DEBUG: folder URL: %s\n", request_url);
 #endif
 			reply = jf_net_request(request_url, request_type, JF_HTTP_GET, NULL);
 			free(request_url);
@@ -409,65 +409,61 @@ static void jf_menu_ask_resume(jf_menu_item *item)
 	long long ticks;
 	size_t i, j, markers_count;
 
-	switch (item->type) {
-		case JF_ITEM_TYPE_AUDIO:
-		case JF_ITEM_TYPE_AUDIOBOOK:
-			if (item->playback_ticks != 0) {
-				jf_menu_ask_resume_yn(item, item->playback_ticks);
-			}
-			break;
-		case JF_ITEM_TYPE_EPISODE:
-		case JF_ITEM_TYPE_MOVIE:
-			markers_count = 0;
-			for (i = 0; i < item->children_count; i++) {
-				if (item->children[i]->playback_ticks != 0) {
-					markers_count++;
-				}
-			}
-			if (markers_count == 0) break;
-			if (markers_count == 1) {
-				i = 0;
-				ticks = 0;
-				while (item->children[i]->playback_ticks == 0
-						&& i < item->children_count - 1) {
-					ticks += item->children[i]->runtime_ticks;
-					i++;
-				}
-				ticks += item->children[i]->playback_ticks;
-				jf_menu_ask_resume_yn(item, ticks);
-				break;
-			}
-			assert((timestamps = malloc(markers_count * sizeof(char *))) != NULL);
-			ticks = 0;
-			j = 2;
-			printf("\n%s is a split-file on the server and there is progress marked on more than one part.\n",
-					item->name);
-			printf("Please choose at what time you'd like to resume watching:\n");
-			printf("1. 00:00:00 (start)\n");
-			for (i = 0; i < item->children_count; i++) {
-				if (item->children[i]->playback_ticks != 0) {
-					ticks += item->children[i]->playback_ticks;
-					timestamps[j - 2] = jf_make_timestamp(ticks);
-					printf("%zu. %s\n", j, timestamps[j - 2]);
-					ticks += item->children[i]->runtime_ticks - item->children[i]->playback_ticks;
-					j++;
-				} else {
-					ticks += item->children[i]->runtime_ticks;
-				}
-			}
-			j = jf_menu_user_ask_selection(1, markers_count + 1);
-			if (j != 1){
-				JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "start", timestamps[j - 2]));
-			}
-			g_state.state = JF_STATE_PLAYBACK_START_MARK;
-			for (i = 0; i < markers_count; i++) {
-				free(timestamps[i]);
-			}
-			free(timestamps);
-			break;
-		default:
-			break;
-	}
+    assert(item != NULL);
+
+    if (item->children_count == 0) {
+        if (item->playback_ticks != 0) {
+            jf_menu_ask_resume_yn(item, item->playback_ticks);
+        }
+        return;
+    }
+
+    markers_count = 0;
+    for (i = 0; i < item->children_count; i++) {
+        if (item->children[i]->playback_ticks != 0) {
+            markers_count++;
+        }
+    }
+    if (markers_count == 0) return;
+    if (markers_count == 1) {
+        i = 0;
+        ticks = 0;
+        while (item->children[i]->playback_ticks == 0
+                && i < item->children_count - 1) {
+            ticks += item->children[i]->runtime_ticks;
+            i++;
+        }
+        ticks += item->children[i]->playback_ticks;
+        jf_menu_ask_resume_yn(item, ticks);
+        return;
+    }
+    assert((timestamps = malloc(markers_count * sizeof(char *))) != NULL);
+    ticks = 0;
+    j = 2;
+    printf("\n%s is a split-file on the server and there is progress marked on more than one part.\n",
+            item->name);
+    printf("Please choose at what time you'd like to resume watching:\n");
+    printf("1. 00:00:00 (start)\n");
+    for (i = 0; i < item->children_count; i++) {
+        if (item->children[i]->playback_ticks != 0) {
+            ticks += item->children[i]->playback_ticks;
+            timestamps[j - 2] = jf_make_timestamp(ticks);
+            printf("%zu. %s\n", j, timestamps[j - 2]);
+            ticks += item->children[i]->runtime_ticks - item->children[i]->playback_ticks;
+            j++;
+        } else {
+            ticks += item->children[i]->runtime_ticks;
+        }
+    }
+    j = jf_menu_user_ask_selection(1, markers_count + 1);
+    if (j != 1){
+        JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "start", timestamps[j - 2]));
+    }
+    g_state.state = JF_STATE_PLAYBACK_START_MARK;
+    for (i = 0; i < markers_count; i++) {
+        free(timestamps[i]);
+    }
+    free(timestamps);
 }
 
 
@@ -475,9 +471,9 @@ static void jf_menu_play_video(const jf_menu_item *item)
 {
 	jf_growing_buffer *filename;
 	char *tmp;
+    char subs_language[4];
 	size_t i, j;
 
-	jf_menu_item_print(item);
 	// merge video files
 	JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "title", item->name));
 	filename = jf_growing_buffer_new(128);
@@ -501,6 +497,7 @@ static void jf_menu_play_video(const jf_menu_item *item)
 
 	// external subtitles
 	// note: they unfortunately require loadfile to already have been issued
+    subs_language[3] = '\0';
 	for (i = 0; i < item->children_count; i++) {
 		for (j = 0; j < item->children[i]->children_count; j++) {
 			if (item->children[i]->children[j]->type != JF_ITEM_TYPE_VIDEO_SUB) {
@@ -513,8 +510,15 @@ static void jf_menu_play_video(const jf_menu_item *item)
 				continue;
 			}
 			tmp = jf_concat(2, g_options.server, item->children[i]->children[j]->name);
-			const char *command[] = { "sub-add", tmp, "auto", NULL };
+            strncpy(subs_language, item->children[i]->children[j]->id, 3);
+			const char *command[] = { "sub-add",
+                tmp,
+                "auto",
+                item->children[i]->children[j]->id + 3,
+                subs_language,
+                NULL };
 			JF_MPV_ASSERT(mpv_command(g_mpv_ctx, command));
+            free(tmp);
 		}
 	}
 }
@@ -614,6 +618,9 @@ static void jf_menu_try_play()
 		s_playlist_current = 1;
 		item = jf_disk_playlist_get_item(1);
 		jf_menu_play_item(item);
+#ifdef JF_DEBUG
+    	jf_menu_item_print(item);
+#endif
 	}
 }
 

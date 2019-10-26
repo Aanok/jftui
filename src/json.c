@@ -592,8 +592,17 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
 					tmp,
 					0, 0); // ticks
 			free(tmp);
-		}
-	}
+            if ((tmp = YAJL_GET_STRING(yajl_tree_get(stream, (const char *[]){ "Language", NULL }, yajl_t_string))) == NULL) {
+                subs[subs_count - 1]->id[0] = '\0';
+            } else {
+                strncpy(subs[subs_count - 1]->id, tmp, 3);
+            }
+            strncpy(subs[subs_count - 1]->id + 3,
+                    YAJL_GET_STRING(yajl_tree_get(stream, (const char *[]){ "DisplayTitle", NULL }, yajl_t_string)),
+                    JF_ID_LENGTH - 3);
+            subs[subs_count - 1]->id[JF_ID_LENGTH] = '\0';
+        }
+    }
 	// NULL-terminate children
 	assert((subs = realloc(subs, (subs_count + 1) * sizeof(jf_menu_item *))) != NULL);
 	subs[subs_count] = NULL;
