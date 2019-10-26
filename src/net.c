@@ -78,7 +78,7 @@ static void jf_async_request_free(jf_async_request *a_r);
 
 static void *jf_net_async_worker_thread(void *arg);
 
-static JF_FORCE_INLINE pthread_rwlock_t *
+static inline pthread_rwlock_t *
 jf_net_get_lock_for_data(curl_lock_data data);
 
 static void jf_net_share_lock(CURL *handle,
@@ -647,7 +647,7 @@ static void *jf_net_async_worker_thread(__attribute__((unused)) void *arg)
 }
 
 
-static JF_FORCE_INLINE pthread_rwlock_t *
+static inline pthread_rwlock_t *
 jf_net_get_lock_for_data(curl_lock_data data)
 {
 	switch (data) {
