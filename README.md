@@ -48,8 +48,6 @@ There is one further command that will be parsed, but it is left undocumented be
 To safely run multiple instances of jftui concurrently, make sure to specify distinct `--runtime-dir` arguments to at least each one after the first.
 
 # Plans and TODO
-- Video item support, including subtitles, and multipart items;
-- Support for different versions of media items;
 - Search;
 - Explicit command to recursively navigate folders to send items to playback;
 - Filters: played, unplayed etc, to be applied before requesting a directory or to the currently open menu;
