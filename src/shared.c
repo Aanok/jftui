@@ -336,14 +336,14 @@ char *jf_make_timestamp(const long long ticks)
 }
 
 
-JF_FORCE_INLINE size_t jf_clamp_zu(const size_t zu, const size_t min,
+inline size_t jf_clamp_zu(const size_t zu, const size_t min,
 		const size_t max)
 {
 	return zu < min ? min : zu > max ? max : zu;
 }
 
 
-JF_FORCE_INLINE void jf_clear_stdin()
+inline void jf_clear_stdin()
 {
 	fcntl(0, F_SETFL, fcntl(0, F_GETFL)|O_NONBLOCK);
 	while (getchar() != EOF) ;

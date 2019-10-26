@@ -31,12 +31,12 @@ static int jf_sax_items_number(void *ctx, const char *string, size_t strins_len)
 //
 // Returns:
 // 	The yajl_handle of the new parser.
-static JF_FORCE_INLINE yajl_handle jf_sax_yajl_parser_new(yajl_callbacks *callbacks, jf_sax_context *context);
+static inline yajl_handle jf_sax_yajl_parser_new(yajl_callbacks *callbacks, jf_sax_context *context);
 
-static JF_FORCE_INLINE void jf_sax_current_item_make_and_print_name(jf_sax_context *context);
-static JF_FORCE_INLINE void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb);
-static JF_FORCE_INLINE void jf_sax_context_current_item_clear(jf_sax_context *context);
-static JF_FORCE_INLINE void jf_sax_context_current_item_copy(jf_sax_context *context);
+static inline void jf_sax_current_item_make_and_print_name(jf_sax_context *context);
+static inline void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb);
+static inline void jf_sax_context_current_item_clear(jf_sax_context *context);
+static inline void jf_sax_context_current_item_copy(jf_sax_context *context);
 
 
 static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl_val media_sources);
@@ -334,7 +334,7 @@ static int jf_sax_items_number(void *ctx, const char *string, size_t string_len)
 
 
 ////////// SAX PARSER //////////
-static JF_FORCE_INLINE void jf_sax_current_item_make_and_print_name(jf_sax_context *context)
+static inline void jf_sax_current_item_make_and_print_name(jf_sax_context *context)
 {
 	jf_growing_buffer_empty(context->current_item_display_name);
 	switch (context->current_item_type) {
@@ -403,7 +403,7 @@ static JF_FORCE_INLINE void jf_sax_current_item_make_and_print_name(jf_sax_conte
 }
 
 
-static JF_FORCE_INLINE yajl_handle jf_sax_yajl_parser_new(yajl_callbacks *callbacks, jf_sax_context *context)
+static inline yajl_handle jf_sax_yajl_parser_new(yajl_callbacks *callbacks, jf_sax_context *context)
 {
 	yajl_handle parser;
 	assert((parser = yajl_alloc(callbacks, NULL, (void *)(context))) != NULL);
@@ -413,7 +413,7 @@ static JF_FORCE_INLINE yajl_handle jf_sax_yajl_parser_new(yajl_callbacks *callba
 }
 
 
-static JF_FORCE_INLINE void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb)
+static inline void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb)
 {
 	*context = (jf_sax_context){ 0 };
 	context->parser_state = JF_SAX_IDLE;
@@ -425,7 +425,7 @@ static JF_FORCE_INLINE void jf_sax_context_init(jf_sax_context *context, jf_thre
 }
 
 
-static JF_FORCE_INLINE void jf_sax_context_current_item_clear(jf_sax_context *context)
+static inline void jf_sax_context_current_item_clear(jf_sax_context *context)
 {
 	context->current_item_type = JF_ITEM_TYPE_NONE;
 	context->name_len = 0;
@@ -444,7 +444,7 @@ static JF_FORCE_INLINE void jf_sax_context_current_item_clear(jf_sax_context *co
 }
 
 
-static JF_FORCE_INLINE void jf_sax_context_current_item_copy(jf_sax_context *context)
+static inline void jf_sax_context_current_item_copy(jf_sax_context *context)
 {
 	// allocate a contiguous buffer containing the copied values
 	// then update the context pointers to point within it

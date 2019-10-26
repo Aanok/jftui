@@ -107,7 +107,7 @@ static void jf_menu_try_play(void);
 
 
 ////////// JF_MENU_STACK //////////
-static JF_FORCE_INLINE void jf_menu_stack_push(jf_menu_item *menu_item)
+static inline void jf_menu_stack_push(jf_menu_item *menu_item)
 {
 	if (menu_item == NULL) {
 		return;
@@ -123,7 +123,7 @@ static JF_FORCE_INLINE void jf_menu_stack_push(jf_menu_item *menu_item)
 }
 
 
-static JF_FORCE_INLINE jf_menu_item *jf_menu_stack_pop()
+static inline jf_menu_item *jf_menu_stack_pop()
 {
 	jf_menu_item *retval;
 
@@ -137,7 +137,7 @@ static JF_FORCE_INLINE jf_menu_item *jf_menu_stack_pop()
 }
 
 
-static JF_FORCE_INLINE const jf_menu_item *jf_menu_stack_peek()
+static inline const jf_menu_item *jf_menu_stack_peek()
 {
 	return s_menu_stack.used == 0 ? NULL
 		: s_menu_stack.items[s_menu_stack.used - 1];
@@ -497,7 +497,6 @@ static void jf_menu_play_video(const jf_menu_item *item)
 	jf_growing_buffer_append(filename, "", 1);
 	const char *loadfile[] = { "loadfile", filename->buf, NULL };
 	JF_MPV_ASSERT(mpv_command(g_mpv_ctx, loadfile));
-    printf("DEBUG: playing file %s\n", filename->buf);
 	jf_growing_buffer_free(filename);
 
 	// external subtitles
@@ -514,7 +513,6 @@ static void jf_menu_play_video(const jf_menu_item *item)
 				continue;
 			}
 			tmp = jf_concat(2, g_options.server, item->children[i]->children[j]->name);
-			printf("DEBUG: adding sub %s\n", tmp);
 			const char *command[] = { "sub-add", tmp, "auto", NULL };
 			JF_MPV_ASSERT(mpv_command(g_mpv_ctx, command));
 		}

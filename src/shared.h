@@ -16,8 +16,6 @@
 
 
 ////////// CODE MACROS //////////
-#define JF_FORCE_INLINE __attribute__((always_inline)) inline
-
 // for hardcoded strings
 #define JF_STATIC_STRLEN(str) (sizeof(str) - 1)
 
