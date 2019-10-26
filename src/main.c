@@ -32,11 +32,11 @@ mpv_handle *g_mpv_ctx = NULL;
 
 
 ////////// STATIC FUNCTIONS //////////
-static JF_FORCE_INLINE void jf_mpv_version_check(void);
+static inline void jf_mpv_version_check(void);
 static void jf_print_usage(void);
-static JF_FORCE_INLINE void jf_missing_arg(const char *arg);
+static inline void jf_missing_arg(const char *arg);
 static mpv_handle *jf_mpv_context_new(void);
-static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event);
+static inline void jf_mpv_event_dispatch(const mpv_event *event);
 
 // playback_ticks refers to segment referred by id
 static void jf_update_progress_remote(const char *id, int64_t playback_ticks);
@@ -74,8 +74,8 @@ void jf_exit(int sig)
 /////////////////////////////////////////
 
 
-////////// MISCELLANEOUS GARBAGE //////////
-static JF_FORCE_INLINE void jf_mpv_version_check(void)
+////////// STARTUP STUFF //////////
+static inline void jf_mpv_version_check(void)
 {
 	unsigned long mpv_version = mpv_client_api_version();
 	if (mpv_version < MPV_MAKE_VERSION(1,24)) {
@@ -102,13 +102,15 @@ static void jf_print_usage() {
 }
 
 
-static JF_FORCE_INLINE void jf_missing_arg(const char *arg)
+static inline void jf_missing_arg(const char *arg)
 {
 	fprintf(stderr, "FATAL: missing parameter for argument %s\n", arg);
 	jf_print_usage();
 }
+///////////////////////////////////
 
 
+////////// MISCELLANEOUS GARBAGE //////////
 static mpv_handle *jf_mpv_context_new()
 {
 	mpv_handle *ctx;
@@ -245,7 +247,7 @@ static inline void jf_align_subtitle(const int64_t sid)
                 mpv_error_string(success));
         return;
     }
-//     if (is_external) {
+    if (is_external) {
         // compute offset
         success = mpv_get_property(g_mpv_ctx, "time-pos", MPV_FORMAT_INT64, &playback_ticks);
         if (success != 0) {
@@ -271,20 +273,20 @@ static inline void jf_align_subtitle(const int64_t sid)
                     "Warning: could not align subtitle track to split-file: mpv_set_property: %s.\n",
                     mpv_error_string(success));
         }
-//     } else {
-//         // internal are graciously aligned by EDL protocol: 0 offset
-//         sub_delay = 0;
-//         success = mpv_set_property(g_mpv_ctx, "sub-delay", MPV_FORMAT_INT64, &sub_delay);
-//         if (success != 0) {
-//             fprintf(stderr,
-//                     "Warning: could not align subtitle track to split-file: mpv_set_property: %s.\n",
-//                     mpv_error_string(success));
-//         }
-//     }
+    } else {
+        // internal are graciously aligned by EDL protocol: 0 offset
+        sub_delay = 0;
+        success = mpv_set_property(g_mpv_ctx, "sub-delay", MPV_FORMAT_INT64, &sub_delay);
+        if (success != 0) {
+            fprintf(stderr,
+                    "Warning: could not align subtitle track to split-file: mpv_set_property: %s.\n",
+                    mpv_error_string(success));
+        }
+    }
 }
 
 
-static JF_FORCE_INLINE void jf_mpv_event_dispatch(const mpv_event *event)
+static inline void jf_mpv_event_dispatch(const mpv_event *event)
 {
 	int64_t playback_ticks;
 	int mpv_flag_yes = 1, mpv_flag_no = 0;

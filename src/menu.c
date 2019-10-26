@@ -74,7 +74,7 @@ static size_t s_playlist_current = 0;
 // Parameters:
 // 	menu_item - A pointer to the item to be pushed (if NULL, no-op).
 // CAN FATAL.
-static JF_FORCE_INLINE void jf_menu_stack_push(jf_menu_item *menu_item);
+static inline void jf_menu_stack_push(jf_menu_item *menu_item);
 
 
 // Pops the top item out of the global menu stack.
@@ -83,7 +83,7 @@ static JF_FORCE_INLINE void jf_menu_stack_push(jf_menu_item *menu_item);
 // Returns:
 // 	A pointer to the item popped or NULL if the stack is empty.
 // CAN'T FAIL.
-static JF_FORCE_INLINE jf_menu_item *jf_menu_stack_pop(void);
+static inline jf_menu_item *jf_menu_stack_pop(void);
 
 
 // Returns a const pointer to the item on top of the stack without popping it.
@@ -91,7 +91,7 @@ static JF_FORCE_INLINE jf_menu_item *jf_menu_stack_pop(void);
 // Returns:
 // 	A const pointer to the item on top of the stack or NULL if the stack is empty.
 // CAN'T FAIL.
-static JF_FORCE_INLINE const jf_menu_item *jf_menu_stack_peek(void);
+static inline const jf_menu_item *jf_menu_stack_peek(void);
 
 
 static jf_menu_item *jf_menu_child_get(size_t n);
@@ -476,7 +476,6 @@ static void jf_menu_play_video(const jf_menu_item *item)
 	jf_growing_buffer *filename;
 	char *tmp;
 	size_t i, j;
-    int next_sub;
 
 	jf_menu_item_print(item);
 	// merge video files
