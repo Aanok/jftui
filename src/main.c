@@ -211,10 +211,11 @@ static inline void jf_align_subtitle(const int64_t sid)
 
     // look for right track
 	if (mpv_get_property(g_mpv_ctx, "track-list/count", MPV_FORMAT_INT64, &track_count) != 0) return;
-    i = 0;
+    i = 0; // track-numbers are 0-based
     while (true) {
-        if (i >= g_state.now_playing->children_count) return;
-        if (snprintf(num, 3, "%ld", i) >= 3) {
+        if ((int64_t)i >= track_count) return;
+        success = snprintf(num, 3, "%ld", i);
+        if (success < 0 || success >= 3) {
             i++;
             continue;
         }
@@ -235,6 +236,7 @@ static inline void jf_align_subtitle(const int64_t sid)
         is_sub = strcmp(track_type, "sub") == 0;
         mpv_free(track_type);
         if (track_id == sid && is_sub) break;
+        i++;
     }
 
     // check if external
@@ -292,7 +294,7 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
 	int mpv_flag_yes = 1, mpv_flag_no = 0;
 
 #ifdef JF_DEBUG
-	printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
+// 	printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
 #endif
 	switch (event->event_id) {
 		case MPV_EVENT_CLIENT_MESSAGE:
@@ -344,6 +346,7 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
                 // good for update; note this will also start a playback session if none are there
                 jf_now_playing_update_progress(playback_ticks);
             } else if (strcmp("sid", ((mpv_event_property *)event->data)->name) == 0) {
+                // subtitle track change, go and see if we need to align for split-part
                 jf_align_subtitle(*(int64_t *)((mpv_event_property *)event->data)->data);
             }
 			break;
