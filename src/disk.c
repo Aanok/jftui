@@ -47,7 +47,7 @@ static void jf_disk_add_next(jf_file_cache *cache, const jf_menu_item *item)
 	assert(fwrite(&(item->type), sizeof(jf_item_type), 1, cache->body) == 1);
 	assert(fwrite(&(item->children_count), sizeof(size_t), 1, cache->body) == 1);
 	for (i = 0; i < item->children_count; i++) {
-		jf_disk_add_item(cache, item->children[i]);
+		jf_disk_add_next(cache, item->children[i]);
 	}
 	assert(fwrite(item->id, 1, sizeof(item->id), cache->body) == sizeof(item->id));
 	name_length = item->name == NULL ? 0 : strlen(item->name);
