@@ -50,7 +50,6 @@ do {								\
 #define JF_VERSION "0.2"
 #define JF_THREAD_BUFFER_DATA_SIZE (CURL_MAX_WRITE_SIZE +1)
 #define JF_ID_LENGTH 32
-#define JF_CONFIG_DEVICEID_MAX_LEN 31
 ///////////////////////////////
 
 
@@ -302,10 +301,12 @@ void jf_print_zu(size_t n);
 // Generates a malloc'd string of arbitrary length of random digits.
 //
 // Parameters:
-// 	- len: length of the random string. If 0, a default of 10 will be applied.
+// 	- len: length of the random string, excluding the terminating null btye. If
+//  	0, a default of 10 will be applied.
 //
 // Returns:
 // 	Pointer to the string. It will need be free'd.
+// CAN'T FAIL.
 char *jf_generate_random_id(size_t length);
 
 
