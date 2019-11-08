@@ -325,7 +325,7 @@ void jf_net_clear()
 	int i;
 
 	assert(pthread_mutex_lock(&s_mut) == 0);
-	if (s_handle != NULL) {
+	if (s_handle == NULL) {
 		pthread_mutex_unlock(&s_mut);
 		return;
 	}
