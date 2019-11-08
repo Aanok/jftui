@@ -473,20 +473,22 @@ static void jf_menu_play_video(const jf_menu_item *item)
 	char *tmp;
     char subs_language[4];
 	size_t i, j;
+    jf_menu_item *child;
 
 	// merge video files
 	JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "force-media-title", item->name));
 	filename = jf_growing_buffer_new(128);
 	jf_growing_buffer_append(filename, "edl://", JF_STATIC_STRLEN("edl://"));
 	for (i = 0; i < item->children_count; i++) {
-		if (item->children[i]->type != JF_ITEM_TYPE_VIDEO_SOURCE) {
+        child = item->children[i];
+		if (child->type != JF_ITEM_TYPE_VIDEO_SOURCE) {
 			fprintf(stderr,
 					"Warning: unrecognized item type (%s) for %s part %zu. This is a bug.\n",
-					jf_item_type_get_name(item->children[i]->type), item->name, i);
+					jf_item_type_get_name(child->type), item->name, i);
 			continue;
 		}
 		jf_growing_buffer_append(filename,
-				jf_menu_item_get_request_url(item->children[i]),
+				jf_menu_item_get_request_url(child),
 				0);
 		jf_growing_buffer_append(filename, ";", 1);
 	}
@@ -500,24 +502,37 @@ static void jf_menu_play_video(const jf_menu_item *item)
     subs_language[3] = '\0';
 	for (i = 0; i < item->children_count; i++) {
 		for (j = 0; j < item->children[i]->children_count; j++) {
-			if (item->children[i]->children[j]->type != JF_ITEM_TYPE_VIDEO_SUB) {
+            child = item->children[i]->children[j];
+			if (child->type != JF_ITEM_TYPE_VIDEO_SUB) {
 				fprintf(stderr,
 						"Warning: unrecognized item type (%s) for %s, part %zu, child %zu. This is a bug.\n",
-						jf_item_type_get_name(item->children[i]->children[j]->type),
+						jf_item_type_get_name(child->type),
 						item->name,
 						i,
 						j);
 				continue;
 			}
-			tmp = jf_concat(2, g_options.server, item->children[i]->children[j]->name);
-            strncpy(subs_language, item->children[i]->children[j]->id, 3);
+			tmp = jf_concat(2, g_options.server, child->name);
+            strncpy(subs_language, child->id, 3);
 			const char *command[] = { "sub-add",
                 tmp,
                 "auto",
-                item->children[i]->children[j]->id + 3,
+                child->id + 3,
                 subs_language,
                 NULL };
-			JF_MPV_ASSERT(mpv_command(g_mpv_ctx, command));
+			if (mpv_command(g_mpv_ctx, command) < 0) {
+                jf_reply *r = jf_net_request(child->name,
+                        JF_REQUEST_IN_MEMORY,
+                        JF_HTTP_GET,
+                        NULL);
+                fprintf(stderr,
+                        "Warning: external subtitle %s could not be loaded.\n",
+                        child->id[3] != '\0' ? child->id + 3 : child->name);
+                if (JF_REPLY_PTR_ERROR_IS(r, JF_REPLY_ERROR_HTTP_400)) {
+                    fprintf(stderr, "Reason: %s.\n", r->payload);
+                }
+                jf_reply_free(r);
+            }
             free(tmp);
 		}
 	}

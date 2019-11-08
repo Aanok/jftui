@@ -138,6 +138,7 @@ char *jf_reply_error_string(const jf_reply *r)
 			return "Locate header from redirect was missing or not formatted as expected";
 		case JF_REPLY_ERROR_EXIT_REQUEST:
 			return "exit request";
+        case JF_REPLY_ERROR_HTTP_400:
 		case JF_REPLY_ERROR_NETWORK:
 		case JF_REPLY_ERROR_HTTP_NOT_OK:
 		case JF_REPLY_ERROR_PARSER:
@@ -481,6 +482,9 @@ static void jf_net_handle_after_perform(CURL *handle,
 			case 204:
 				reply->state = JF_REPLY_SUCCESS;
 				break;
+            case 400:
+                reply->state = JF_REPLY_ERROR_HTTP_400;
+                break;
 			case 401:
 				reply->state = JF_REPLY_ERROR_HTTP_401;
 				break;
