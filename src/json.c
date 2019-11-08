@@ -574,7 +574,11 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
 					"Subtitle") == 0
 				&& YAJL_IS_TRUE(yajl_tree_get(stream,
 						(const char *[]){ "IsExternal", NULL },
-						yajl_t_true))) {
+						yajl_t_true))
+                && strcmp(YAJL_GET_STRING(yajl_tree_get(stream,
+                            (const char*[]){ "Codec", NULL},
+                            yajl_t_string)),
+                    "sub") != 0) {
 			subs_count++;
 			assert((subs = realloc(subs, subs_count * sizeof(jf_menu_item *))) != NULL);
 			tmp = jf_concat(8,
