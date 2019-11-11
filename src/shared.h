@@ -88,7 +88,7 @@ typedef enum __attribute__((__packed__)) jf_item_type {
     //  name: suffix URL for the stream. This is better computed at parse time
     //      and cached for later use instead of computed on the fly by
     //      as usual, since it requires more information (id, stream number,
-    //      format) than normal.
+    //      codec) than normal.
     //  id: given the above it would be redundant, so we use it for additional
     //      information in the format "xxxDisplayTitle": the first three
     //      characters mark an ISO language code (id[0] == '\0' if not
