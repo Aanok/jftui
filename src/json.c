@@ -33,6 +33,7 @@ static int jf_sax_items_number(void *ctx, const char *string, size_t strins_len)
 // 	The yajl_handle of the new parser.
 static inline yajl_handle jf_sax_yajl_parser_new(yajl_callbacks *callbacks, jf_sax_context *context);
 
+static inline bool jf_sax_current_item_is_valid(const jf_sax_context *context);
 static inline void jf_sax_current_item_make_and_print_name(jf_sax_context *context);
 static inline void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb);
 static inline void jf_sax_context_current_item_clear(jf_sax_context *context);
@@ -93,17 +94,19 @@ static int jf_sax_items_end_map(void *ctx)
 			context->parser_state = JF_SAX_IN_ITEM_MAP;
 			break;
 		case JF_SAX_IN_ITEM_MAP:
-			context->tb->item_count++;
-			jf_sax_current_item_make_and_print_name(context);
+            if (jf_sax_current_item_is_valid(context)) {
+                context->tb->item_count++;
+                jf_sax_current_item_make_and_print_name(context);
 
-			jf_menu_item *item = jf_menu_item_new(context->current_item_type,
-					NULL,
-					(const char*)context->id,
-					context->current_item_display_name->buf,
-					context->runtime_ticks,
-					context->playback_ticks);
-			jf_disk_payload_add_item(item);
-			jf_menu_item_free(item);
+                jf_menu_item *item = jf_menu_item_new(context->current_item_type,
+                        NULL,
+                        (const char*)context->id,
+                        context->current_item_display_name->buf,
+                        context->runtime_ticks,
+                        context->playback_ticks);
+                jf_disk_payload_add_item(item);
+                jf_menu_item_free(item);
+            }
 			jf_sax_context_current_item_clear(context);
 
 			if (context->latest_array) {
@@ -334,6 +337,18 @@ static int jf_sax_items_number(void *ctx, const char *string, size_t string_len)
 
 
 ////////// SAX PARSER //////////
+static inline bool jf_sax_current_item_is_valid(const jf_sax_context *context)
+{
+    if (JF_ITEM_TYPE_IS_FOLDER(context->current_item_type)) {
+        return context->name_len != 0 && context->id_len != 0;
+    } else {
+        return context->name_len != 0
+            && context->id_len != 0
+            && context->runtime_ticks != 0;
+    }
+}
+
+
 static inline void jf_sax_current_item_make_and_print_name(jf_sax_context *context)
 {
 	jf_growing_buffer_empty(context->current_item_display_name);
