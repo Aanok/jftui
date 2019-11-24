@@ -39,7 +39,12 @@ static inline void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer
 static inline void jf_sax_context_current_item_clear(jf_sax_context *context);
 static inline void jf_sax_context_current_item_copy(jf_sax_context *context);
 
-static inline yajl_val jf_yajl_tree_get_assert(yajl_val parent, const char **path, yajl_type type);
+// DO NOT USE THIS! Call the macro with the same name sans leading __
+static inline yajl_val __jf_yajl_tree_get_assert(const int lineno,
+        yajl_val parent,
+        const char **path,
+        yajl_type type);
+
 static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl_val media_sources);
 //////////////////////////////////////
 
@@ -557,16 +562,16 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
 			printf("%zu: %s (",
                     i + 1,
                     YAJL_GET_STRING(jf_yajl_tree_get_assert(source,
-                            (const char *[]){ "Name", NULL },
+                            ((const char *[]){ "Name", NULL }),
                             yajl_t_string)));
 			media_streams = jf_yajl_tree_get_assert(source,
-                    (const char *[]){ "MediaStreams", NULL },
+                    ((const char *[]){ "MediaStreams", NULL }),
                     yajl_t_array);
 			for (j = 0; j < YAJL_GET_ARRAY(media_streams)->len; j++) {
 				assert((stream = YAJL_GET_ARRAY(media_streams)->values[j]) != NULL);
 				printf(" %s",
                         YAJL_GET_STRING(jf_yajl_tree_get_assert(stream,
-                                (const char *[]){ "DisplayTitle", NULL },
+                                ((const char *[]){ "DisplayTitle", NULL }),
                                 yajl_t_string)));
 			}
 			printf(")\n");
@@ -579,29 +584,29 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
 
 	assert((source = YAJL_GET_ARRAY(media_sources)->values[i]) != NULL);
 	media_streams = jf_yajl_tree_get_assert(source,
-            (const char *[]){ "MediaStreams", NULL },
+            ((const char *[]){ "MediaStreams", NULL }),
             yajl_t_array);
 	for (j = 0; j < YAJL_GET_ARRAY(media_streams)->len; j++) {
 		assert((stream = YAJL_GET_ARRAY(media_streams)->values[j]) != NULL);
         char *codec = YAJL_GET_STRING(jf_yajl_tree_get_assert(stream,
-                    (const char*[]){ "Codec", NULL},
+                    ((const char*[]){ "Codec", NULL}),
                     yajl_t_string));
 		if (strcmp(YAJL_GET_STRING(jf_yajl_tree_get_assert(stream,
-                            (const char *[]){ "Type", NULL },
+                            ((const char *[]){ "Type", NULL }),
                             yajl_t_string)),
                     "Subtitle") == 0
                 && YAJL_IS_TRUE(jf_yajl_tree_get_assert(stream,
-                        (const char *[]){ "IsExternal", NULL },
+                        ((const char *[]){ "IsExternal", NULL }),
                         yajl_t_any))
                 && strcmp(codec, "sub") != 0) {
-            char *id = YAJL_GET_STRING(jf_yajl_tree_get_assert(source, (const char *[]){ "Id", NULL }, yajl_t_string));
+            char *id = YAJL_GET_STRING(jf_yajl_tree_get_assert(source, ((const char *[]){ "Id", NULL }), yajl_t_string));
 			tmp = jf_concat(8,
                     "/videos/",
                     id,
                     "/",
                     id,
                     "/subtitles/",
-                    YAJL_GET_NUMBER(jf_yajl_tree_get_assert(stream, (const char *[]){ "Index", NULL }, yajl_t_number)),
+                    YAJL_GET_NUMBER(jf_yajl_tree_get_assert(stream, ((const char *[]){ "Index", NULL }), yajl_t_number)),
                     "/stream.",
                     codec);
 			assert((subs = realloc(subs, ++subs_count * sizeof(jf_menu_item *))) != NULL);
@@ -611,13 +616,13 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
 					tmp,
 					0, 0); // ticks
 			free(tmp);
-            if ((tmp = YAJL_GET_STRING(yajl_tree_get(stream, (const char *[]){ "Language", NULL }, yajl_t_string))) == NULL) {
+            if ((tmp = YAJL_GET_STRING(yajl_tree_get(stream, ((const char *[]){ "Language", NULL }), yajl_t_string))) == NULL) {
                 subs[subs_count - 1]->id[0] = '\0';
             } else {
                 strncpy(subs[subs_count - 1]->id, tmp, 3);
             }
             strncpy(subs[subs_count - 1]->id + 3,
-                    YAJL_GET_STRING(jf_yajl_tree_get_assert(stream, (const char *[]){ "DisplayTitle", NULL }, yajl_t_string)),
+                    YAJL_GET_STRING(jf_yajl_tree_get_assert(stream, ((const char *[]){ "DisplayTitle", NULL }), yajl_t_string)),
                     JF_ID_LENGTH - 3);
             subs[subs_count - 1]->id[JF_ID_LENGTH] = '\0';
         }
@@ -628,9 +633,9 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
 
 	return jf_menu_item_new(JF_ITEM_TYPE_VIDEO_SOURCE,
 			subs,
-			YAJL_GET_STRING(jf_yajl_tree_get_assert(source, (const char *[]){ "Id", NULL }, yajl_t_string)),
+			YAJL_GET_STRING(jf_yajl_tree_get_assert(source, ((const char *[]){ "Id", NULL }), yajl_t_string)),
 			NULL,
-			YAJL_GET_INTEGER(jf_yajl_tree_get_assert(source, (const char *[]){ "RunTimeTicks", NULL }, yajl_t_number)), // RT ticks
+			YAJL_GET_INTEGER(jf_yajl_tree_get_assert(source, ((const char *[]){ "RunTimeTicks", NULL }), yajl_t_number)), // RT ticks
 			0);
 }
 
@@ -650,7 +655,7 @@ void jf_json_parse_video(jf_menu_item *item, const char *video, const char *addi
 	assert((item->children = malloc(item->children_count * sizeof(jf_menu_item *))) != NULL);
 	item->children[0] = jf_json_parse_versions(item,
 			jf_yajl_tree_get_assert(parsed,
-				(const char *[]){ "MediaSources", NULL },
+				((const char *[]){ "MediaSources", NULL }),
 				yajl_t_array));
 	yajl_tree_free(parsed);
 
@@ -666,12 +671,12 @@ void jf_json_parse_video(jf_menu_item *item, const char *video, const char *addi
 		}
 		for (i = 1; i < item->children_count; i++) {
 			part_item = YAJL_GET_ARRAY(jf_yajl_tree_get_assert(parsed,
-						(const char *[]){ "Items", NULL },
+						((const char *[]){ "Items", NULL }),
 						yajl_t_array))->values[i - 1];
 			item->children[i] = jf_json_parse_versions(item,
 					jf_yajl_tree_get_assert(part_item,
-						(const char *[]){ "MediaSources",
-						NULL }, yajl_t_array));
+						((const char *[]){ "MediaSources", NULL }),
+                        yajl_t_array));
 		}
 		yajl_tree_free(parsed);
 	}
@@ -703,10 +708,23 @@ char *jf_json_error_string()
 }
 
 
-static inline yajl_val jf_yajl_tree_get_assert(yajl_val parent, const char **path, yajl_type type)
+static inline yajl_val __jf_yajl_tree_get_assert(const int lineno,
+        yajl_val parent,
+        const char **path,
+        yajl_type type)
 {
     yajl_val v = yajl_tree_get(parent, path, type);
-    assert(v != NULL);
+    if (v == NULL) {
+        const char **curr = path;
+        fprintf(stderr, "%s:%d: jf_yajl_tree_get_assert failed.\n", __FILE__, lineno);
+        fprintf(stderr, "FATAL: couldn't find JSON element \"");
+        while (*curr != NULL) {
+            fprintf(stderr, ".%s", *curr);
+            curr++;
+        }
+        fprintf(stderr, "\".\n");
+        jf_exit(JF_EXIT_FAILURE);
+    }
     return v;
 }
 
@@ -720,11 +738,11 @@ void jf_json_parse_login_response(const char *payload)
                     JF_PARSER_ERROR_BUFFER_SIZE)) != NULL);
 	free(g_options.userid);
 	g_options.userid = strdup(YAJL_GET_STRING(jf_yajl_tree_get_assert(parsed,
-                    (const char *[]){ "User", "Id", NULL },
+                    ((const char *[]){ "User", "Id", NULL }),
                     yajl_t_string)));
 	free(g_options.token);
 	g_options.token = strdup(YAJL_GET_STRING(jf_yajl_tree_get_assert(parsed,
-                    (const char *[]){ "AccessToken", NULL },
+                    ((const char *[]){ "AccessToken", NULL }),
                     yajl_t_string)));
 	yajl_tree_free(parsed);
 }
@@ -757,7 +775,7 @@ void jf_json_parse_server_info_response(const char *payload)
 
 	JF_JSON_TREE_PARSE_ASSERT((parsed = yajl_tree_parse(payload, s_error_buffer, JF_PARSER_ERROR_BUFFER_SIZE)) != NULL);
 	g_state.server_name = strdup(YAJL_GET_STRING(jf_yajl_tree_get_assert(parsed,
-                    (const char *[]){ "ServerName", NULL },
+                    ((const char *[]){ "ServerName", NULL }),
                     yajl_t_string)));
 	yajl_tree_free(parsed);
 }

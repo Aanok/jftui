@@ -71,6 +71,8 @@ do {																		\
 		jf_exit(JF_EXIT_FAILURE);											\
 	}																		\
 } while (false)
+
+#define jf_yajl_tree_get_assert(_parent, _path, _type) __jf_yajl_tree_get_assert(__LINE__, (_parent), (_path), (_type))
 /////////////////////////////////
 
 
