@@ -1,7 +1,7 @@
 jftui is a minimalistic, lightweight command line client for the open source [Jellyfin](http://jellyfin.org/) media server. It is developed for the GNU/Linux OS only, although it may be possible to make it run on BSD's.
 
 # Installation
-The program must be built from source. For Arch Linux users, there is an AUR [package](https://aur.archlinux.org/packages/jftui-git/) that will do so automatically.
+The program must be built from source. For Arch Linux users, there is an AUR [package](https://aur.archlinux.org/packages/jftui/) that will compile, install and keep jftui updated automatically.
 
 ## Dependencies
 - [libcurl](https://curl.haxx.se/libcurl/) (runtime)
