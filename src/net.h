@@ -44,20 +44,22 @@ do {																		\
 
 ////////// JF_REPLY //////////
 typedef enum __attribute__((__packed__)) jf_reply_state {
+    // REMEMBER TO UPDATE THE MACROS BELOW WHEN CHANGING THESE!
 	JF_REPLY_PENDING = 0,
 	JF_REPLY_SUCCESS = 1,
 
 	JF_REPLY_ERROR_STUB = -1,
-	JF_REPLY_ERROR_NETWORK = -2,
-    JF_REPLY_ERROR_HTTP_400 = -3,
-	JF_REPLY_ERROR_HTTP_401 = -4,
-	JF_REPLY_ERROR_HTTP_NOT_OK = -5,
-	JF_REPLY_ERROR_MALLOC = -6,
-	JF_REPLY_ERROR_CONCAT = -7,
-	JF_REPLY_ERROR_X_EMBY_AUTH = -8,
-	JF_REPLY_ERROR_PARSER = -9,
-	JF_REPLY_ERROR_BAD_LOCATION = -10,
-	JF_REPLY_ERROR_EXIT_REQUEST = -11
+	JF_REPLY_ERROR_HTTP_401 = -2,
+	JF_REPLY_ERROR_MALLOC = -3,
+	JF_REPLY_ERROR_CONCAT = -4,
+	JF_REPLY_ERROR_X_EMBY_AUTH = -5,
+	JF_REPLY_ERROR_BAD_LOCATION = -7,
+	JF_REPLY_ERROR_EXIT_REQUEST = -8,
+	JF_REPLY_ERROR_NETWORK = -9,
+
+    JF_REPLY_ERROR_HTTP_400 = -32,
+	JF_REPLY_ERROR_HTTP_NOT_OK = -33,
+	JF_REPLY_ERROR_PARSER = -34,
 } jf_reply_state;
 
 
@@ -69,8 +71,8 @@ typedef struct jf_reply {
 
 
 #define JF_REPLY_PTR_HAS_ERROR(_p)	((_p)->state < 0)
-#define JF_REPLY_PTR_GET_ERROR(_p)	((_p)->state)
-#define JF_REPLY_PTR_ERROR_IS(_p, _e) ((_p)->state == (_e))
+#define JF_REPLY_PTR_SHOULD_FREE_PAYLOAD(_p) ((_p)->state == 1 || (_p)->state <= -32)
+
 
 jf_reply *jf_reply_new(void);
 void jf_reply_free(jf_reply *r);

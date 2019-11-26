@@ -107,7 +107,10 @@ jf_reply *jf_reply_new()
 void jf_reply_free(jf_reply *r)
 {
 	if (r == NULL) return;
-	free(r->payload);
+    if (r->state == JF_REPLY_PENDING) return; // better a leak than a segfault
+    if (JF_REPLY_PTR_SHOULD_FREE_PAYLOAD(r)) {
+	    free(r->payload);
+    }
 	free(r);
 }
 
