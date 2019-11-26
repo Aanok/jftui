@@ -528,7 +528,7 @@ static void jf_menu_play_video(const jf_menu_item *item)
                 fprintf(stderr,
                         "Warning: external subtitle %s could not be loaded.\n",
                         child->id[3] != '\0' ? child->id + 3 : child->name);
-                if (JF_REPLY_PTR_ERROR_IS(r, JF_REPLY_ERROR_HTTP_400)) {
+                if (r->state == JF_REPLY_ERROR_HTTP_400) {
                     fprintf(stderr, "Reason: %s.\n", r->payload);
                 }
                 jf_reply_free(r);
