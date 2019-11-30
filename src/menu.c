@@ -477,6 +477,7 @@ static void jf_menu_play_video(const jf_menu_item *item)
 
 	// merge video files
 	JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "force-media-title", item->name));
+	JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "title", item->name));
 	filename = jf_growing_buffer_new(128);
 	jf_growing_buffer_append(filename, "edl://", JF_STATIC_STRLEN("edl://"));
 	for (i = 0; i < item->children_count; i++) {
