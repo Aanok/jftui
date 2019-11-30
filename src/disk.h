@@ -20,11 +20,11 @@
 
 ////////// FILE CACHE //////////
 typedef struct jf_file_cache {
-	FILE *header;
-	char *header_path;
-	FILE *body;
-	char *body_path;
-	size_t count;
+    FILE *header;
+    char *header_path;
+    FILE *body;
+    char *body_path;
+    size_t count;
 } jf_file_cache;
 ///////////////////////////////
 

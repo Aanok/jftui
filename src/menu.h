@@ -13,13 +13,13 @@
 #include "config.h"
 #include "net.h"
 #include "disk.h"
-		
+        
 
 ////////// JF_MENU_STACK //////////
 typedef struct jf_menu_stack {
-	jf_menu_item **items;
-	size_t size;
-	size_t used;
+    jf_menu_item **items;
+    size_t size;
+    size_t used;
 } jf_menu_stack;
 ///////////////////////////////////
 
@@ -63,8 +63,8 @@ char *jf_menu_linenoise(const char *prompt);
 // stdin.
 //
 // Returns:
-// 	- true if reply starts with 'y' or 'Y';
-// 	- false if reply starts with 'n' or 'N'.
+//  - true if reply starts with 'y' or 'Y';
+//  - false if reply starts with 'n' or 'N'.
 // CAN'T FAIL.
 bool jf_menu_user_ask_yn(const char *question);
 
