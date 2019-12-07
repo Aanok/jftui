@@ -328,8 +328,8 @@ static bool jf_menu_print_context()
             break;
         default:
             fprintf(stderr,
-                    "Error: jf_menu_dispatch_context unsupported menu item type (%d). This is a bug.\n",
-                    s_context->type);
+                    "Error: jf_menu_dispatch_context unsupported menu item type (%s). This is a bug.\n",
+                    jf_item_type_get_name(s_context->type));
             jf_menu_item_free(s_context);
             return false;
     }
@@ -442,8 +442,8 @@ static void jf_menu_ask_resume(jf_menu_item *item)
     j = 2;
     printf("\n%s is a split-file on the server and there is progress marked on more than one part.\n",
             item->name);
-    printf("Please choose at what time you'd like to resume watching:\n");
-    printf("1. 00:00:00 (start)\n");
+    printf("Please choose at what time you'd like to start watching:\n");
+    printf("1. 00:00:00 (beginning)\n");
     for (i = 0; i < item->children_count; i++) {
         if (item->children[i]->playback_ticks != 0) {
             ticks += item->children[i]->playback_ticks;
