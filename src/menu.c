@@ -173,11 +173,12 @@ static char *jf_menu_item_get_request_url(const jf_menu_item *item)
         case JF_ITEM_TYPE_SEASON:
         case JF_ITEM_TYPE_SERIES:
             if ((parent = jf_menu_stack_peek()) != NULL && parent->type == JF_ITEM_TYPE_MENU_LATEST_UNPLAYED) {
-                return jf_concat(4,
+                return jf_concat(5,
                         "/users/",
                         g_options.userid,
                         "/items/latest?groupitems=false&parentid=",
-                        item->id);
+                        item->id,
+                        "&sortby=sortname");
             } else {
                 return jf_concat(4,
                         "/users/",
@@ -303,7 +304,9 @@ static bool jf_menu_print_context()
                 return false;
             }
 #ifdef JF_DEBUG
-            printf("DEBUG: folder URL: %s\n", request_url);
+            printf("DEBUG: %s URL: %s\n",
+                    jf_item_type_get_name(s_context->type),
+                    request_url);
 #endif
             reply = jf_net_request(request_url, request_type, JF_HTTP_GET, NULL);
             free(request_url);
@@ -321,7 +324,7 @@ static bool jf_menu_print_context()
         case JF_ITEM_TYPE_MENU_ROOT:
             printf("\n===== %s =====\n", s_context->name);
             for (i = 0; i < s_context->children_count; i++) {
-                printf("D %zu. %s\n", i + 1, s_context->children[i]->name);
+                printf("D %zu: %s\n", i + 1, s_context->children[i]->name);
             }
             // push on stack to allow backtracking
             jf_menu_stack_push(s_context);
