@@ -32,17 +32,27 @@ const char *jf_item_type_get_name(const jf_item_type type)
         case JF_ITEM_TYPE_VIDEO_SUB:
             return "Video_Sub";
         case JF_ITEM_TYPE_COLLECTION:
+            return "Collection_Generic";
         case JF_ITEM_TYPE_COLLECTION_MUSIC:
+            return "Collection_Music";
         case JF_ITEM_TYPE_COLLECTION_SERIES:
+            return "Collection_Series";
         case JF_ITEM_TYPE_COLLECTION_MOVIES:
+            return "Collection_Movies";
         case JF_ITEM_TYPE_USER_VIEW:
+            return "User_View";
         case JF_ITEM_TYPE_FOLDER:
-        case JF_ITEM_TYPE_PLAYLIST:
-        case JF_ITEM_TYPE_ARTIST:
-        case JF_ITEM_TYPE_ALBUM:
-        case JF_ITEM_TYPE_SEASON:
-        case JF_ITEM_TYPE_SERIES:
             return "Folder";
+        case JF_ITEM_TYPE_PLAYLIST:
+            return "Playlist";
+        case JF_ITEM_TYPE_ARTIST:
+            return "Artist";
+        case JF_ITEM_TYPE_ALBUM:
+            return "Album";
+        case JF_ITEM_TYPE_SEASON:
+            return "Season";
+        case JF_ITEM_TYPE_SERIES:
+            return "Series";
         case JF_ITEM_TYPE_SEARCH_RESULT:
             return "Search_Result";
         case JF_ITEM_TYPE_MENU_ROOT:
