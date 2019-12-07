@@ -382,10 +382,10 @@ static inline void jf_sax_current_item_make_and_print_name(jf_sax_context *conte
             if (context->tb->promiscuous_context) {
                 JF_SAX_TRY_APPEND_NAME("", series, " - ");
                 JF_SAX_TRY_APPEND_NAME("S", parent_index, "");
-                JF_SAX_TRY_APPEND_NAME("E", index, " ");
             }
+            JF_SAX_TRY_APPEND_NAME("E", index, " ");
             jf_growing_buffer_append(context->current_item_display_name,
-                    context->name, context->name_len);
+                context->name, context->name_len);
             break;
         case JF_ITEM_TYPE_SEASON:
             JF_SAX_PRINT_LEADER("D");
