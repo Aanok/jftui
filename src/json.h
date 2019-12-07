@@ -43,7 +43,7 @@ do {                                                                            
 
 #define JF_SAX_STRING_IS(name) (strncmp((const char *)string, name, sizeof(name) > string_len ? string_len : sizeof(name)) == 0)
 
-#define JF_SAX_PRINT_LEADER(tag) printf(tag " %zu. ", context->tb->item_count)
+#define JF_SAX_PRINT_LEADER(tag) printf(tag " %zu: ", context->tb->item_count)
 
 
 // NB THIS WILL NOT BE NULL-TERMINATED ON ITS OWN!!!

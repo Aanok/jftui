@@ -365,6 +365,8 @@ static inline void jf_sax_current_item_make_and_print_name(jf_sax_context *conte
                 JF_SAX_TRY_APPEND_NAME("", artist, " - ");
                 JF_SAX_TRY_APPEND_NAME("", album, " - ");
             }
+            JF_SAX_TRY_APPEND_NAME("", parent_index, ".");
+            JF_SAX_TRY_APPEND_NAME("", index, " - ");
             jf_growing_buffer_append(context->current_item_display_name,
                     context->name, context->name_len);
             break;
