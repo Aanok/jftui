@@ -241,11 +241,11 @@ void jf_disk_playlist_replace_item(const size_t n, const jf_menu_item *item)
 
     // overwrite old offset in header
     assert(fseek(s_playlist.header, (long)((n - 1) * sizeof(long)), SEEK_SET) == 0);
+    assert(fseek(s_playlist.body, 0, SEEK_END) == 0);
     assert((starting_body_offset = ftell(s_playlist.body)) != -1);
     assert(fwrite(&starting_body_offset, sizeof(long), 1, s_playlist.header) == 1);
 
     // add replacement to tail
-    assert(fseek(s_playlist.body, 0, SEEK_END) == 0);
     jf_disk_add_next(&s_playlist, item);
 }
 
