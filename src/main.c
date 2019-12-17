@@ -39,9 +39,12 @@ static mpv_handle *jf_mpv_context_new(void);
 static inline void jf_mpv_event_dispatch(const mpv_event *event);
 
 // playback_ticks refers to segment referred by id
-static void jf_update_progress_remote(const char *id, int64_t playback_ticks);
+static void jf_post_session_playing(const char *id, int64_t playback_ticks);
+static void jf_post_session_stopped(const char *id, int64_t playback_ticks);
 
 
+// DO NOT INVOKE DIRECTLY. Call jf_now_playing_post_session_{playing,stopped}.
+// 
 // Updates playback progress marker of the currently playing item on the server.
 // Detects if we moved across split-file parts since the last such update and
 // marks parts previous to current as played, next to current as unplayed (so
@@ -50,7 +53,19 @@ static void jf_update_progress_remote(const char *id, int64_t playback_ticks);
 // Parameters:
 //  - playback_ticks: current position in Jellyfin ticks, referring to the
 //    whole merged file in case of split-part.
-static void jf_now_playing_update_progress(const int64_t playback_ticks);
+//  - update_function: callback for session update networking. Should be either
+//    jf_post_session_playing or jf_post_session_stopped.
+static void jf_now_playing_post_session(const int64_t playback_ticks,
+        void (*update_function) (const char *, int64_t));
+
+
+// As jf_now_playing_post_session. Will POST to /sessions/playing/progress.
+static void jf_now_playing_post_session_playing(const int64_t playback_ticks);
+
+
+// As jf_now_playing_post_session. Will POST to /sessions/playing/stopped.
+static void jf_now_playing_post_session_stopped(const int64_t playback_ticks);
+
 
 static inline void jf_align_subtitle(const int64_t sid);
 //////////////////////////////////////
@@ -137,7 +152,7 @@ static mpv_handle *jf_mpv_context_new()
 }
 
 
-static void jf_update_progress_remote(const char *id, int64_t playback_ticks)
+static void jf_post_session_playing(const char *id, int64_t playback_ticks)
 {
     char *progress_post;
 
@@ -150,14 +165,28 @@ static void jf_update_progress_remote(const char *id, int64_t playback_ticks)
 }
 
 
-static void jf_now_playing_update_progress(const int64_t playback_ticks)
+static void jf_post_session_stopped(const char *id, int64_t playback_ticks)
+{
+    char *progress_post;
+
+    progress_post = jf_json_generate_progress_post(id, playback_ticks);
+    jf_net_request("/sessions/playing/stopped",
+            JF_REQUEST_ASYNC_DETACH,
+            JF_HTTP_POST,
+            progress_post);
+    free(progress_post);
+}
+
+
+static void jf_now_playing_post_session(const int64_t playback_ticks,
+        void (*update_function)(const char *, int64_t))
 {
     size_t i, last_part, current_part;
     int64_t accounted_ticks, current_tick_offset;
 
     // single-part items are blissfully simple and I lament my toil elsewise
     if (g_state.now_playing->children_count <= 1) {
-        jf_update_progress_remote(g_state.now_playing->id, playback_ticks);
+        update_function(g_state.now_playing->id, playback_ticks);
         g_state.now_playing->playback_ticks = playback_ticks;
         return;
     }
@@ -181,7 +210,7 @@ static void jf_now_playing_update_progress(const int64_t playback_ticks)
     }
 
     // update progress of current part and record last update
-    jf_update_progress_remote(g_state.now_playing->children[current_part]->id,
+    update_function(g_state.now_playing->children[current_part]->id,
             playback_ticks - current_tick_offset);
     g_state.now_playing->playback_ticks = playback_ticks;
     
@@ -194,6 +223,18 @@ static void jf_now_playing_update_progress(const int64_t playback_ticks)
             jf_menu_mark_unplayed(g_state.now_playing->children[i]);
         }
     }
+}
+
+
+static void jf_now_playing_post_session_playing(const int64_t playback_ticks)
+{
+    jf_now_playing_post_session(playback_ticks, jf_post_session_playing);
+}
+
+
+static void jf_now_playing_post_session_stopped(const int64_t playback_ticks)
+{
+    jf_now_playing_post_session(playback_ticks, jf_post_session_stopped);
 }
 
 
@@ -314,7 +355,7 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
             playback_ticks =
                 mpv_get_property(g_mpv_ctx, "time-pos", MPV_FORMAT_INT64, &playback_ticks) == 0 ?
                 JF_SECS_TO_TICKS(playback_ticks) : g_state.now_playing->playback_ticks;
-            jf_now_playing_update_progress(playback_ticks);
+            jf_now_playing_post_session_stopped(playback_ticks);
             // move to next item in playlist, if any
             if (((mpv_event_end_file *)event->data)->reason == MPV_END_FILE_REASON_EOF) {
                 if (jf_menu_playlist_forward()) {
@@ -344,7 +385,7 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
                 playback_ticks = JF_SECS_TO_TICKS(*(int64_t *)((mpv_event_property *)event->data)->data);
                 if (llabs(playback_ticks - g_state.now_playing->playback_ticks) < JF_SECS_TO_TICKS(10)) break;
                 // good for update; note this will also start a playback session if none are there
-                jf_now_playing_update_progress(playback_ticks);
+                jf_now_playing_post_session_playing(playback_ticks);
             } else if (strcmp("sid", ((mpv_event_property *)event->data)->name) == 0) {
                 // subtitle track change, go and see if we need to align for split-part
                 jf_align_subtitle(*(int64_t *)((mpv_event_property *)event->data)->data);
@@ -365,7 +406,7 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
         case MPV_EVENT_SHUTDOWN:
             // tell jellyfin playback stopped
             // NB we can't call mpv_get_property because mpv core has aborted!
-            jf_now_playing_update_progress(g_state.now_playing->playback_ticks);
+            jf_now_playing_post_session_stopped(g_state.now_playing->playback_ticks);
             // it is unfortunate, but the cleanest way to handle this case
             // (which is when mpv receives a "quit" command)
             // is to comply and create a new context
