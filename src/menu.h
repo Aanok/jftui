@@ -35,9 +35,6 @@ void jf_menu_search(const char *s);
 void jf_menu_mark_played(const jf_menu_item *item);
 void jf_menu_mark_unplayed(const jf_menu_item *item);
 
-bool jf_menu_playlist_forward(void);
-bool jf_menu_playlist_backward(void);
-
 void jf_menu_ui(void);
 /////////////////////////////////////////
 

@@ -64,7 +64,6 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
     };
 static jf_menu_stack s_menu_stack = (jf_menu_stack){ 0 };
 static jf_menu_item *s_context = NULL;
-static size_t s_playlist_current = 0;
 //////////////////////////////////////
 
 
@@ -614,7 +613,7 @@ static void jf_menu_play_item(jf_menu_item *item)
                 jf_menu_populate_video_ticks(item);
                 jf_menu_ask_resume(item);
                 jf_menu_play_video(item);
-                jf_disk_playlist_replace_item(s_playlist_current, item);
+                jf_disk_playlist_replace_item(g_state.playlist_position, item);
                 jf_menu_item_free(g_state.now_playing);
                 g_state.now_playing = item;
             }
@@ -634,7 +633,7 @@ static void jf_menu_try_play()
 
     if (jf_disk_playlist_item_count() > 0) {
         g_state.state = JF_STATE_PLAYBACK;
-        s_playlist_current = 1;
+        g_state.playlist_position = 1;
         item = jf_disk_playlist_get_item(1);
         jf_menu_play_item(item);
 #ifdef JF_DEBUG
@@ -764,28 +763,6 @@ void jf_menu_mark_unplayed(const jf_menu_item *item)
     url = jf_concat(4, "/users/", g_options.userid, "/playeditems/", item->id);
     jf_net_request(url, JF_REQUEST_ASYNC_DETACH, JF_HTTP_DELETE, NULL);
     free(url);
-}
-
-
-bool jf_menu_playlist_forward()
-{
-    if (s_playlist_current < jf_disk_playlist_item_count()) {
-        jf_menu_play_item(jf_disk_playlist_get_item(++s_playlist_current));
-        return true;
-    } else {
-        return false;
-    }
-}
-
-
-bool jf_menu_playlist_backward()
-{
-    if (s_playlist_current > 1) {
-        jf_menu_play_item(jf_disk_playlist_get_item(--s_playlist_current));
-        return true;
-    } else {
-        return false;
-    }
 }
 
 

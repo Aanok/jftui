@@ -5,9 +5,9 @@ CFLAGS=`pkg-config --cflags libcurl yajl mpv`
 LFLAGS=`pkg-config --libs libcurl yajl mpv` -pthread
 DFLAGS=-g -O1 -fno-omit-frame-pointer -fno-optimize-sibling-calls -fsanitize=address -fsanitize=undefined -DJF_DEBUG
 
-SOURCES=src/linenoise.c src/shared.c src/config.c src/disk.c src/json.c src/menu.c src/net.c src/main.c
+SOURCES=src/linenoise.c src/shared.c src/config.c src/disk.c src/json.c src/menu.c src/playback.c src/net.c src/main.c
 
-OBJECTS=build/linenoise.o build/menu.o build/shared.o build/config.o build/disk.o build/json.o build/net.o build/main.o
+OBJECTS=build/linenoise.o build/menu.o build/shared.o build/config.o build/disk.o build/json.o build/net.o build/playback.o build/main.o
 
 BUILD_DIR := build
 
@@ -62,6 +62,9 @@ ${BUILD_DIR}/json.o: src/json.c
 	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
 
 ${BUILD_DIR}/net.o: src/net.c
+	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
+
+${BUILD_DIR}/playback.o: src/playback.c
 	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
 
 ${BUILD_DIR}/main.o: src/main.c

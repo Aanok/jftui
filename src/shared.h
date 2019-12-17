@@ -238,6 +238,7 @@ typedef struct jf_global_state {
     char *server_name;
     jf_jftui_state state;
     jf_menu_item *now_playing;
+    size_t playlist_position;
 } jf_global_state;
 //////////////////////////////////////////////
 
