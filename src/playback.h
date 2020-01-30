@@ -6,7 +6,7 @@
 #include "net.h"
 #include <mpv/client.h>
 #include "menu.h"
-
+#include "config.h"
 
 // Update playback progress marker of the currently playing item on the server
 // (as of g_state.now_playing).
@@ -27,9 +27,12 @@ void jf_playback_update_progress(const int64_t playback_ticks);
 void jf_playback_update_stopped(const int64_t playback_ticks);
 
 
-inline void jf_playback_align_subtitle(const int64_t sid);
+void jf_playback_align_subtitle(const int64_t sid);
 
 
 bool jf_playback_next(void);
 bool jf_playback_previous(void);
+
+void jf_playback_play_item(jf_menu_item *item);
+void jf_playback_play_video(const jf_menu_item *item);
 #endif

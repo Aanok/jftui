@@ -13,6 +13,7 @@
 #include "config.h"
 #include "net.h"
 #include "disk.h"
+#include "playback.h"
         
 
 ////////// JF_MENU_STACK //////////
@@ -40,6 +41,10 @@ void jf_menu_ui(void);
 
 
 ////////// MISCELLANEOUS //////////
+char *jf_menu_item_get_request_url(const jf_menu_item *item);
+void jf_menu_ask_resume(jf_menu_item *item);
+
+
 // Initializes linenoise history and the static menu stack struct.
 // CAN FATAL.
 void jf_menu_init(void);

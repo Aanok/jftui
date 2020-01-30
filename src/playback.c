@@ -3,45 +3,53 @@
 
 ////////// GLOBAL VARIABLES //////////
 extern jf_global_state g_state;
+extern jf_options g_options;
 extern mpv_handle *g_mpv_ctx;
 //////////////////////////////////////
 
 
 ////////// STATIC FUNCTIONS ///////////////
 // playback_ticks refers to segment referred by id
-static void jf_post_session_progress(const char *id, int64_t playback_ticks);
-static void jf_post_session_stopped(const char *id, int64_t playback_ticks);
+// static void jf_post_session_progress(const char *id, int64_t playback_ticks);
+// static void jf_post_session_stopped(const char *id, int64_t playback_ticks);
+static void jf_post_session_update(const char *id,
+        int64_t playback_ticks,
+        const char *update_url);
 
 
 //  - update_function: callback for session update networking. Should be either
 //    jf_post_session_progress or jf_post_session_stopped.
 static void jf_post_session(const int64_t playback_ticks,
-        void (*update_function) (const char *, int64_t));
+        const char *update_url);
+//         void (*update_function) (const char *, int64_t));
 
 
+static inline void jf_playback_populate_video_ticks(jf_menu_item *item);
 ///////////////////////////////////////////
 
 
 ////////// PROGRESS SYNC //////////
-static void jf_post_session_progress(const char *id, int64_t playback_ticks)
+// static void jf_post_session_progress(const char *id, int64_t playback_ticks)
+// {
+//     char *progress_post;
+// 
+//     progress_post = jf_json_generate_progress_post(id, playback_ticks);
+//     jf_net_request("/sessions/playing/progress",
+//             JF_REQUEST_ASYNC_DETACH,
+//             JF_HTTP_POST,
+//             progress_post);
+//     free(progress_post);
+// }
+// 
+// 
+static void jf_post_session_update(const char *id,
+        int64_t playback_ticks,
+        const char *update_url)
 {
     char *progress_post;
 
     progress_post = jf_json_generate_progress_post(id, playback_ticks);
-    jf_net_request("/sessions/playing/progress",
-            JF_REQUEST_ASYNC_DETACH,
-            JF_HTTP_POST,
-            progress_post);
-    free(progress_post);
-}
-
-
-static void jf_post_session_stopped(const char *id, int64_t playback_ticks)
-{
-    char *progress_post;
-
-    progress_post = jf_json_generate_progress_post(id, playback_ticks);
-    jf_net_request("/sessions/playing/stopped",
+    jf_net_request(update_url,
             JF_REQUEST_ASYNC_DETACH,
             JF_HTTP_POST,
             progress_post);
@@ -50,14 +58,16 @@ static void jf_post_session_stopped(const char *id, int64_t playback_ticks)
 
 
 static void jf_post_session(const int64_t playback_ticks,
-        void (*update_function)(const char *, int64_t))
+        const char *update_url)
 {
     size_t i, last_part, current_part;
     int64_t accounted_ticks, current_tick_offset;
 
     // single-part items are blissfully simple and I lament my toil elsewise
     if (g_state.now_playing->children_count <= 1) {
-        update_function(g_state.now_playing->id, playback_ticks);
+        jf_post_session_update(g_state.now_playing->id,
+                playback_ticks,
+                update_url);
         g_state.now_playing->playback_ticks = playback_ticks;
         return;
     }
@@ -81,8 +91,9 @@ static void jf_post_session(const int64_t playback_ticks,
     }
 
     // update progress of current part and record last update
-    update_function(g_state.now_playing->children[current_part]->id,
-            playback_ticks - current_tick_offset);
+    jf_post_session_update(g_state.now_playing->children[current_part]->id,
+                playback_ticks - current_tick_offset,
+                update_url);
     g_state.now_playing->playback_ticks = playback_ticks;
     
     // check if moved across parts and in case update
@@ -99,19 +110,19 @@ static void jf_post_session(const int64_t playback_ticks,
 
 void jf_playback_update_progress(const int64_t playback_ticks)
 {
-    jf_post_session(playback_ticks, jf_post_session_progress);
+    jf_post_session(playback_ticks, "/sessions/playing/progress");
 }
 
 
 void jf_playback_update_stopped(const int64_t playback_ticks)
 {
-    jf_post_session(playback_ticks, jf_post_session_stopped);
+    jf_post_session(playback_ticks, "/sessions/playing/stopped");
 }
 ///////////////////////////////////
 
 
 ////////// SUBTITLES //////////
-extern inline void jf_playback_align_subtitle(const int64_t sid)
+void jf_playback_align_subtitle(const int64_t sid)
 {
     int64_t track_count, track_id, playback_ticks, sub_delay;
     size_t i;
@@ -203,11 +214,215 @@ extern inline void jf_playback_align_subtitle(const int64_t sid)
 ///////////////////////////////
 
 
+////////// ITEM PLAYBACK //////////
+void jf_playback_play_video(const jf_menu_item *item)
+{
+    jf_growing_buffer *filename;
+    char *tmp;
+    char subs_language[4];
+    size_t i, j;
+    jf_menu_item *child;
+
+    // merge video files
+    JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "force-media-title", item->name));
+    JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "title", item->name));
+    filename = jf_growing_buffer_new(128);
+    jf_growing_buffer_append(filename, "edl://", JF_STATIC_STRLEN("edl://"));
+    for (i = 0; i < item->children_count; i++) {
+        child = item->children[i];
+        if (child->type != JF_ITEM_TYPE_VIDEO_SOURCE) {
+            fprintf(stderr,
+                    "Warning: unrecognized item type (%s) for %s part %zu. This is a bug.\n",
+                    jf_item_type_get_name(child->type), item->name, i);
+            continue;
+        }
+        jf_growing_buffer_append(filename,
+                jf_menu_item_get_request_url(child),
+                0);
+        jf_growing_buffer_append(filename, ";", 1);
+    }
+    jf_growing_buffer_append(filename, "", 1);
+    const char *loadfile[] = { "loadfile", filename->buf, NULL };
+    JF_MPV_ASSERT(mpv_command(g_mpv_ctx, loadfile));
+    jf_growing_buffer_free(filename);
+
+    // external subtitles
+    // note: they unfortunately require loadfile to already have been issued
+    subs_language[3] = '\0';
+    for (i = 0; i < item->children_count; i++) {
+        for (j = 0; j < item->children[i]->children_count; j++) {
+            child = item->children[i]->children[j];
+            if (child->type != JF_ITEM_TYPE_VIDEO_SUB) {
+                fprintf(stderr,
+                        "Warning: unrecognized item type (%s) for %s, part %zu, child %zu. This is a bug.\n",
+                        jf_item_type_get_name(child->type),
+                        item->name,
+                        i,
+                        j);
+                continue;
+            }
+            tmp = jf_concat(2, g_options.server, child->name);
+            strncpy(subs_language, child->id, 3);
+            const char *command[] = { "sub-add",
+                tmp,
+                "auto",
+                child->id + 3,
+                subs_language,
+                NULL };
+            if (mpv_command(g_mpv_ctx, command) < 0) {
+                jf_reply *r = jf_net_request(child->name,
+                        JF_REQUEST_IN_MEMORY,
+                        JF_HTTP_GET,
+                        NULL);
+                fprintf(stderr,
+                        "Warning: external subtitle %s could not be loaded.\n",
+                        child->id[3] != '\0' ? child->id + 3 : child->name);
+                if (r->state == JF_REPLY_ERROR_HTTP_400) {
+                    fprintf(stderr, "Reason: %s.\n", r->payload);
+                }
+                jf_reply_free(r);
+            }
+            free(tmp);
+        }
+    }
+}
+
+
+void jf_playback_play_item(jf_menu_item *item)
+{
+    char *request_url;
+    jf_reply *replies[2];
+
+    if (item == NULL) {
+        return;
+    }
+
+    if (JF_ITEM_TYPE_IS_FOLDER(item->type)) {
+        fprintf(stderr, "Error: jf_menu_play_item invoked on folder item type. This is a bug.\n");
+        return;
+    }
+
+    switch (item->type) {
+        case JF_ITEM_TYPE_AUDIO:
+        case JF_ITEM_TYPE_AUDIOBOOK:
+            if ((request_url = jf_menu_item_get_request_url(item)) == NULL) {
+                return;
+            }
+            jf_menu_ask_resume(item);
+            JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "title", item->name));
+            const char *loadfile[] = { "loadfile", request_url, NULL };
+            mpv_command(g_mpv_ctx, loadfile); 
+            jf_menu_item_free(g_state.now_playing);
+            g_state.now_playing = item;
+            free(request_url);
+            break;
+        case JF_ITEM_TYPE_EPISODE:
+        case JF_ITEM_TYPE_MOVIE:
+            // check if item was already evaded re: split file and versions
+            if (item->children_count > 0) {
+                jf_menu_ask_resume(item);
+                jf_playback_play_video(item);
+            } else {
+                request_url = jf_menu_item_get_request_url(item);
+                replies[0] = jf_net_request(request_url,
+                        JF_REQUEST_ASYNC_IN_MEMORY,
+                        JF_HTTP_GET,
+                        NULL);
+                free(request_url);
+                request_url = jf_concat(3, "/videos/", item->id, "/additionalparts");
+                replies[1] = jf_net_request(request_url,
+                        JF_REQUEST_IN_MEMORY,
+                        JF_HTTP_GET,
+                        NULL);
+                free(request_url);
+                if (JF_REPLY_PTR_HAS_ERROR(replies[1])) {
+                    fprintf(stderr,
+                            "Error: network request for /additionalparts of item %s failed: %s.\n",
+                            item->name,
+                            jf_reply_error_string(replies[1]));
+                    jf_reply_free(replies[1]);
+                    jf_reply_free(jf_net_await(replies[0]));
+                    return;
+                }
+                if (JF_REPLY_PTR_HAS_ERROR(jf_net_await(replies[0]))) {
+                    fprintf(stderr,
+                            "Error: network request for item %s failed: %s.\n",
+                            item->name,
+                            jf_reply_error_string(replies[0]));
+                    jf_reply_free(replies[0]);
+                    jf_reply_free(replies[1]);
+                    return;
+                }
+                jf_json_parse_video(item, replies[0]->payload, replies[1]->payload);
+                jf_reply_free(replies[0]);
+                jf_reply_free(replies[1]);
+                jf_playback_populate_video_ticks(item);
+                jf_menu_ask_resume(item);
+                jf_playback_play_video(item);
+                jf_disk_playlist_replace_item(g_state.playlist_position, item);
+                jf_menu_item_free(g_state.now_playing);
+                g_state.now_playing = item;
+            }
+            break;
+        default:
+            fprintf(stderr,
+                    "Error: jf_menu_play_item unsupported type (%s). This is a bug.\n",
+                    jf_item_type_get_name(item->type));
+            break;
+    }
+}
+
+
+static inline void jf_playback_populate_video_ticks(jf_menu_item *item)
+{
+    jf_reply **replies;
+    char *tmp;
+    size_t i;
+
+    if (item == NULL) return;
+    if (item->type != JF_ITEM_TYPE_EPISODE
+            && item->type != JF_ITEM_TYPE_MOVIE) return;
+
+    // the Emby interface was designed by a drunk gibbon. to check for
+    // a progress marker, we have to request the items corresponding to
+    // the additionalparts and look at them individually
+    // ...and each may have its own bookmark!
+
+    // parent and first child refer the same ID, thus the same part
+    item->children[0]->playback_ticks = item->playback_ticks;
+    // but at this point it makes no sense for the parent item to have a PB
+    // tick since there may be multiple markers
+    item->playback_ticks = 0;
+
+    // now go and get all markers for all parts
+    assert((replies = malloc((item->children_count - 1) * sizeof(jf_menu_item *))) != NULL);
+    for (i = 1; i < item->children_count; i++) {
+        tmp = jf_concat(4,
+                "/users/",
+                g_options.userid,
+                "/items/",
+                item->children[i]->id);
+        replies[i - 1] = jf_net_request(tmp,
+                JF_REQUEST_ASYNC_IN_MEMORY,
+                JF_HTTP_GET,
+                NULL);
+        free(tmp);
+    }
+    for (i = 1; i < item->children_count; i++) {
+        jf_net_await(replies[i - 1]);
+        jf_json_parse_playback_ticks(item->children[i], replies[i - 1]->payload);
+        jf_reply_free(replies[i - 1]);
+    }
+    free(replies);
+}
+///////////////////////////////////
+
+
 ////////// PLAYLIST CONTROLS //////////
 bool jf_playback_next()
 {
     if (g_state.playlist_position < jf_disk_playlist_item_count()) {
-        jf_menu_play_item(jf_disk_playlist_get_item(++g_state.playlist_position));
+        jf_playback_play_item(jf_disk_playlist_get_item(++g_state.playlist_position));
         return true;
     } else {
         return false;
@@ -218,7 +433,7 @@ bool jf_playback_next()
 bool jf_playback_previous()
 {
     if (g_state.playlist_position > 1) {
-        jf_menu_play_item(jf_disk_playlist_get_item(--g_state.playlist_position));
+        jf_playback_play_item(jf_disk_playlist_get_item(--g_state.playlist_position));
         return true;
     } else {
         return false;
