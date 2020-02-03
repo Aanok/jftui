@@ -33,6 +33,17 @@ void jf_playback_align_subtitle(const int64_t sid);
 bool jf_playback_next(void);
 bool jf_playback_previous(void);
 
+
+// Will print part or the entirety of the current jftui playback playlist to
+// stdout.
+//
+//  - slice_height: number of items before AND after to try to print.
+//      If 0 will print whole playlist.
+//
+// CAN'T FAIL.
+void jf_playback_print_playlist(size_t slice_height);
+
+
 void jf_playback_play_item(jf_menu_item *item);
 void jf_playback_play_video(const jf_menu_item *item);
 #endif

@@ -141,6 +141,12 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
                 } else if (strcmp(((mpv_event_client_message *)event->data)->args[0],
                             "jftui-playlist-prev") == 0) {
                     jf_playback_previous();
+                } else if (strcmp(((mpv_event_client_message *)event->data)->args[0],
+                            "jftui-playlist-print") == 0) {
+                    JF_MPV_ASSERT(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_no));
+                    jf_term_clear_bottom(NULL);
+                    jf_playback_print_playlist(0);
+                    JF_MPV_ASSERT(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
                 }
             }
             break;

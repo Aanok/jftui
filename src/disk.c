@@ -45,16 +45,16 @@ static void jf_disk_add_next(jf_file_cache *cache, const jf_menu_item *item)
     size_t name_length, i;
 
     assert(fwrite(&(item->type), sizeof(jf_item_type), 1, cache->body) == 1);
-    assert(fwrite(&(item->children_count), sizeof(size_t), 1, cache->body) == 1);
-    for (i = 0; i < item->children_count; i++) {
-        jf_disk_add_next(cache, item->children[i]);
-    }
     assert(fwrite(item->id, 1, sizeof(item->id), cache->body) == sizeof(item->id));
     name_length = item->name == NULL ? 0 : strlen(item->name);
     assert(fwrite(item->name, 1, name_length, cache->body) == name_length);
     assert(fwrite(&"\0", 1, 1, cache->body) == 1);
     assert(fwrite(&(item->runtime_ticks), sizeof(long long), 1, cache->body) == 1);
     assert(fwrite(&(item->playback_ticks), sizeof(long long), 1, cache->body) == 1);
+    assert(fwrite(&(item->children_count), sizeof(size_t), 1, cache->body) == 1);
+    for (i = 0; i < item->children_count; i++) {
+        jf_disk_add_next(cache, item->children[i]);
+    }
 }
 
 
@@ -74,15 +74,32 @@ static void jf_disk_add_item(jf_file_cache *cache, const jf_menu_item *item)
 }
 
 
+static void jf_disk_read_to_null_to_buffer(jf_file_cache *cache)
+{
+    char tmp;
+
+    jf_growing_buffer_empty(s_buffer);
+    while (true) {
+        assert(fread(&tmp, 1, 1, cache->body) == 1);
+        jf_growing_buffer_append(s_buffer, &tmp, 1);
+        if (tmp == '\0') break;
+    }
+}
+
+
 static jf_menu_item *jf_disk_get_next(jf_file_cache *cache)
 {
     jf_menu_item *item;
-    char tmp[1];
     size_t i;
 
     assert((item = malloc(sizeof(jf_menu_item))) != NULL);
 
     assert(fread(&(item->type), sizeof(jf_item_type), 1, cache->body) == 1);
+    assert(fread(item->id, 1, sizeof(item->id), cache->body) == sizeof(item->id));
+    jf_disk_read_to_null_to_buffer(cache);
+    item->name = strdup(s_buffer->buf);
+    assert(fread(&(item->runtime_ticks), sizeof(long long), 1, cache->body) == 1);
+    assert(fread(&(item->playback_ticks), sizeof(long long), 1, cache->body) == 1);
     assert(fread(&(item->children_count), sizeof(size_t), 1, cache->body) == 1);
     if (item->children_count > 0) {
         assert((item->children = malloc(item->children_count * sizeof(jf_menu_item *))) != NULL);
@@ -92,18 +109,6 @@ static jf_menu_item *jf_disk_get_next(jf_file_cache *cache)
     } else {
         item->children = NULL;
     }
-    assert(fread(item->id, 1, sizeof(item->id), cache->body) == sizeof(item->id));
-    jf_growing_buffer_empty(s_buffer);
-    while (true) {
-        assert(fread(tmp, 1, 1, cache->body) == 1);
-        jf_growing_buffer_append(s_buffer, tmp, 1);
-        if (*tmp == '\0') {
-            item->name = strdup(s_buffer->buf);
-            break;
-        }
-    }
-    assert(fread(&(item->runtime_ticks), sizeof(long long), 1, cache->body) == 1);
-    assert(fread(&(item->playback_ticks), sizeof(long long), 1, cache->body) == 1);
 
     return item;
 }
@@ -194,6 +199,25 @@ void jf_disk_payload_add_item(const jf_menu_item *item)
 jf_menu_item *jf_disk_payload_get_item(const size_t n)
 {
     return jf_disk_get_item(&s_payload, n);
+}
+
+
+const char *jf_disk_playlist_get_item_name(const size_t n)
+{
+
+    if (n == 0 || n > s_playlist.count) {
+        return "Warning: requesting item out of bounds. This is a bug.";
+    }
+
+    jf_disk_align_to(&s_playlist, n);
+    assert(fseek(s_playlist.body,
+                // let him who hath understanding reckon the number of the beast!
+                sizeof(jf_item_type) + sizeof(((jf_menu_item *)666)->id),
+                SEEK_CUR) == 0);
+
+    jf_disk_read_to_null_to_buffer(&s_playlist);
+
+    return (const char *)s_buffer->buf;
 }
 
 

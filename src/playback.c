@@ -29,19 +29,6 @@ static inline void jf_playback_populate_video_ticks(jf_menu_item *item);
 
 
 ////////// PROGRESS SYNC //////////
-// static void jf_post_session_progress(const char *id, int64_t playback_ticks)
-// {
-//     char *progress_post;
-// 
-//     progress_post = jf_json_generate_progress_post(id, playback_ticks);
-//     jf_net_request("/sessions/playing/progress",
-//             JF_REQUEST_ASYNC_DETACH,
-//             JF_HTTP_POST,
-//             progress_post);
-//     free(progress_post);
-// }
-// 
-// 
 static void jf_post_session_update(const char *id,
         int64_t playback_ticks,
         const char *update_url)
@@ -438,5 +425,32 @@ bool jf_playback_previous()
     } else {
         return false;
     }
+}
+
+
+void jf_playback_print_playlist(size_t slice_height)
+{
+    size_t i, low, high;
+    size_t pos = g_state.playlist_position;
+
+    if (slice_height == 0) {
+        slice_height = jf_disk_playlist_item_count();
+    }
+    
+    low = pos <= slice_height ? 1 : pos - slice_height;
+    high = jf_clamp_zu(g_state.playlist_position + slice_height,
+            pos,
+            jf_disk_playlist_item_count());
+
+
+    fprintf(stdout, "\n===== jftui playlist =====\n");
+    for (i = low; i < pos; i++) {
+        fprintf(stdout, "%zu: %s\n", i, jf_disk_playlist_get_item_name(i)); 
+    }
+    fprintf(stdout, "\t >>> %zu: %s <<<\n", i, g_state.now_playing->name);
+    for (i = pos + 1; i <= high; i++) {
+        fprintf(stdout, "%zu: %s\n", i, jf_disk_playlist_get_item_name(i));
+    }
+    fprintf(stdout, "\n");
 }
 ///////////////////////////////////////

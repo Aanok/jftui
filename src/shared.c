@@ -359,4 +359,23 @@ inline void jf_clear_stdin()
     while (getchar() != EOF) ;
     fcntl(0, F_SETFL, fcntl(0, F_GETFL)& ~O_NONBLOCK);
 }
+
+
+void jf_term_clear_bottom(FILE *stream)
+{
+    struct winsize ws;
+    size_t i;
+
+    if (stream == NULL) {
+        stream = stdout;
+    }
+
+    if (ioctl(fileno(stream), TIOCGWINSZ, &ws) < 0 || ws.ws_col == 0) return;
+
+    putc('\r', stream);
+    for (i = 0; i < ws.ws_col; i++) {
+        putc(' ', stream);
+    }
+    putc('\r', stream);
+}
 ///////////////////////////////////////////

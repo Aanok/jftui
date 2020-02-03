@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <assert.h>
 #include <fcntl.h>
+#include <sys/ioctl.h>
 
 #include <mpv/client.h>
 
@@ -315,5 +316,16 @@ void jf_mpv_clear(void);
 char *jf_make_timestamp(const long long ticks);
 size_t jf_clamp_zu(const size_t zu, const size_t min, const size_t max);
 void jf_clear_stdin(void);
+
+
+// Tries to replace the entire bottom line of the terminal buffer with empty
+// space, by priting a line of whitespace.
+//
+// Parameters:
+//  - stream: the actual stream that will be printer do.
+//      Can be NULL to default to stdout.
+//
+// CAN'T FAIL.
+void jf_term_clear_bottom(FILE *stream);
 ///////////////////////////////////////////
 #endif
