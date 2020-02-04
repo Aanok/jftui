@@ -108,6 +108,56 @@ void jf_playback_update_stopped(const int64_t playback_ticks)
 
 
 ////////// SUBTITLES //////////
+void jf_playback_load_external_subtitles()
+{
+    char subs_language[4];
+    size_t i, j;
+    jf_menu_item *child;
+    char *tmp;
+
+    // external subtitles
+    // note: they unfortunately require loadfile to already have been issued
+    subs_language[3] = '\0';
+    for (i = 0; i < g_state.now_playing->children_count; i++) {
+        for (j = 0; j < g_state.now_playing->children[i]->children_count; j++) {
+            child = g_state.now_playing->children[i]->children[j];
+            if (child->type != JF_ITEM_TYPE_VIDEO_SUB) {
+                fprintf(stderr,
+                        "Warning: unrecognized g_state.now_playing type (%s) for %s, part %zu, child %zu. This is a bug.\n",
+                        jf_item_type_get_name(child->type),
+                        g_state.now_playing->name,
+                        i,
+                        j);
+                continue;
+            }
+            tmp = jf_concat(2, g_options.server, child->name);
+            strncpy(subs_language, child->id, 3);
+            const char *command[] = { "sub-add",
+                tmp,
+                "auto",
+                child->id + 3,
+                subs_language,
+                NULL };
+            if (mpv_command(g_mpv_ctx, command) < 0) {
+                jf_reply *r = jf_net_request(child->name,
+                        JF_REQUEST_IN_MEMORY,
+                        JF_HTTP_GET,
+                        NULL);
+                fprintf(stderr,
+                        "Warning: external subtitle %s could not be loaded.\n",
+                        child->id[3] != '\0' ? child->id + 3 : child->name);
+                if (r->state == JF_REPLY_ERROR_HTTP_400) {
+                    fprintf(stderr, "Reason: %s.\n", r->payload);
+                }
+                jf_reply_free(r);
+            }
+            free(tmp);
+        }
+    }
+
+}
+
+
 void jf_playback_align_subtitle(const int64_t sid)
 {
     int64_t track_count, track_id, playback_ticks, sub_delay;
@@ -204,9 +254,7 @@ void jf_playback_align_subtitle(const int64_t sid)
 void jf_playback_play_video(const jf_menu_item *item)
 {
     jf_growing_buffer *filename;
-    char *tmp;
-    char subs_language[4];
-    size_t i, j;
+    size_t i;
     jf_menu_item *child;
 
     // merge video files
@@ -232,45 +280,8 @@ void jf_playback_play_video(const jf_menu_item *item)
     JF_MPV_ASSERT(mpv_command(g_mpv_ctx, loadfile));
     jf_growing_buffer_free(filename);
 
-    // external subtitles
-    // note: they unfortunately require loadfile to already have been issued
-    subs_language[3] = '\0';
-    for (i = 0; i < item->children_count; i++) {
-        for (j = 0; j < item->children[i]->children_count; j++) {
-            child = item->children[i]->children[j];
-            if (child->type != JF_ITEM_TYPE_VIDEO_SUB) {
-                fprintf(stderr,
-                        "Warning: unrecognized item type (%s) for %s, part %zu, child %zu. This is a bug.\n",
-                        jf_item_type_get_name(child->type),
-                        item->name,
-                        i,
-                        j);
-                continue;
-            }
-            tmp = jf_concat(2, g_options.server, child->name);
-            strncpy(subs_language, child->id, 3);
-            const char *command[] = { "sub-add",
-                tmp,
-                "auto",
-                child->id + 3,
-                subs_language,
-                NULL };
-            if (mpv_command(g_mpv_ctx, command) < 0) {
-                jf_reply *r = jf_net_request(child->name,
-                        JF_REQUEST_IN_MEMORY,
-                        JF_HTTP_GET,
-                        NULL);
-                fprintf(stderr,
-                        "Warning: external subtitle %s could not be loaded.\n",
-                        child->id[3] != '\0' ? child->id + 3 : child->name);
-                if (r->state == JF_REPLY_ERROR_HTTP_400) {
-                    fprintf(stderr, "Reason: %s.\n", r->payload);
-                }
-                jf_reply_free(r);
-            }
-            free(tmp);
-        }
-    }
+    // external subtitles will be loaded at MPV_EVENT_START_FILE
+    // after loadfile has been evaded
 }
 
 

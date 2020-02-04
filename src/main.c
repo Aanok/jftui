@@ -158,6 +158,9 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
                 }
             }
             break;
+        case MPV_EVENT_START_FILE:
+            jf_playback_load_external_subtitles();
+            break;
         case MPV_EVENT_END_FILE:
             // tell server file playback stopped so it won't keep accruing progress
             playback_ticks =

@@ -27,6 +27,7 @@ void jf_playback_update_progress(const int64_t playback_ticks);
 void jf_playback_update_stopped(const int64_t playback_ticks);
 
 
+void jf_playback_load_external_subtitles(void);
 void jf_playback_align_subtitle(const int64_t sid);
 
 
