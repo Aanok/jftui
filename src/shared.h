@@ -232,6 +232,13 @@ typedef enum jf_jftui_state {
 #define JF_STATE_IS_EXITING(_s) ((_s) < 0)
 
 
+typedef enum jf_loop_state {
+    JF_LOOP_STATE_IN_SYNC = 0,
+    JF_LOOP_STATE_RESYNCING = 1,
+    JF_LOOP_STATE_OUT_OF_SYNC = 2
+} jf_loop_state;
+
+
 typedef struct jf_global_state {
     char *config_dir;
     char *runtime_dir;
@@ -239,7 +246,12 @@ typedef struct jf_global_state {
     char *server_name;
     jf_jftui_state state;
     jf_menu_item *now_playing;
+    // 1-indexed
     size_t playlist_position;
+    // counter for playlist loops to do
+    // infinite loops are approximated by 2^64-1
+    size_t playlist_loops;
+    jf_loop_state loop_state;
 } jf_global_state;
 //////////////////////////////////////////////
 

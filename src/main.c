@@ -116,6 +116,10 @@ static mpv_handle *jf_mpv_context_new()
     free(x_emby_token);
     JF_MPV_ASSERT(mpv_observe_property(ctx, 0, "time-pos", MPV_FORMAT_INT64));
     JF_MPV_ASSERT(mpv_observe_property(ctx, 0, "sid", MPV_FORMAT_INT64));
+    JF_MPV_ASSERT(mpv_observe_property(ctx, 0, "options/loop-playlist", MPV_FORMAT_NODE));
+
+    g_state.playlist_loops = 0;
+    g_state.loop_state = JF_LOOP_STATE_IN_SYNC;
 
     JF_MPV_ASSERT(mpv_initialize(ctx));
 
@@ -126,6 +130,7 @@ static mpv_handle *jf_mpv_context_new()
 static inline void jf_mpv_event_dispatch(const mpv_event *event)
 {
     int64_t playback_ticks;
+    mpv_node *node;
     int mpv_flag_yes = 1, mpv_flag_no = 0;
 
 #ifdef JF_DEBUG
@@ -147,6 +152,9 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
                     jf_term_clear_bottom(NULL);
                     jf_playback_print_playlist(0);
                     JF_MPV_ASSERT(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+                } else if (strcmp(((mpv_event_client_message *)event->data)->args[0],
+                            "jftui-playlist-loop") == 0) {
+                    g_state.playlist_loops = g_state.playlist_loops ? false : true;
                 }
             }
             break;
@@ -189,6 +197,41 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
             } else if (strcmp("sid", ((mpv_event_property *)event->data)->name) == 0) {
                 // subtitle track change, go and see if we need to align for split-part
                 jf_playback_align_subtitle(*(int64_t *)((mpv_event_property *)event->data)->data);
+            } else if (strcmp("options/loop-playlist", ((mpv_event_property *)event->data)->name) == 0) {
+                if (g_state.loop_state == JF_LOOP_STATE_RESYNCING) {
+                    g_state.loop_state = JF_LOOP_STATE_IN_SYNC;
+                    break;
+                }
+                if (g_state.loop_state == JF_LOOP_STATE_OUT_OF_SYNC) {
+                    // we're digesting a decrement caused by an EOF
+                    // mid-jftui playlist
+                    JF_MPV_ASSERT(mpv_set_property(g_mpv_ctx,
+                            "options/loop-playlist",
+                            MPV_FORMAT_INT64,
+                            &g_state.playlist_loops));
+                    g_state.loop_state = JF_LOOP_STATE_RESYNCING;
+                    break;
+                }
+                // the loop counter is in sync, this means the property change
+                // is user-triggered and we should abide by it
+                node = (((mpv_event_property *)event->data)->data);
+                switch (node->format) {
+                    case MPV_FORMAT_FLAG:
+                        // "no"
+                        g_state.playlist_loops = 0;
+                        break;
+                    case MPV_FORMAT_INT64:
+                        // a (guaranteed positive) numeral
+                        g_state.playlist_loops = (size_t)node->u.int64;
+                        break;
+                    case MPV_FORMAT_STRING:
+                        // "yes", "inf" or "force", which we treat the same
+                        g_state.playlist_loops = (size_t)-1;
+                        break;
+                    default:
+                        ;
+                }
+                g_state.loop_state = JF_LOOP_STATE_IN_SYNC;
             }
             break;
         case MPV_EVENT_IDLE:

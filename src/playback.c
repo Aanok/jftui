@@ -21,7 +21,6 @@ static void jf_post_session_update(const char *id,
 //    jf_post_session_progress or jf_post_session_stopped.
 static void jf_post_session(const int64_t playback_ticks,
         const char *update_url);
-//         void (*update_function) (const char *, int64_t));
 
 
 static inline void jf_playback_populate_video_ticks(jf_menu_item *item);
@@ -408,23 +407,36 @@ static inline void jf_playback_populate_video_ticks(jf_menu_item *item)
 ////////// PLAYLIST CONTROLS //////////
 bool jf_playback_next()
 {
-    if (g_state.playlist_position < jf_disk_playlist_item_count()) {
-        jf_playback_play_item(jf_disk_playlist_get_item(++g_state.playlist_position));
-        return true;
+    if (g_state.playlist_position == jf_disk_playlist_item_count()) {
+        if (g_state.playlist_loops <= 1) return false;
+        g_state.playlist_position = 1;
+        g_state.playlist_loops--;
     } else {
-        return false;
+        if (g_state.playlist_loops > 1) {
+            g_state.loop_state = JF_LOOP_STATE_OUT_OF_SYNC;
+        }
+        g_state.playlist_position++;
     }
+
+    jf_playback_play_item(jf_disk_playlist_get_item(g_state.playlist_position));
+    return true;
 }
 
 
 bool jf_playback_previous()
 {
-    if (g_state.playlist_position > 1) {
-        jf_playback_play_item(jf_disk_playlist_get_item(--g_state.playlist_position));
-        return true;
+    if (g_state.playlist_position == 1) {
+        if (g_state.playlist_loops <= 1) return false;
+        g_state.playlist_position = jf_disk_playlist_item_count();
+        // don't decrement the playlist loop counter going backwards
+        // since that's how mpv does it
     } else {
-        return false;
+        // NB going backwards will not trigger options/playlist-loop decrement
+        g_state.playlist_position--;
     }
+
+    jf_playback_play_item(jf_disk_playlist_get_item(g_state.playlist_position));
+    return true;
 }
 
 
