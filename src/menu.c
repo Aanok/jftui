@@ -598,6 +598,7 @@ void jf_menu_ui()
                 case JF_CMD_VALIDATE_START:
                     // read input and do first pass (validation)
                     line = jf_menu_linenoise("> ");
+                    linenoiseHistoryAdd(line);
                     yy.input = line;
                     yyparse(&yy);
                     break;
@@ -610,7 +611,6 @@ void jf_menu_ui()
                     yyparse(&yy);
                     break;
                 case JF_CMD_SUCCESS:
-                    linenoiseHistoryAdd(line);
                     free(line);
                     yyrelease(&yy);
                     jf_menu_try_play();
@@ -649,7 +649,7 @@ void jf_menu_ui()
 void jf_menu_init()
 {
     // all linenoise setup
-    linenoiseHistorySetMaxLen(10);
+    linenoiseHistorySetMaxLen(16);
     
     // update server name
     s_root_menu->name = g_state.server_name;
