@@ -152,9 +152,6 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
                     jf_term_clear_bottom(NULL);
                     jf_playback_print_playlist(0);
                     JF_MPV_ASSERT(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
-                } else if (strcmp(((mpv_event_client_message *)event->data)->args[0],
-                            "jftui-playlist-loop") == 0) {
-                    g_state.playlist_loops = g_state.playlist_loops ? false : true;
                 }
             }
             break;
