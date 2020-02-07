@@ -1,20 +1,11 @@
 #ifndef _JF_MENU
 #define _JF_MENU
 
-#include <stdlib.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <errno.h>
-#include <mpv/client.h>
-
-#include "linenoise.h"
 
 #include "shared.h"
-#include "config.h"
-#include "net.h"
-#include "disk.h"
-#include "playback.h"
-        
+
+#include <stddef.h>
+
 
 ////////// JF_MENU_STACK //////////
 typedef struct jf_menu_stack {

@@ -1,3 +1,12 @@
+#include "shared.h"
+#include "net.h"
+#include "json.h"
+#include "config.h"
+#include "disk.h"
+#include "playback.h"
+#include "menu.h"
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -5,14 +14,8 @@
 #include <signal.h>
 #include <errno.h>
 #include <locale.h>
+#include <assert.h>
 #include <mpv/client.h>
-
-#include "shared.h"
-#include "net.h"
-#include "json.h"
-#include "config.h"
-#include "disk.h"
-#include "playback.h"
 
 
 ////////// GLOBAL VARIABLES //////////

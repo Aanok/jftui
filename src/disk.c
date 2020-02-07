@@ -1,4 +1,14 @@
 #include "disk.h"
+#include "shared.h"
+#include "menu.h"
+
+#include <stdlib.h> // malloc, getenv
+#include <stdio.h> // fwrite etc.
+#include <unistd.h> // unlink
+#include <sys/stat.h> //mkdir
+#include <string.h>
+#include <assert.h>
+
 
 ////////// GLOBALS //////////
 extern jf_global_state g_state;

@@ -1,12 +1,14 @@
 #ifndef _JF_PLAYBACK
 #define _JF_PLAYBACK
 
+
 #include "shared.h"
-#include "json.h"
-#include "net.h"
-#include <mpv/client.h>
-#include "menu.h"
-#include "config.h"
+
+
+#include <stddef.h>
+#include <stdint.h>
+#include <stdbool.h>
+
 
 // Update playback progress marker of the currently playing item on the server
 // (as of g_state.now_playing).

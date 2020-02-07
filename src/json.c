@@ -1,4 +1,18 @@
 #include "json.h"
+#include "config.h"
+#include "shared.h"
+#include "menu.h"
+#include "disk.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <pthread.h>
+#include <assert.h>
+#include <yajl/yajl_parse.h>
+#include <yajl/yajl_tree.h>
+#include <yajl/yajl_gen.h>
+
 
 ////////// GLOBALS //////////
 extern jf_options g_options;

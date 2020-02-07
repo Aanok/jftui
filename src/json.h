@@ -1,18 +1,11 @@
 #ifndef _JF_JSON
 #define _JF_JSON
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <string.h>
-#include <pthread.h>
-#include <yajl/yajl_parse.h>
-#include <yajl/yajl_tree.h>
-#include <yajl/yajl_gen.h>
 
 #include "shared.h"
-#include "config.h"
-#include "disk.h"
+
+#include <stddef.h>
+#include <stdbool.h>
 
 
 ////////// CODE MACROS //////////

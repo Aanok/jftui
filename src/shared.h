@@ -1,18 +1,13 @@
 #ifndef _JF_SHARED
 #define _JF_SHARED
 
-#include <pthread.h>
-#include <curl/curl.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-#include <pthread.h>
-#include <unistd.h>
-#include <assert.h>
-#include <fcntl.h>
-#include <sys/ioctl.h>
 
+#include <stddef.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include <pthread.h>
+
+#include <curl/curl.h>
 #include <mpv/client.h>
 
 
@@ -167,8 +162,11 @@ typedef struct jf_menu_item {
 // Returns:
 //  A pointer to the newly allocated struct.
 // CAN FATAL.
-jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children,
-        const char *id, const char *name, const long long runtime_ticks,
+jf_menu_item *jf_menu_item_new(jf_item_type type,
+        jf_menu_item **children,
+        const char *id,
+        const char *name,
+        const long long runtime_ticks,
         const long long playback_ticks);
 
 // Deallocates a jf_menu_item and all its descendants recursively, unless they are marked as persistent (as per JF_ITEM_TYPE_IS_PERSISTENT).

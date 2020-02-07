@@ -1,4 +1,16 @@
 #include "menu.h"
+#include "shared.h"
+#include "config.h"
+#include "net.h"
+#include "disk.h"
+#include "playback.h"
+#include "linenoise.h"
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+#include <assert.h>
+
 
 ////////// COMMAND PARSER //////////
 #include "cmd.c"

@@ -1,16 +1,10 @@
 #ifndef _JF_DISK
 #define _JF_DISK
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <errno.h>
-#include <assert.h>
-#include <signal.h>
+
+#include <stddef.h>
 
 #include "shared.h"
-#include "menu.h"
 
 
 ////////// CONSTANTS //////////

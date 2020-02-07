@@ -1,6 +1,8 @@
 #include "config.h"
 #include "shared.h"
 #include "net.h"
+#include "menu.h"
+#include "json.h"
 
 #include <errno.h>
 #include <sys/stat.h>

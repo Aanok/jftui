@@ -1,15 +1,9 @@
 #ifndef _JF_NET
 #define _JF_NET
 
-#include <curl/curl.h>
-#include <string.h>
-#include <stdlib.h>
-#include <pthread.h>
 
-#include "shared.h"
-#include "json.h"
-#include "menu.h"
-#include "config.h"
+#include <stddef.h>
+#include <stdbool.h>
 
 
 ////////// CODE MACROS //////////

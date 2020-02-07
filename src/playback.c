@@ -1,5 +1,14 @@
 #include "playback.h"
+#include "disk.h"
+#include "config.h"
+#include "json.h"
+#include "net.h"
+#include "menu.h"
 
+
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
 
 ////////// GLOBAL VARIABLES //////////
 extern jf_global_state g_state;
