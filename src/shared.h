@@ -44,6 +44,16 @@ do {                                \
     printf(__VA_ARGS__);            \
 } while (false)
 #endif
+
+
+// workaround for mpv bug #3988
+#if MPV_CLIENT_API_VERSION <= MPV_MAKE_VERSION(1,24)
+#define JF_MPV_SET_OPTPROP mpv_set_option
+#define JF_MPV_SET_OPTPROP_STRING mpv_set_option_string
+#else
+#define JF_MPV_SET_OPTPROP mpv_set_property
+#define JF_MPV_SET_OPTPROP_STRING mpv_set_property_string
+#endif
 /////////////////////////////////
 
 
@@ -324,7 +334,8 @@ void jf_print_zu(size_t n);
 char *jf_generate_random_id(size_t length);
 
 
-void jf_mpv_clear(void);
+mpv_handle *jf_mpv_context_new(void);
+void jf_end_playback(void);
 char *jf_make_timestamp(const long long ticks);
 size_t jf_clamp_zu(const size_t zu, const size_t min, const size_t max);
 void jf_clear_stdin(void);

@@ -1,5 +1,15 @@
 #include "config.h"
+#include "shared.h"
+#include "net.h"
 
+#include <errno.h>
+#include <sys/stat.h>
+#include <termios.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <assert.h>
 
 ////////// GLOBALS //////////
 extern jf_options g_options;

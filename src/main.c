@@ -15,16 +15,6 @@
 #include "playback.h"
 
 
-// workaround for mpv bug #3988
-#if MPV_CLIENT_API_VERSION <= MPV_MAKE_VERSION(1,24)
-#define JF_MPV_SET_OPTPROP mpv_set_option
-#define JF_MPV_SET_OPTPROP_STRING mpv_set_option_string
-#else
-#define JF_MPV_SET_OPTPROP mpv_set_property
-#define JF_MPV_SET_OPTPROP_STRING mpv_set_property_string
-#endif
-
-
 ////////// GLOBAL VARIABLES //////////
 jf_options g_options;
 jf_global_state g_state;
@@ -36,9 +26,7 @@ mpv_handle *g_mpv_ctx = NULL;
 static inline void jf_mpv_version_check(void);
 static void jf_print_usage(void);
 static inline void jf_missing_arg(const char *arg);
-static mpv_handle *jf_mpv_context_new(void);
 static inline void jf_mpv_event_dispatch(const mpv_event *event);
-
 //////////////////////////////////////
 
 
@@ -97,34 +85,6 @@ static inline void jf_missing_arg(const char *arg)
 
 
 ////////// MISCELLANEOUS GARBAGE //////////
-static mpv_handle *jf_mpv_context_new()
-{
-    mpv_handle *ctx;
-    int mpv_flag_yes = 1;
-    char *x_emby_token;
-
-    assert((ctx = mpv_create()) != NULL);
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "config-dir", MPV_FORMAT_STRING, &g_state.config_dir));
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "config", MPV_FORMAT_FLAG, &mpv_flag_yes));
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "osc", MPV_FORMAT_FLAG, &mpv_flag_yes));
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "input-default-bindings", MPV_FORMAT_FLAG, &mpv_flag_yes));
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &mpv_flag_yes));
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "input-terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
-    assert((x_emby_token = jf_concat(2, "x-emby-token: ", g_options.token)) != NULL);
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP_STRING(ctx, "http-header-fields", x_emby_token));
-    free(x_emby_token);
-    JF_MPV_ASSERT(mpv_observe_property(ctx, 0, "time-pos", MPV_FORMAT_INT64));
-    JF_MPV_ASSERT(mpv_observe_property(ctx, 0, "sid", MPV_FORMAT_INT64));
-    JF_MPV_ASSERT(mpv_observe_property(ctx, 0, "options/loop-playlist", MPV_FORMAT_NODE));
-
-    g_state.playlist_loops = 0;
-    g_state.loop_state = JF_LOOP_STATE_IN_SYNC;
-
-    JF_MPV_ASSERT(mpv_initialize(ctx));
-
-    return ctx;
-}
 
 
 static inline void jf_mpv_event_dispatch(const mpv_event *event)
@@ -134,7 +94,7 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
     int mpv_flag_yes = 1, mpv_flag_no = 0;
 
 #ifdef JF_DEBUG
-//  printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
+//     printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
 #endif
     switch (event->event_id) {
         case MPV_EVENT_CLIENT_MESSAGE:
@@ -169,9 +129,7 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
                 if (jf_playback_next()) {
                     g_state.state = JF_STATE_PLAYBACK_NAVIGATING;
                 } else {
-                    // otherwise, kill playback core to reset all values
-                    mpv_terminate_destroy(g_mpv_ctx);
-                    g_mpv_ctx = jf_mpv_context_new();
+                    jf_end_playback();
                 }
             }
             break;
@@ -253,10 +211,11 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
         case MPV_EVENT_SHUTDOWN:
             // tell jellyfin playback stopped
             // NB we can't call mpv_get_property because mpv core has aborted!
-            jf_playback_update_stopped(g_state.now_playing->playback_ticks);
+            if (g_state.now_playing != NULL) {
+                jf_playback_update_stopped(g_state.now_playing->playback_ticks);
+            }
             // clean core abort and init a new one
-            mpv_terminate_destroy(g_mpv_ctx);
-            g_mpv_ctx = jf_mpv_context_new();
+            jf_end_playback();
             break;
         default:
             // no-op on everything else

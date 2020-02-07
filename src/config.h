@@ -1,16 +1,8 @@
 #ifndef _JF_CONFIG
 #define _JF_CONFIG
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-#include <termios.h>
-#include <unistd.h>
-#include <assert.h>
-
-#include "shared.h"
-#include "net.h"
+#include <stddef.h>
+#include <stdbool.h>
 
 
 ////////// CODE MACROS //////////

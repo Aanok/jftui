@@ -10,20 +10,27 @@ extern mpv_handle *g_mpv_ctx;
 
 ////////// STATIC FUNCTIONS ///////////////
 // playback_ticks refers to segment referred by id
-// static void jf_post_session_progress(const char *id, int64_t playback_ticks);
-// static void jf_post_session_stopped(const char *id, int64_t playback_ticks);
 static void jf_post_session_update(const char *id,
         int64_t playback_ticks,
         const char *update_url);
 
 
-//  - update_function: callback for session update networking. Should be either
-//    jf_post_session_progress or jf_post_session_stopped.
 static void jf_post_session(const int64_t playback_ticks,
         const char *update_url);
 
 
-static inline void jf_playback_populate_video_ticks(jf_menu_item *item);
+// Requests PlaybackPositionTicks for item's additionalparts (if any) and
+// populates the field for item's children. item's own playback_ticks is set to
+// 0.
+//
+// Parameters:
+//  - item: the item to check (will be modified in place).
+//
+// Returns:
+//  - true: on success;
+//  - false: on failure, in which case playback_ticks may have been populated
+//      for some of the children before encountering the failure.
+static inline bool jf_playback_populate_video_ticks(jf_menu_item *item);
 ///////////////////////////////////////////
 
 
@@ -303,6 +310,7 @@ void jf_playback_play_item(jf_menu_item *item)
         case JF_ITEM_TYPE_AUDIO:
         case JF_ITEM_TYPE_AUDIOBOOK:
             if ((request_url = jf_menu_item_get_request_url(item)) == NULL) {
+                jf_end_playback();
                 return;
             }
             jf_menu_ask_resume(item);
@@ -339,6 +347,7 @@ void jf_playback_play_item(jf_menu_item *item)
                             jf_reply_error_string(replies[1]));
                     jf_reply_free(replies[1]);
                     jf_reply_free(jf_net_await(replies[0]));
+                    jf_end_playback();
                     return;
                 }
                 if (JF_REPLY_PTR_HAS_ERROR(jf_net_await(replies[0]))) {
@@ -348,12 +357,16 @@ void jf_playback_play_item(jf_menu_item *item)
                             jf_reply_error_string(replies[0]));
                     jf_reply_free(replies[0]);
                     jf_reply_free(replies[1]);
+                    jf_end_playback();
                     return;
                 }
                 jf_json_parse_video(item, replies[0]->payload, replies[1]->payload);
                 jf_reply_free(replies[0]);
                 jf_reply_free(replies[1]);
-                jf_playback_populate_video_ticks(item);
+                if (jf_playback_populate_video_ticks(item) == false) {
+                    jf_end_playback();
+                    return;
+                }
                 jf_menu_ask_resume(item);
                 jf_playback_play_video(item);
                 jf_disk_playlist_replace_item(g_state.playlist_position, item);
@@ -370,15 +383,15 @@ void jf_playback_play_item(jf_menu_item *item)
 }
 
 
-static inline void jf_playback_populate_video_ticks(jf_menu_item *item)
+static inline bool jf_playback_populate_video_ticks(jf_menu_item *item)
 {
     jf_reply **replies;
     char *tmp;
     size_t i;
 
-    if (item == NULL) return;
+    if (item == NULL) return true;
     if (item->type != JF_ITEM_TYPE_EPISODE
-            && item->type != JF_ITEM_TYPE_MOVIE) return;
+            && item->type != JF_ITEM_TYPE_MOVIE) return true;
 
     // the Emby interface was designed by a drunk gibbon. to check for
     // a progress marker, we have to request the items corresponding to
@@ -407,10 +420,26 @@ static inline void jf_playback_populate_video_ticks(jf_menu_item *item)
     }
     for (i = 1; i < item->children_count; i++) {
         jf_net_await(replies[i - 1]);
+        if (JF_REPLY_PTR_HAS_ERROR(replies[i - 1])) {
+            fprintf(stderr,
+                    "Error: could not fetch resume information for part %zu of item %s: %s.\n",
+                    i + 1,
+                    item->name,
+                    jf_reply_error_string(replies[i - 1]));
+            for (i = 1; i < item->children_count; i++) {
+                if (replies[i - 1] != NULL) {
+                    jf_net_await(replies[i - 1]);
+                    jf_reply_free(replies[i - 1]);
+                }
+            }
+            free(replies);
+            return false;
+        }
         jf_json_parse_playback_ticks(item->children[i], replies[i - 1]->payload);
         jf_reply_free(replies[i - 1]);
     }
     free(replies);
+    return true;
 }
 ///////////////////////////////////
 
