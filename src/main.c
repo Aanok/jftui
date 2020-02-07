@@ -168,6 +168,10 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
             if (((mpv_event_end_file *)event->data)->reason == MPV_END_FILE_REASON_EOF) {
                 if (jf_playback_next()) {
                     g_state.state = JF_STATE_PLAYBACK_NAVIGATING;
+                } else {
+                    // otherwise, kill playback core to reset all values
+                    mpv_terminate_destroy(g_mpv_ctx);
+                    g_mpv_ctx = jf_mpv_context_new();
                 }
             }
             break;
@@ -250,9 +254,7 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
             // tell jellyfin playback stopped
             // NB we can't call mpv_get_property because mpv core has aborted!
             jf_playback_update_stopped(g_state.now_playing->playback_ticks);
-            // it is unfortunate, but the cleanest way to handle this case
-            // (which is when mpv receives a "quit" command)
-            // is to comply and create a new context
+            // clean core abort and init a new one
             mpv_terminate_destroy(g_mpv_ctx);
             g_mpv_ctx = jf_mpv_context_new();
             break;
