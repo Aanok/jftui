@@ -16,6 +16,7 @@
 #include <locale.h>
 #include <assert.h>
 #include <mpv/client.h>
+#include <yajl/yajl_version.h>
 
 
 ////////// GLOBAL VARIABLES //////////
@@ -56,13 +57,15 @@ static inline void jf_mpv_version_check(void)
 {
     unsigned long mpv_version = mpv_client_api_version();
     if (mpv_version < MPV_MAKE_VERSION(1,24)) {
-        fprintf(stderr, "FATAL: found libmpv version %lu.%lu, but 1.24 or greater is required.\n",
+        fprintf(stderr,
+                "FATAL: found libmpv version %lu.%lu, but 1.24 or greater is required.\n",
                 mpv_version >> 16, mpv_version & 0xFFFF);
         jf_exit(JF_EXIT_FAILURE);
     }
     // future proofing
     if (mpv_version >= MPV_MAKE_VERSION(2,0)) {
-        fprintf(stderr, "Warning: found libmpv version %lu.%lu, but jftui expects 1.xx. mpv will probably not work.\n",
+        fprintf(stderr,
+                "Warning: found libmpv version %lu.%lu, but jftui expects 1.xx. mpv will probably not work.\n",
                 mpv_version >> 16, mpv_version & 0xFFFF);
     }
 }
@@ -293,7 +296,13 @@ int main(int argc, char *argv[])
         } else if (strcmp(argv[i], "--no-check-updates") == 0) {
             g_options.check_updates = false;
         } else if (strcmp(argv[i], "--version") == 0) {
-            printf("%s\n", g_options.version);
+            printf("jftui %s, libmpv %lu.%lu, libcurl %s %s, yajl %d\n",
+                    g_options.version,
+                    mpv_client_api_version() >> 16,
+                    mpv_client_api_version() & 0xFFFF,
+                    curl_version_info(CURLVERSION_NOW)->version,
+                    curl_version_info(CURLVERSION_NOW)->ssl_version,
+                    yajl_version());
             jf_exit(JF_EXIT_SUCCESS);
         } else {
             fprintf(stderr, "FATAL: unrecognized argument %s.\n", argv[i]);
