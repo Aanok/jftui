@@ -25,6 +25,7 @@ do {                                                                        \
         fprintf(stderr, "%s:%d: " #_s " failed.\n", __FILE__, __LINE__);    \
         fprintf(stderr, "FATAL: libcurl error: %s.\n",                      \
                 curl_share_strerror(_c));                                   \
+        pthread_mutex_unlock(&s_mut);                                       \
         jf_exit(JF_EXIT_FAILURE);                                           \
     }                                                                       \
 } while (false)
