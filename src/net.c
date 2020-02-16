@@ -310,8 +310,10 @@ static void jf_net_init()
     assert(pthread_rwlock_init(&s_share_connect_rw, NULL) == 0);
     JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_CONNECT));
 #if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 61
-    assert(pthread_rwlock_init(&s_share_psl_rw, NULL) == 0);
-    JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_PSL));
+    if (curl_version_info(CURLVERSION_NOW)->features & CURL_VERSION_PSL) {
+        assert(pthread_rwlock_init(&s_share_psl_rw, NULL) == 0);
+        JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_PSL));
+    }
 #endif
     JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_LOCKFUNC, jf_net_share_lock)); 
     JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_UNLOCKFUNC, jf_net_share_unlock));
@@ -680,7 +682,10 @@ jf_net_get_lock_for_data(curl_lock_data data)
             return &s_share_connect_rw;
 #if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 61
         case CURL_LOCK_DATA_PSL:
-            return &s_share_psl_rw;
+            if (curl_version_info(CURLVERSION_NOW)->features & CURL_VERSION_PSL) {
+                return &s_share_psl_rw;
+            }
+            // else, proceed to default case
 #endif
         default:
             // no-op, other types are for curl internals
