@@ -682,10 +682,7 @@ jf_net_get_lock_for_data(curl_lock_data data)
             return &s_share_connect_rw;
 #if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 61
         case CURL_LOCK_DATA_PSL:
-            if (curl_version_info(CURLVERSION_NOW)->features & CURL_VERSION_PSL) {
-                return &s_share_psl_rw;
-            }
-            // else, proceed to default case
+            return &s_share_psl_rw;
 #endif
         default:
             // no-op, other types are for curl internals
