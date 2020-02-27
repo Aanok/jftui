@@ -33,9 +33,11 @@ void jf_playback_load_external_subtitles(void);
 void jf_playback_align_subtitle(const int64_t sid);
 
 
+void jf_playback_play_item(jf_menu_item *item);
+void jf_playback_play_video(const jf_menu_item *item);
 bool jf_playback_next(void);
 bool jf_playback_previous(void);
-
+void jf_playback_end(void);
 
 // Will print part or the entirety of the current jftui playback playlist to
 // stdout.
@@ -45,8 +47,4 @@ bool jf_playback_previous(void);
 //
 // CAN'T FAIL.
 void jf_playback_print_playlist(size_t slice_height);
-
-
-void jf_playback_play_item(jf_menu_item *item);
-void jf_playback_play_video(const jf_menu_item *item);
 #endif

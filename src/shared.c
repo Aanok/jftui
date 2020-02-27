@@ -341,48 +341,6 @@ char *jf_generate_random_id(size_t len)
 }
 
 
-mpv_handle *jf_mpv_context_new()
-{
-    mpv_handle *ctx;
-    int mpv_flag_yes = 1;
-    char *x_emby_token;
-
-    assert((ctx = mpv_create()) != NULL);
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "config-dir", MPV_FORMAT_STRING, &g_state.config_dir));
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "config", MPV_FORMAT_FLAG, &mpv_flag_yes));
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "osc", MPV_FORMAT_FLAG, &mpv_flag_yes));
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "input-default-bindings", MPV_FORMAT_FLAG, &mpv_flag_yes));
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &mpv_flag_yes));
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "input-terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
-    assert((x_emby_token = jf_concat(2, "x-emby-token: ", g_options.token)) != NULL);
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP_STRING(ctx, "http-header-fields", x_emby_token));
-    free(x_emby_token);
-    JF_MPV_ASSERT(mpv_observe_property(ctx, 0, "time-pos", MPV_FORMAT_INT64));
-    JF_MPV_ASSERT(mpv_observe_property(ctx, 0, "sid", MPV_FORMAT_INT64));
-    JF_MPV_ASSERT(mpv_observe_property(ctx, 0, "options/loop-playlist", MPV_FORMAT_NODE));
-
-    g_state.playlist_loops = 0;
-    g_state.loop_state = JF_LOOP_STATE_IN_SYNC;
-
-    JF_MPV_ASSERT(mpv_initialize(ctx));
-
-    return ctx;
-}
-
-
-void jf_end_playback()
-{
-    // otherwise, kill playback core to reset all values
-    mpv_terminate_destroy(g_mpv_ctx);
-    g_mpv_ctx = jf_mpv_context_new();
-    // and enforce a clean state for the application
-    jf_menu_item_free(g_state.now_playing);
-    g_state.now_playing = NULL;
-    g_state.playlist_position = 0;
-}
-
-
 char *jf_make_timestamp(const long long ticks)
 {
     char *str;

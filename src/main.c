@@ -100,7 +100,7 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
     int mpv_flag_yes = 1, mpv_flag_no = 0;
 
 #ifdef JF_DEBUG
-//     printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
+    printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
 #endif
     switch (event->event_id) {
         case MPV_EVENT_CLIENT_MESSAGE:
@@ -130,13 +130,10 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
                 mpv_get_property(g_mpv_ctx, "time-pos", MPV_FORMAT_INT64, &playback_ticks) == 0 ?
                 JF_SECS_TO_TICKS(playback_ticks) : g_state.now_playing->playback_ticks;
             jf_playback_update_stopped(playback_ticks);
+            fprintf(stderr, "reason: %d\n", ((mpv_event_end_file *)event->data)->reason);
             // move to next item in playlist, if any
             if (((mpv_event_end_file *)event->data)->reason == MPV_END_FILE_REASON_EOF) {
-                if (jf_playback_next()) {
-                    g_state.state = JF_STATE_PLAYBACK_NAVIGATING;
-                } else {
-                    jf_end_playback();
-                }
+                jf_playback_next();
             }
             break;
         case MPV_EVENT_SEEK:
@@ -202,26 +199,15 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
                 g_state.loop_state = JF_LOOP_STATE_IN_SYNC;
             }
             break;
-        case MPV_EVENT_IDLE:
-            if (g_state.state == JF_STATE_PLAYBACK_NAVIGATING) {
-                // digest idle event while we move to the next track
-                g_state.state = JF_STATE_PLAYBACK;
-            } else {
-                // go into UI mode
-                g_state.state = JF_STATE_MENU_UI;
-                JF_MPV_ASSERT(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_no));
-                while (g_state.state == JF_STATE_MENU_UI) jf_menu_ui();
-                JF_MPV_ASSERT(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
-            }
-            break;
         case MPV_EVENT_SHUTDOWN:
             // tell jellyfin playback stopped
             // NB we can't call mpv_get_property because mpv core has aborted!
             if (g_state.now_playing != NULL) {
                 jf_playback_update_stopped(g_state.now_playing->playback_ticks);
             }
-            // clean core abort and init a new one
-            jf_end_playback();
+            // no break
+        case MPV_EVENT_IDLE:
+            jf_playback_end();
             break;
         default:
             // no-op on everything else
@@ -423,7 +409,6 @@ int main(int argc, char *argv[])
     if (setlocale(LC_NUMERIC, "C") == NULL) {
         fprintf(stderr, "Warning: could not set numeric locale to sane standard. mpv might refuse to work.\n");
     }
-    g_mpv_ctx = jf_mpv_context_new();
     ////////////
 
 
@@ -445,14 +430,24 @@ int main(int argc, char *argv[])
     ////////// MAIN LOOP //////////
     while (true) {
         switch (g_state.state) {
+            case JF_STATE_STARTING:
+            case JF_STATE_STARTING_FULL_CONFIG:
+            case JF_STATE_STARTING_LOGIN:
+                g_state.state = JF_STATE_MENU_UI;
+                // no reason to break
+            case JF_STATE_MENU_UI:
+                jf_menu_ui();
+                break;
+            case JF_STATE_PLAYBACK_START_MARK:
+            case JF_STATE_PLAYBACK:
+                jf_mpv_event_dispatch(mpv_wait_event(g_mpv_ctx, -1));
+                break;
             case JF_STATE_USER_QUIT:
                 jf_exit(JF_EXIT_SUCCESS);
                 break;
             case JF_STATE_FAIL:
                 jf_exit(JF_EXIT_FAILURE);
                 break;
-            default:
-                jf_mpv_event_dispatch(mpv_wait_event(g_mpv_ctx, -1));
         }
     }
     ///////////////////////////////

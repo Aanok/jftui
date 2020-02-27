@@ -230,8 +230,7 @@ typedef enum jf_jftui_state {
     JF_STATE_STARTING_LOGIN = 2,
     JF_STATE_MENU_UI = 3,
     JF_STATE_PLAYBACK = 4,
-    JF_STATE_PLAYBACK_NAVIGATING = 5,
-    JF_STATE_PLAYBACK_START_MARK = 6,
+    JF_STATE_PLAYBACK_START_MARK = 5,
 
     JF_STATE_USER_QUIT = -1,
     JF_STATE_FAIL = -2
@@ -332,8 +331,6 @@ void jf_print_zu(size_t n);
 char *jf_generate_random_id(size_t length);
 
 
-mpv_handle *jf_mpv_context_new(void);
-void jf_end_playback(void);
 char *jf_make_timestamp(const long long ticks);
 size_t jf_clamp_zu(const size_t zu, const size_t min, const size_t max);
 void jf_clear_stdin(void);

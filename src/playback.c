@@ -319,7 +319,7 @@ void jf_playback_play_item(jf_menu_item *item)
         case JF_ITEM_TYPE_AUDIO:
         case JF_ITEM_TYPE_AUDIOBOOK:
             if ((request_url = jf_menu_item_get_request_url(item)) == NULL) {
-                jf_end_playback();
+                jf_playback_end();
                 return;
             }
             jf_menu_ask_resume(item);
@@ -356,7 +356,7 @@ void jf_playback_play_item(jf_menu_item *item)
                             jf_reply_error_string(replies[1]));
                     jf_reply_free(replies[1]);
                     jf_reply_free(jf_net_await(replies[0]));
-                    jf_end_playback();
+                    jf_playback_end();
                     return;
                 }
                 if (JF_REPLY_PTR_HAS_ERROR(jf_net_await(replies[0]))) {
@@ -366,14 +366,14 @@ void jf_playback_play_item(jf_menu_item *item)
                             jf_reply_error_string(replies[0]));
                     jf_reply_free(replies[0]);
                     jf_reply_free(replies[1]);
-                    jf_end_playback();
+                    jf_playback_end();
                     return;
                 }
                 jf_json_parse_video(item, replies[0]->payload, replies[1]->payload);
                 jf_reply_free(replies[0]);
                 jf_reply_free(replies[1]);
                 if (jf_playback_populate_video_ticks(item) == false) {
-                    jf_end_playback();
+                    jf_playback_end();
                     return;
                 }
                 jf_menu_ask_resume(item);
@@ -486,6 +486,20 @@ bool jf_playback_previous()
 
     jf_playback_play_item(jf_disk_playlist_get_item(g_state.playlist_position));
     return true;
+}
+
+
+void jf_playback_end()
+{
+    // kill playback core
+    mpv_terminate_destroy(g_mpv_ctx);
+    g_mpv_ctx = NULL;
+    // enforce a clean state for the application
+    jf_menu_item_free(g_state.now_playing);
+    g_state.now_playing = NULL;
+    g_state.playlist_position = 0;
+    // signal to enter UI mode
+    g_state.state = JF_STATE_MENU_UI;
 }
 
 
