@@ -100,7 +100,7 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
     int mpv_flag_yes = 1, mpv_flag_no = 0;
 
 #ifdef JF_DEBUG
-//     printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
+    printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
 #endif
     switch (event->event_id) {
         case MPV_EVENT_CLIENT_MESSAGE:
@@ -187,11 +187,11 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
                         break;
                     case MPV_FORMAT_INT64:
                         // a (guaranteed positive) numeral
-                        g_state.playlist_loops = (size_t)node->u.int64;
+                        g_state.playlist_loops = node->u.int64;
                         break;
                     case MPV_FORMAT_STRING:
                         // "yes", "inf" or "force", which we treat the same
-                        g_state.playlist_loops = (size_t)-1;
+                        g_state.playlist_loops = -1;
                         break;
                     default:
                         ;

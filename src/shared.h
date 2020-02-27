@@ -257,8 +257,8 @@ typedef struct jf_global_state {
     // 1-indexed
     size_t playlist_position;
     // counter for playlist loops to do
-    // infinite loops are approximated by 2^64-1
-    size_t playlist_loops;
+    // -1 for infinite loops
+    int64_t playlist_loops;
     jf_loop_state loop_state;
 } jf_global_state;
 //////////////////////////////////////////////

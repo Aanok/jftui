@@ -457,7 +457,7 @@ static inline bool jf_playback_populate_video_ticks(jf_menu_item *item)
 bool jf_playback_next()
 {
     if (g_state.playlist_position == jf_disk_playlist_item_count()) {
-        if (g_state.playlist_loops <= 1) return false;
+        if (g_state.playlist_loops == 1 || g_state.playlist_loops == 0) return false;
         g_state.playlist_position = 1;
         g_state.playlist_loops--;
     } else {
@@ -475,7 +475,7 @@ bool jf_playback_next()
 bool jf_playback_previous()
 {
     if (g_state.playlist_position == 1) {
-        if (g_state.playlist_loops <= 1) return false;
+        if (g_state.playlist_loops == 1 || g_state.playlist_loops == 0) return false;
         g_state.playlist_position = jf_disk_playlist_item_count();
         // don't decrement the playlist loop counter going backwards
         // since that's how mpv does it
