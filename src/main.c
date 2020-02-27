@@ -426,6 +426,11 @@ int main(int argc, char *argv[])
     // resolve update check
     if (g_options.check_updates) {
         jf_net_await(reply_alt);
+        // FIXME: if this really was the bug we gotta fix this better by
+        // improving parsing in the curl callback...
+        if (reply_alt->payload == NULL && ! JF_REPLY_PTR_HAS_ERROR(reply_alt)) {
+            reply_alt->state = JF_REPLY_ERROR_BAD_LOCATION;
+        }
         if (JF_REPLY_PTR_HAS_ERROR(reply_alt)) {
             fprintf(stderr, "Warning: could not fetch latest version info: %s.\n",
                     jf_reply_error_string(reply_alt));
