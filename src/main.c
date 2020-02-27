@@ -123,6 +123,12 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
             break;
         case MPV_EVENT_START_FILE:
             jf_playback_load_external_subtitles();
+            // if we're issuing playlist_next/prev very quickly, mpv will not
+            // go into idle mode at all
+            // in those cases, we digest the NAVIGATING state here
+            if (g_state.state == JF_STATE_PLAYBACK_NAVIGATING) {
+                g_state.state = JF_STATE_PLAYBACK;
+            }
             break;
         case MPV_EVENT_END_FILE:
             // tell server file playback stopped so it won't keep accruing progress
