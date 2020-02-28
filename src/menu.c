@@ -448,7 +448,6 @@ static void jf_menu_try_play()
     JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(g_mpv_ctx, "input-default-bindings", MPV_FORMAT_FLAG, &mpv_flag_yes));
     JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(g_mpv_ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &mpv_flag_yes));
     JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(g_mpv_ctx, "input-terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
     assert((x_emby_token = jf_concat(2, "x-emby-token: ", g_options.token)) != NULL);
     JF_MPV_ASSERT(JF_MPV_SET_OPTPROP_STRING(g_mpv_ctx, "http-header-fields", x_emby_token));
     free(x_emby_token);
@@ -465,10 +464,12 @@ static void jf_menu_try_play()
     g_state.playlist_loops = 0;
     g_state.loop_state = JF_LOOP_STATE_IN_SYNC;
 
-    // actually try and play
+    // actually play
     item = jf_disk_playlist_get_item(1);
     g_state.playlist_position = 1;
     jf_playback_play_item(item);
+
+    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
 
 #ifdef JF_DEBUG
     jf_menu_item_print(item);

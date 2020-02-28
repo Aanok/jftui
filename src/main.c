@@ -206,6 +206,7 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
             }
             break;
         case MPV_EVENT_IDLE:
+            if (g_state.state == JF_STATE_PLAYBACK_START_MARK) break;
             if (g_state.state == JF_STATE_PLAYBACK_NAVIGATING) {
                 g_state.state = JF_STATE_PLAYBACK;
             } else {
