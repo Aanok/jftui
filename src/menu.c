@@ -458,7 +458,7 @@ static void jf_menu_try_play()
     JF_MPV_ASSERT(mpv_initialize(g_mpv_ctx));
 
     // set global application state
-    g_state.state = JF_STATE_PLAYBACK;
+    g_state.state = JF_STATE_PLAYBACK_INIT;
 
     // reset playlist
     g_state.playlist_loops = 0;

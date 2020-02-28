@@ -125,8 +125,8 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
             jf_playback_load_external_subtitles();
             // if we're issuing playlist_next/prev very quickly, mpv will not
             // go into idle mode at all
-            // in those cases, we digest the NAVIGATING state here
-            if (g_state.state == JF_STATE_PLAYBACK_NAVIGATING) {
+            // in those cases, we digest the INIT state here
+            if (g_state.state == JF_STATE_PLAYBACK_INIT) {
                 g_state.state = JF_STATE_PLAYBACK;
             }
             break;
@@ -139,7 +139,7 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
             // move to next item in playlist, if any
             if (((mpv_event_end_file *)event->data)->reason == MPV_END_FILE_REASON_EOF
                     && jf_playback_next()) {
-                g_state.state = JF_STATE_PLAYBACK_NAVIGATING;
+                g_state.state = JF_STATE_PLAYBACK_INIT;
             }
             break;
         case MPV_EVENT_SEEK:
@@ -206,11 +206,22 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
             }
             break;
         case MPV_EVENT_IDLE:
-            if (g_state.state == JF_STATE_PLAYBACK_START_MARK) break;
-            if (g_state.state == JF_STATE_PLAYBACK_NAVIGATING) {
-                g_state.state = JF_STATE_PLAYBACK;
-            } else {
-                jf_playback_end();
+            switch (g_state.state) {
+                case JF_STATE_PLAYBACK_START_MARK:
+                    // going too quick: do nothing but wait for the SEEK
+                    break;
+                case JF_STATE_PLAYBACK_INIT:
+                    // normal: digest it
+                    g_state.state = JF_STATE_PLAYBACK;
+                    break;
+                case JF_STATE_PLAYBACK:
+                    // nothing left to play: leave
+                    jf_playback_end();
+                    break;
+                default:
+                    fprintf(stderr,
+                            "Warning: received MPV_EVENT_IDLE under global state %d. This is a bug.\n",
+                            g_state.state);
             }
             break;
         case MPV_EVENT_SHUTDOWN:
@@ -451,7 +462,7 @@ int main(int argc, char *argv[])
                 jf_menu_ui();
                 break;
             case JF_STATE_PLAYBACK:
-            case JF_STATE_PLAYBACK_NAVIGATING:
+            case JF_STATE_PLAYBACK_INIT:
             case JF_STATE_PLAYBACK_START_MARK:
                 jf_mpv_event_dispatch(mpv_wait_event(g_mpv_ctx, -1));
                 break;
