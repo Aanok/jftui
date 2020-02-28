@@ -464,16 +464,16 @@ static void jf_menu_try_play()
     g_state.playlist_loops = 0;
     g_state.loop_state = JF_LOOP_STATE_IN_SYNC;
 
-    // actually play
+    // actually try and play
     item = jf_disk_playlist_get_item(1);
     g_state.playlist_position = 1;
     jf_playback_play_item(item);
-
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
-
 #ifdef JF_DEBUG
     jf_menu_item_print(item);
 #endif
+    if (g_mpv_ctx != NULL) {
+        JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+    }
 }
 
 
