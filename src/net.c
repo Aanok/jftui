@@ -754,10 +754,10 @@ static size_t jf_check_update_header_callback(char *payload,
         return 0;
     }
 
-    if (strncmp(payload,
-                "Location",
-                JF_STATIC_STRLEN("Location") < real_size ?
-                JF_STATIC_STRLEN("Location") : real_size) == 0) {
+    if (strncasecmp(payload,
+                "location",
+                JF_STATIC_STRLEN("location") < real_size ?
+                JF_STATIC_STRLEN("location") : real_size) == 0) {
         reply = (jf_reply *)userdata;
         if ((version_str = strrchr(payload, '/')) == NULL) goto bad_exit;
         // digest "/v"
