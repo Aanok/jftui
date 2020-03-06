@@ -67,14 +67,14 @@ static void yy_cmd_finalize(yycontext *ctx, const bool parse_ok);
 
 ######################################################################################
 
-Start = ws*
+Start = ( ws*
     ( ".."                      { yy->state = JF_CMD_SPECIAL; jf_menu_dotdot(); }
     | "h"                       { yy->state = JF_CMD_SPECIAL; jf_menu_clear(); }
 #   | "r" ws+ @{ yy->state = JF_CMD_RECURSIVE; } Selector ws*
     | "s" ws+ < .+ >        { yy->state = JF_CMD_SPECIAL; jf_menu_search(yytext); }
     | "q"                       { yy->state = JF_CMD_SPECIAL; jf_menu_quit(); }
     | Selector
-    ) ws* !. ~ { yy_cmd_finalize(yy, false); } { yy_cmd_finalize(yy, true); }
+    ) ws* !.) ~ { yy_cmd_finalize(yy, false); } { yy_cmd_finalize(yy, true); }
 Selector = "*"                  { yy_cmd_digest_range(yy, 1, jf_menu_child_count()); }
     | Items
 Items = Atom ws* "," ws* Items
