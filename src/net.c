@@ -150,7 +150,7 @@ char *jf_reply_error_string(const jf_reply *r)
         case JF_REPLY_ERROR_X_EMBY_AUTH:
             return "appending x-emby-authorization failed";
         case JF_REPLY_ERROR_BAD_LOCATION:
-            return "Locate header from redirect was missing or not formatted as expected";
+            return "\"location\" header from redirect was missing or not formatted as expected";
         case JF_REPLY_ERROR_EXIT_REQUEST:
             return "exit request";
         case JF_REPLY_ERROR_HTTP_400:
@@ -474,50 +474,57 @@ static void jf_net_handle_after_perform(CURL *handle,
     if (request_type == JF_REQUEST_ASYNC_DETACH || reply == NULL) {
         jf_reply_free(reply);
         return;
-    } else if (request_type == JF_REQUEST_CHECK_UPDATE) {
+    }
+
+    if (request_type == JF_REQUEST_CHECK_UPDATE) {
         // reset handle to sane defaults
         JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1));
         JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HEADERFUNCTION, NULL));
         JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HEADERDATA, NULL));
     }
 
+    // leave if we've already caught an error
+    if (JF_REPLY_PTR_HAS_ERROR(reply)) return;
+
+    // copy info text and leave if curl caught an error
     if (result != CURLE_OK) {
-        // don't overwrite error messages we've already set ourselves
-        if (! JF_REPLY_PTR_HAS_ERROR(reply)) {
+        free(reply->payload);
+        reply->payload = (char *)curl_easy_strerror(result);
+        reply->state = JF_REPLY_ERROR_NETWORK;
+        return;
+    }
+
+    if (request_type == JF_REQUEST_SAX_PROMISCUOUS || request_type == JF_REQUEST_SAX) {
+        jf_thread_buffer_wait_parsing_done();
+    }
+
+    // check for http error
+    JF_CURL_ASSERT(curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, &status_code));
+    switch (status_code) { 
+        case 200:
+        case 204:
+            reply->state = JF_REPLY_SUCCESS;
+            break;
+        case 400:
+            reply->state = JF_REPLY_ERROR_HTTP_400;
+            break;
+        case 401:
+            reply->state = JF_REPLY_ERROR_HTTP_401;
+            break;
+        case 302:
+            if (request_type == JF_REQUEST_CHECK_UPDATE) {
+                reply->state = reply->payload == NULL ?
+                    JF_REPLY_ERROR_BAD_LOCATION
+                    : JF_REPLY_SUCCESS;
+                break;
+            }
+            // no break on else
+        default:
             free(reply->payload);
-            reply->payload = (char *)curl_easy_strerror(result);
-            reply->state = JF_REPLY_ERROR_NETWORK;
-        }
-    } else {
-        if (request_type == JF_REQUEST_SAX_PROMISCUOUS || request_type == JF_REQUEST_SAX) {
-            jf_thread_buffer_wait_parsing_done();
-        }
-        // request went well but check for http error
-        JF_CURL_ASSERT(curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, &status_code));
-        switch (status_code) { 
-            case 200:
-            case 204:
-                reply->state = JF_REPLY_SUCCESS;
-                break;
-            case 400:
-                reply->state = JF_REPLY_ERROR_HTTP_400;
-                break;
-            case 401:
-                reply->state = JF_REPLY_ERROR_HTTP_401;
-                break;
-            case 302:
-                if (request_type == JF_REQUEST_CHECK_UPDATE) {
-                    reply->state = JF_REPLY_SUCCESS;
-                    break;
-                }
-                // no break on else
-            default:
-                free(reply->payload);
-                assert((reply->payload = malloc(34)) != NULL);
-                snprintf(reply->payload, 34, "http request returned status %ld", status_code);
-                reply->state = JF_REPLY_ERROR_HTTP_NOT_OK;
-                break;
-        }
+            assert((reply->payload = malloc(34)) != NULL);
+            snprintf(reply->payload, 34, "http request returned status %ld", status_code);
+            reply->state = JF_REPLY_ERROR_HTTP_NOT_OK;
+            break;
     }
 }
 
