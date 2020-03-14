@@ -62,7 +62,9 @@ static void jf_post_session_update(const char *id,
 static void jf_post_session(const int64_t playback_ticks,
         const char *update_url)
 {
-    size_t i, last_part, current_part;
+    size_t current_part = (size_t)-1;
+    size_t last_part = (size_t)-1;
+    size_t i;
     int64_t accounted_ticks, current_tick_offset;
 
     // single-part items are blissfully simple and I lament my toil elsewise
@@ -90,6 +92,12 @@ static void jf_post_session(const int64_t playback_ticks,
             last_part = i;
         }
         accounted_ticks += g_state.now_playing->children[i]->runtime_ticks;
+    }
+
+    // check error
+    if (current_part == (size_t)-1 || last_part == (size_t)-1) {
+        fprintf(stderr, "Warning: could not figure out playback position within a split-file. Playback progress was not notified to the server.\n");
+        return;
     }
 
     // update progress of current part and record last update
@@ -414,7 +422,7 @@ static inline bool jf_playback_populate_video_ticks(jf_menu_item *item)
     item->playback_ticks = 0;
 
     // now go and get all markers for all parts
-    assert((replies = malloc((item->children_count - 1) * sizeof(jf_menu_item *))) != NULL);
+    assert((replies = malloc((item->children_count - 1) * sizeof(jf_reply *))) != NULL);
     for (i = 1; i < item->children_count; i++) {
         tmp = jf_concat(4,
                 "/users/",

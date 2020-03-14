@@ -748,18 +748,21 @@ static inline yajl_val __jf_yajl_tree_get_assert(const int lineno,
 void jf_json_parse_login_response(const char *payload)
 {
     yajl_val parsed;
+    char *tmp;
 
     JF_JSON_TREE_PARSE_ASSERT((parsed = yajl_tree_parse(payload,
                     s_error_buffer,
                     JF_PARSER_ERROR_BUFFER_SIZE)) != NULL);
     free(g_options.userid);
-    g_options.userid = strdup(YAJL_GET_STRING(jf_yajl_tree_get_assert(parsed,
+    assert((tmp = YAJL_GET_STRING(jf_yajl_tree_get_assert(parsed,
                     ((const char *[]){ "User", "Id", NULL }),
-                    yajl_t_string)));
+                    yajl_t_string))) != NULL);
+    g_options.userid = strdup(tmp);
     free(g_options.token);
-    g_options.token = strdup(YAJL_GET_STRING(jf_yajl_tree_get_assert(parsed,
+    assert((tmp = YAJL_GET_STRING(jf_yajl_tree_get_assert(parsed,
                     ((const char *[]){ "AccessToken", NULL }),
-                    yajl_t_string)));
+                    yajl_t_string))) != NULL);
+    g_options.token = strdup(tmp);
     yajl_tree_free(parsed);
 }
 
@@ -788,11 +791,15 @@ char *jf_json_generate_login_request(const char *username, const char *password)
 void jf_json_parse_server_info_response(const char *payload)
 {
     yajl_val parsed;
+    char *server_name;
 
-    JF_JSON_TREE_PARSE_ASSERT((parsed = yajl_tree_parse(payload, s_error_buffer, JF_PARSER_ERROR_BUFFER_SIZE)) != NULL);
-    g_state.server_name = strdup(YAJL_GET_STRING(jf_yajl_tree_get_assert(parsed,
+    JF_JSON_TREE_PARSE_ASSERT((parsed = yajl_tree_parse(payload,
+                    s_error_buffer,
+                    JF_PARSER_ERROR_BUFFER_SIZE)) != NULL);
+    assert((server_name = YAJL_GET_STRING(jf_yajl_tree_get_assert(parsed,
                     ((const char *[]){ "ServerName", NULL }),
-                    yajl_t_string)));
+                    yajl_t_string))) != NULL);
+    g_state.server_name = strdup(server_name);
     yajl_tree_free(parsed);
 }
 
