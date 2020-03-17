@@ -27,7 +27,6 @@ mpv_handle *g_mpv_ctx = NULL;
 
 
 ////////// STATIC FUNCTIONS //////////
-static inline void jf_mpv_version_check(void);
 static void jf_print_usage(void);
 static inline void jf_missing_arg(const char *arg);
 static inline void jf_mpv_event_dispatch(const mpv_event *event);
@@ -53,24 +52,6 @@ void jf_exit(int sig)
 
 
 ////////// STARTUP STUFF //////////
-static inline void jf_mpv_version_check(void)
-{
-    unsigned long mpv_version = mpv_client_api_version();
-    if (mpv_version < MPV_MAKE_VERSION(1,24)) {
-        fprintf(stderr,
-                "FATAL: found libmpv version %lu.%lu, but 1.24 or greater is required.\n",
-                mpv_version >> 16, mpv_version & 0xFFFF);
-        jf_exit(JF_EXIT_FAILURE);
-    }
-    // future proofing
-    if (mpv_version >= MPV_MAKE_VERSION(2,0)) {
-        fprintf(stderr,
-                "Warning: found libmpv version %lu.%lu, but jftui expects 1.xx. mpv will probably not work.\n",
-                mpv_version >> 16, mpv_version & 0xFFFF);
-    }
-}
-
-
 static void jf_print_usage() {
     printf("Usage:\n");
     printf("\t--help\n");
@@ -267,7 +248,21 @@ int main(int argc, char *argv[])
 
     // LIBMPV VERSION CHECK
     // required for "osc" option
-    jf_mpv_version_check();
+    {
+        unsigned long mpv_version = mpv_client_api_version();
+        if (mpv_version < MPV_MAKE_VERSION(1,24)) {
+            fprintf(stderr,
+                    "FATAL: found libmpv version %lu.%lu, but 1.24 or greater is required.\n",
+                    mpv_version >> 16, mpv_version & 0xFFFF);
+            jf_exit(JF_EXIT_FAILURE);
+        }
+        // future proofing
+        if (mpv_version >= MPV_MAKE_VERSION(2,0)) {
+            fprintf(stderr,
+                    "Warning: found libmpv version %lu.%lu, but jftui expects 1.xx. mpv will probably not work.\n",
+                    mpv_version >> 16, mpv_version & 0xFFFF);
+        }
+    }
     ///////////////////////
 
 
