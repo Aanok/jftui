@@ -1,4 +1,3 @@
-CC=clang
 OFLAGS=-O2 -march=native
 WFLAGS=-Wall -Wpedantic -Wextra -Wconversion -Wstrict-prototypes -Werror=implicit-function-declaration -Werror=implicit-int -Werror=incompatible-pointer-types -Werror=int-conversion
 CFLAGS=`pkg-config --cflags libcurl yajl mpv`

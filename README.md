@@ -13,9 +13,7 @@ For Arch Linux users, there is an AUR [package](https://aur.archlinux.org/packag
 
 
 ## Building
-Make sure to checkout a release as the master branch is not guaranteed to compile or indeed work at all times.
-
-Then have a look at the Makefile: you may want to swap the default `clang` compiler for `gcc`.
+Make sure to checkout a release as the master branch is not guaranteed to work correctly or indeed compile at any time.
 
 Finally, run
 ```
@@ -27,10 +25,15 @@ Run `jftui`. You will be prompted for a minimal interactive configuration on fir
 
 **BEWARE**: jftui fetches `https://github.com/Aanok/jftui/releases/latest` on startup to check for newer versions. You can avoid this by passing the `--no-check-updates` argument. There is also a [settings file](https://github.com/Aanok/jftui/wiki/Settings) entry.
 
-jftui will use `mpv.conf` and `input.conf` files in `$XDG_CONFIG_HOME/jftui` (this location can be overridden with the `--config-dir` argument).
+The interface should be intuitive enough: select one or more entries by entering the corresponding index number. See below for a full description of the command syntax.
+
+jftui will drop into a command line instance of mpv when starting playback. It will use `mpv.conf` and `input.conf` files found in `$XDG_CONFIG_HOME/jftui` (this location can be overridden with the `--config-dir` argument). It will also try and load scripts found in the same folder, but no guarantees are made about them actually working correctly.
 
 It is recommended to consult the [wiki page](https://github.com/Aanok/jftui/wiki/mpv-commands) on configuring mpv commands to use jftui: a few special ones are required in particular to manipulate the playback playlist.
 
+To safely run multiple instances of jftui concurrently, make sure to specify distinct `--runtime-dir` arguments to at least each one after the first. This requirement will be removed in the next release.
+
+## Jftui commands
 The grammar defining jftui commands is as follows:
 ```
 S ::= "q" (quits)
@@ -49,7 +52,6 @@ Whitespace may be scattered between tokens at will. Inexisting items are silentl
 
 There is one further command that will be parsed, but it is left undocumented because its implementation is barely more than a stub. Caveat.
 
-To safely run multiple instances of jftui concurrently, make sure to specify distinct `--runtime-dir` arguments to at least each one after the first.
 
 # Plans and TODO
 - Search;
