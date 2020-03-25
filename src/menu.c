@@ -97,12 +97,18 @@ static inline void jf_menu_stack_push(jf_menu_item *menu_item);
 static inline jf_menu_item *jf_menu_stack_pop(void);
 
 
-// Returns a const pointer to the item on top of the stack without popping it.
+// Returns a const pointer to an item in a certain position on the stack without
+// popping it.
+//
+// Parameters:
+//  pos - The position to peek at. 0 is the top of the stack, 1 is the item
+//      below the stack etc.
 //
 // Returns:
-//  A const pointer to the item on top of the stack or NULL if the stack is empty.
+//  A const pointer to the requested item on the stack or NULL if the stack is
+//  too short.
 // CAN'T FAIL.
-static inline const jf_menu_item *jf_menu_stack_peek(void);
+static inline const jf_menu_item *jf_menu_stack_peek(const size_t pos);
 
 
 static jf_menu_item *jf_menu_child_get(size_t n);
@@ -143,10 +149,10 @@ static inline jf_menu_item *jf_menu_stack_pop()
 }
 
 
-static inline const jf_menu_item *jf_menu_stack_peek()
+static inline const jf_menu_item *jf_menu_stack_peek(const size_t pos)
 {
-    return s_menu_stack.used == 0 ? NULL
-        : s_menu_stack.items[s_menu_stack.used - 1];
+    return pos >= s_menu_stack.used ? NULL
+        : s_menu_stack.items[s_menu_stack.used - pos - 1];
 }
 ///////////////////////////////////
 
@@ -178,13 +184,14 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
         case JF_ITEM_TYPE_ALBUM:
         case JF_ITEM_TYPE_SEASON:
         case JF_ITEM_TYPE_SERIES:
-            if ((parent = jf_menu_stack_peek()) != NULL && parent->type == JF_ITEM_TYPE_MENU_LATEST_UNPLAYED) {
+            if (((parent = jf_menu_stack_peek(0)) != NULL && parent->type == JF_ITEM_TYPE_MENU_LATEST_UNPLAYED)
+                    || ((parent = jf_menu_stack_peek(1)) != NULL && parent->type == JF_ITEM_TYPE_MENU_LATEST_UNPLAYED)) {
                 return jf_concat(5,
                         "/users/",
                         g_options.userid,
-                        "/items/latest?groupitems=false&parentid=",
+                        "/items?groupitems=false&parentid=",
                         item->id,
-                        "&sortby=sortname");
+                        "&sortby=sortname&isplayed=false");
             } else {
                 return jf_concat(4,
                         "/users/",
@@ -193,7 +200,7 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
                         item->id);
             }
         case JF_ITEM_TYPE_COLLECTION_MUSIC:
-            if ((parent = jf_menu_stack_peek()) != NULL && parent->type == JF_ITEM_TYPE_FOLDER) {
+            if ((parent = jf_menu_stack_peek(0)) != NULL && parent->type == JF_ITEM_TYPE_FOLDER) {
                 // we are inside a "by folders" view
                 return jf_concat(4,
                         "/users/",
