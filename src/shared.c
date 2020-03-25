@@ -69,7 +69,7 @@ const char *jf_item_type_get_name(const jf_item_type type)
         case JF_ITEM_TYPE_MENU_FAVORITES:
         case JF_ITEM_TYPE_MENU_CONTINUE:
         case JF_ITEM_TYPE_MENU_NEXT_UP:
-        case JF_ITEM_TYPE_MENU_LATEST_UNPLAYED:
+        case JF_ITEM_TYPE_MENU_LATEST_ADDED:
         case JF_ITEM_TYPE_MENU_LIBRARIES:
             return "Persistent_Folder";
         default:
@@ -105,6 +105,7 @@ jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children,
     menu_item->name = name == NULL ? NULL : strdup(name);
     menu_item->runtime_ticks = runtime_ticks;
     menu_item->playback_ticks = playback_ticks;
+    menu_item->filter_flags = 0;
     
     return menu_item;
 }

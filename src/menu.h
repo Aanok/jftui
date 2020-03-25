@@ -23,6 +23,8 @@ bool jf_menu_child_dispatch(const size_t n);
 
 void jf_menu_dotdot(void);
 void jf_menu_quit(void);
+void jf_menu_context_reset_filters(void);
+void jf_menu_context_add_filter(const enum jf_filters filter);
 void jf_menu_search(const char *s);
 void jf_menu_mark_played(const jf_menu_item *item);
 void jf_menu_mark_unplayed(const jf_menu_item *item);

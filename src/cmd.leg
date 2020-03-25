@@ -71,10 +71,15 @@ Start = ( ws*
     ( ".."                      { yy->state = JF_CMD_SPECIAL; jf_menu_dotdot(); }
     | "h"                       { yy->state = JF_CMD_SPECIAL; jf_menu_clear(); }
 #   | "r" ws+ @{ yy->state = JF_CMD_RECURSIVE; } Selector ws*
-    | "s" ws+ < .+ >        { yy->state = JF_CMD_SPECIAL; jf_menu_search(yytext); }
+    | "s" ws+ < .+ >            { yy->state = JF_CMD_SPECIAL; jf_menu_search(yytext); }
     | "q"                       { yy->state = JF_CMD_SPECIAL; jf_menu_quit(); }
+    | "f" { yy->state = JF_CMD_SPECIAL; jf_menu_context_reset_filters(); } ws+ Filters           
     | Selector
     ) ws* !.) ~ { yy_cmd_finalize(yy, false); } { yy_cmd_finalize(yy, true); }
+Filters = Filter ws* "," ws* Filters
+    | Filter
+Filter = ("played" | "p" )      { jf_menu_context_add_filter(JF_FILTER_IS_PLAYED); }
+    | ("unplayed" | "u" )       { jf_menu_context_add_filter(JF_FILTER_IS_UNPLAYED); }
 Selector = "*"                  { yy_cmd_digest_range(yy, 1, jf_menu_child_count()); }
     | Items
 Items = Atom ws* "," ws* Items
