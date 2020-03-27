@@ -105,7 +105,6 @@ jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children,
     menu_item->name = name == NULL ? NULL : strdup(name);
     menu_item->runtime_ticks = runtime_ticks;
     menu_item->playback_ticks = playback_ticks;
-    menu_item->filter_flags = 0;
     
     return menu_item;
 }

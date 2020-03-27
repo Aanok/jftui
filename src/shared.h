@@ -137,18 +137,6 @@ typedef enum __attribute__((__packed__)) jf_item_type {
 const char *jf_item_type_get_name(const jf_item_type type);
 
 
-typedef uint8_t jf_filters_type;
-
-enum jf_filters {
-    JF_FILTER_IS_PLAYED = 1 << 0,
-    JF_FILTER_IS_UNPLAYED = 1 << 1,
-    JF_FILTER_RESUMABLE = 1 << 2,
-    JF_FILTER_FAVOURITE = 1 << 3,
-    JF_FILTER_LIKED = 1 << 4,
-    JF_FILTER_DISLIKED = 1 << 5
-};
-
-
 typedef struct jf_menu_item {
     jf_item_type type;
     struct jf_menu_item **children;
@@ -157,7 +145,6 @@ typedef struct jf_menu_item {
     char *name;
     long long playback_ticks;
     long long runtime_ticks;
-    jf_filters_type filters;
 } jf_menu_item;
 
 

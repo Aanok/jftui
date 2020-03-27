@@ -34,8 +34,7 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
                 0,
                 "",
                 "Favorites",
-                0, 0,
-                0
+                0, 0
             },
             &(jf_menu_item){
                 JF_ITEM_TYPE_MENU_CONTINUE,
@@ -43,8 +42,7 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
                 0,
                 "",
                 "Continue Watching",
-                0, 0,
-                0
+                0, 0
             },
             &(jf_menu_item){
                 JF_ITEM_TYPE_MENU_NEXT_UP,
@@ -52,8 +50,7 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
                 0,
                 "",
                 "Next Up",
-                0, 0,
-                0
+                0, 0
             },
             &(jf_menu_item){
                 JF_ITEM_TYPE_MENU_LATEST_ADDED,
@@ -61,8 +58,7 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
                 0,
                 "",
                 "Latest Added",
-                0, 0,
-                0
+                0, 0
             },
             &(jf_menu_item){
                 JF_ITEM_TYPE_MENU_LIBRARIES,
@@ -70,20 +66,20 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
                 0,
                 "",
                 "User Views",
-                0, 0,
-                0
+                0, 0
             }
         },
         5,
         "",
         "",
-        0, 0,
-        0
+        0, 0
     };
 static jf_menu_stack s_menu_stack = (jf_menu_stack){ 0 };
 static jf_menu_item *s_context = NULL;
 
-static char s_filters_url[128];
+// FILTERS STUFF
+static jf_filter_mask s_filters = JF_FILTER_NONE;
+static char s_filters_query_string[128];
 static size_t s_filters_len;
 //////////////////////////////////////
 
@@ -119,7 +115,7 @@ static inline jf_menu_item *jf_menu_stack_pop(void);
 // CAN'T FAIL.
 static inline const jf_menu_item *jf_menu_stack_peek(const size_t pos);
 
-static void jf_menu_apply_filters(void);
+static void jf_menu_filters_apply(void);
 
 static jf_menu_item *jf_menu_child_get(size_t n);
 static bool jf_menu_print_context(void);
@@ -199,7 +195,7 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
                         g_options.userid,
                         "/items?sortby=isfolder,parentindexnumber,indexnumber,productionyear,sortname&parentid=",
                         item->id,
-                        s_filters_url);
+                        s_filters_query_string);
         case JF_ITEM_TYPE_COLLECTION_MUSIC:
             if ((parent = jf_menu_stack_peek(0)) != NULL && parent->type == JF_ITEM_TYPE_FOLDER) {
                 // we are inside a "by folders" view
@@ -208,14 +204,14 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
                         g_options.userid,
                         "/items?sortby=isfolder,sortname&parentid=",
                         item->id,
-                        s_filters_url);
+                        s_filters_query_string);
             } else {
                 return jf_concat(5,
                         "/artists?parentid=",
                         item->id,
                         "&userid=",
                         g_options.userid,
-                        s_filters_url);
+                        s_filters_query_string);
             }
         case JF_ITEM_TYPE_COLLECTION_SERIES:
             return jf_concat(5,
@@ -223,35 +219,35 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
                     g_options.userid,
                     "/items?includeitemtypes=series&recursive=true&sortby=isfolder,sortname&parentid=",
                     item->id,
-                    s_filters_url);
+                    s_filters_query_string);
         case JF_ITEM_TYPE_COLLECTION_MOVIES:
             return jf_concat(5,
                     "/users/",
                     g_options.userid,
                     "/items?includeitemtypes=Movie&recursive=true&sortby=isfolder,sortname&parentid=",
                     item->id,
-                    s_filters_url);
+                    s_filters_query_string);
         case JF_ITEM_TYPE_ARTIST:
             return jf_concat(5,
                     "/users/",
                     g_options.userid,
                     "/items?recursive=true&includeitemtypes=musicalbum&sortby=isfolder,productionyear,sortname&sortorder=ascending&albumartistids=",
                     item->id,
-                    s_filters_url);
+                    s_filters_query_string);
         case JF_ITEM_TYPE_SEARCH_RESULT:
             return jf_concat(5,
                     "/users/",
                     g_options.userid,
                     "/items?recursive=true&searchterm=",
                     item->name,
-                    s_filters_url);
+                    s_filters_query_string);
         // Persistent folders
         case JF_ITEM_TYPE_MENU_FAVORITES:
             return jf_concat(4,
                     "/users/",
                     g_options.userid,
-                    "/items?filters=isfavorite&recursive=true&sortby=sortname",
-                    s_filters_url);
+                    "/items?recursive=true&sortby=sortname&filters=isfavorite",
+                    s_filters_query_string);
         case JF_ITEM_TYPE_MENU_CONTINUE:
             return jf_concat(3,
                     "/users/",
@@ -264,7 +260,7 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
                     "/users/",
                     g_options.userid,
                     "/items?recursive=true&excludeitemtypes=audio&excludelocationtypes=virtual&sortby=datecreated,sortname&sortorder=descending&limit=20",
-                    s_filters_url);
+                    s_filters_query_string);
         case JF_ITEM_TYPE_MENU_LIBRARIES:
             return jf_concat(3, "/users/", g_options.userid, "/views");
         default:
@@ -276,14 +272,14 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
 }
 
 
-static void jf_menu_apply_filters(void)
+static void jf_menu_filters_apply(void)
 {
     bool first_filter = true;
 
-    s_filters_url[0] = '\0';
+    s_filters_query_string[0] = '\0';
     s_filters_len = 0;
 
-    if (s_context->filters == 0) return;
+    if (s_filters == JF_FILTER_NONE) return;
     
     switch (s_context->type) {
         case JF_ITEM_TYPE_NONE:
@@ -311,37 +307,24 @@ static void jf_menu_apply_filters(void)
         case JF_ITEM_TYPE_SEASON:
         case JF_ITEM_TYPE_SERIES:
         case JF_ITEM_TYPE_SEARCH_RESULT:
-            strncpy(s_filters_url, "&filters=", JF_STATIC_STRLEN("&filters="));
+            strncpy(s_filters_query_string, "&filters=", JF_STATIC_STRLEN("&filters="));
             s_filters_len = JF_STATIC_STRLEN("&filters=");
-            if (s_context->filters & JF_FILTER_IS_PLAYED) {
-                strncpy(s_filters_url + s_filters_len,
-                        "isplayed",
-                        JF_STATIC_STRLEN("isplayed"));
-                s_filters_len += JF_STATIC_STRLEN("isplayed");
-                first_filter = false;
-            }
-            if (s_context->filters & JF_FILTER_IS_UNPLAYED) {
-                if (first_filter == false) {
-                    s_filters_url[s_filters_len] = ',';
-                    s_filters_len++;
-                }
-                strncpy(s_filters_url + s_filters_len,
-                        "isunplayed",
-                        JF_STATIC_STRLEN("isunplayed"));
-                s_filters_len += JF_STATIC_STRLEN("isunplayed");
-                first_filter = false;
-            }
+            JF_FILTER_URL_APPEND(JF_FILTER_IS_PLAYED, "isplayed");
+            JF_FILTER_URL_APPEND(JF_FILTER_IS_UNPLAYED, "isunplayed");
             break;
         case JF_ITEM_TYPE_MENU_FAVORITES:
-            // TODO: ?filters=isfavorite already in url
-            // also, caveat: this is a persistent folder!
+            // FIXME: this is a persistent folder and the flags should be
+            // cleared when popped (... somehow!)
+            first_filter = false;
+            JF_FILTER_URL_APPEND(JF_FILTER_IS_PLAYED, "isplayed");
+            JF_FILTER_URL_APPEND(JF_FILTER_IS_UNPLAYED, "isunplayed");
             break;
         case JF_ITEM_TYPE_MENU_LATEST_ADDED:
             // TODO
             break;
     }
 
-    s_filters_url[s_filters_len] = '\0';
+    s_filters_query_string[s_filters_len] = '\0';
 }
 
 
@@ -657,17 +640,15 @@ void jf_menu_quit()
 }
 
 
-void jf_menu_context_reset_filters()
+void jf_menu_filters_clear()
 {
-    if (s_context == NULL) return;
-    s_context->filters = 0;
+    s_filters = JF_FILTER_NONE;
 }
 
 
-void jf_menu_context_add_filter(const enum jf_filters filter)
+void jf_menu_filters_add(const enum jf_filter filter)
 {
-    if (s_context == NULL) return;
-    s_context->filters |= filter;
+    s_filters |= filter;
 }
 
 
@@ -714,7 +695,7 @@ void jf_menu_ui()
     }
 
     // APPLY FILTERS
-    jf_menu_apply_filters();
+    jf_menu_filters_apply();
 
     while (true) {
         // CLEAR DISK CACHE

@@ -61,7 +61,6 @@ static void jf_disk_add_next(jf_file_cache *cache, const jf_menu_item *item)
     assert(fwrite(&"\0", 1, 1, cache->body) == 1);
     assert(fwrite(&(item->runtime_ticks), sizeof(long long), 1, cache->body) == 1);
     assert(fwrite(&(item->playback_ticks), sizeof(long long), 1, cache->body) == 1);
-    assert(fwrite(&(item->filters), sizeof(jf_filters_type), 1, cache->body) == 1);
     assert(fwrite(&(item->children_count), sizeof(size_t), 1, cache->body) == 1);
     for (i = 0; i < item->children_count; i++) {
         jf_disk_add_next(cache, item->children[i]);
@@ -111,7 +110,6 @@ static jf_menu_item *jf_disk_get_next(jf_file_cache *cache)
     item->name = strdup(s_buffer->buf);
     assert(fread(&(item->runtime_ticks), sizeof(long long), 1, cache->body) == 1);
     assert(fread(&(item->playback_ticks), sizeof(long long), 1, cache->body) == 1);
-    assert(fread(&(item->filters), sizeof(jf_filters_type), 1, cache->body) == 1);
     assert(fread(&(item->children_count), sizeof(size_t), 1, cache->body) == 1);
     if (item->children_count > 0) {
         assert((item->children = malloc(item->children_count * sizeof(jf_menu_item *))) != NULL);

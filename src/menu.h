@@ -7,6 +7,41 @@
 #include <stddef.h>
 
 
+////////// CODE MACROS //////////
+#define JF_FILTER_URL_APPEND(_f, _s)                        \
+    if (s_filters & (_f)) {                                 \
+        if (first_filter == false) {                        \
+            s_filters_query_string[s_filters_len] = ',';    \
+            s_filters_len++;                                \
+        }                                                   \
+        strncpy(s_filters_query_string + s_filters_len,     \
+                (_s),                                       \
+                JF_STATIC_STRLEN((_s)));                    \
+        s_filters_len += JF_STATIC_STRLEN((_s));            \
+        first_filter = false;                               \
+    }
+/////////////////////////////////
+
+
+////////// QUERY FILTERS //////////
+typedef uint8_t jf_filter_mask;
+
+enum jf_filter {
+    JF_FILTER_NONE = 0,
+    JF_FILTER_IS_PLAYED = 1 << 0,
+    JF_FILTER_IS_UNPLAYED = 1 << 1,
+    JF_FILTER_RESUMABLE = 1 << 2,
+    JF_FILTER_FAVOURITE = 1 << 3,
+    JF_FILTER_LIKED = 1 << 4,
+    JF_FILTER_DISLIKED = 1 << 5
+};
+
+
+void jf_menu_filters_clear(void);
+void jf_menu_filters_add(const enum jf_filter filter);
+///////////////////////////////////
+
+
 ////////// JF_MENU_STACK //////////
 typedef struct jf_menu_stack {
     jf_menu_item **items;
@@ -23,8 +58,6 @@ bool jf_menu_child_dispatch(const size_t n);
 
 void jf_menu_dotdot(void);
 void jf_menu_quit(void);
-void jf_menu_context_reset_filters(void);
-void jf_menu_context_add_filter(const enum jf_filters filter);
 void jf_menu_search(const char *s);
 void jf_menu_mark_played(const jf_menu_item *item);
 void jf_menu_mark_unplayed(const jf_menu_item *item);

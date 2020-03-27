@@ -13,9 +13,10 @@ typedef enum jf_cmd_parser_state {
     JF_CMD_VALIDATE_START = 0,
     JF_CMD_VALIDATE_ATOMS = 1,
     JF_CMD_VALIDATE_FOLDER = 2,
-    JF_CMD_VALIDATE_OK = 3,
-    JF_CMD_SPECIAL = 4,
-    JF_CMD_SUCCESS = 5,
+    JF_CMD_VALIDATE_FILTERS = 3,
+    JF_CMD_VALIDATE_OK = 4,
+    JF_CMD_SPECIAL = 5,
+    JF_CMD_SUCCESS = 6,
 
     JF_CMD_FAIL_FOLDER = -1,
     JF_CMD_FAIL_SYNTAX = -2,
@@ -58,6 +59,8 @@ typedef struct _yycontext yycontext;
 ////////// FUNCTION PROTOTYPES //////////
 jf_cmd_parser_state yy_cmd_get_parser_state(const yycontext *ctx);
 
+static void yy_cmd_filters_start(yycontext *ctx);
+static void yy_cmd_digest_filter(const yycontext *ctx, const enum jf_filter filter);
 static void yy_cmd_digest(yycontext *ctx, const size_t n);
 static void yy_cmd_digest_range(yycontext *ctx, size_t l, size_t r);
 static void yy_cmd_finalize(yycontext *ctx, const bool parse_ok);
@@ -70,23 +73,33 @@ static void yy_cmd_finalize(yycontext *ctx, const bool parse_ok);
 Start = ( ws*
     ( ".."                      { yy->state = JF_CMD_SPECIAL; jf_menu_dotdot(); }
     | "h"                       { yy->state = JF_CMD_SPECIAL; jf_menu_clear(); }
-#   | "r" ws+ @{ yy->state = JF_CMD_RECURSIVE; } Selector ws*
+#   | "r" ws+                   { yy->state = JF_CMD_RECURSIVE; }
+#       Selector ws*
     | "s" ws+ < .+ >            { yy->state = JF_CMD_SPECIAL; jf_menu_search(yytext); }
     | "q"                       { yy->state = JF_CMD_SPECIAL; jf_menu_quit(); }
-    | "f" { yy->state = JF_CMD_SPECIAL; jf_menu_context_reset_filters(); } ws+ Filters           
+    | "f"                       { yy_cmd_filters_start(yy); }
+        ws+ Filters           
     | Selector
     ) ws* !.) ~ { yy_cmd_finalize(yy, false); } { yy_cmd_finalize(yy, true); }
-Filters = Filter ws* "," ws* Filters
+
+Filters = ("clear" | "c")       { yy_cmd_digest_filter(yy, JF_FILTER_NONE); }
+    | Filter ws* "," ws* Filters
     | Filter
-Filter = ("played" | "p" )      { jf_menu_context_add_filter(JF_FILTER_IS_PLAYED); }
-    | ("unplayed" | "u" )       { jf_menu_context_add_filter(JF_FILTER_IS_UNPLAYED); }
+
+Filter = ("played" | "p" )      { yy_cmd_digest_filter(yy, JF_FILTER_IS_PLAYED); }
+    | ("unplayed" | "u" )       { yy_cmd_digest_filter(yy, JF_FILTER_IS_UNPLAYED); }
+
 Selector = "*"                  { yy_cmd_digest_range(yy, 1, jf_menu_child_count()); }
     | Items
+
 Items = Atom ws* "," ws* Items
     | Atom
+
 Atom = l:num ws* "-" ws* r:num  { yy_cmd_digest_range(yy, l, r); }
     | n:num                     { yy_cmd_digest(yy, n); }
+
 num = < [0-9]+ >                { $$ = strtoul(yytext, NULL, 10); }
+
 ws = [ \t]
 
 ######################################################################################
@@ -96,6 +109,31 @@ ws = [ \t]
 jf_cmd_parser_state yy_cmd_get_parser_state(const yycontext *ctx)
 {
     return ctx->state;
+}
+
+
+static void yy_cmd_filters_start(yycontext *ctx)
+{
+    switch (ctx->state) {
+        case JF_CMD_VALIDATE_START:
+            ctx->state = JF_CMD_VALIDATE_FILTERS;
+            break;
+        case JF_CMD_VALIDATE_OK:
+            ctx->state = JF_CMD_SPECIAL;
+            jf_menu_filters_clear();
+            break;
+        default:
+            fprintf(stderr, "Error: yy_cmd_filters_start: unexpected state transition. This is a bug.\n"); 
+            break;
+    }
+}
+
+
+static void yy_cmd_digest_filter(const yycontext *ctx, const enum jf_filter filter)
+{
+    if (ctx->state == JF_CMD_SPECIAL && filter != JF_FILTER_NONE) {
+        jf_menu_filters_add(filter);
+    }
 }
 
 
@@ -163,6 +201,7 @@ static void yy_cmd_finalize(yycontext *ctx, const bool parse_ok)
         switch (ctx->state) {
             case JF_CMD_VALIDATE_ATOMS:
             case JF_CMD_VALIDATE_FOLDER:
+            case JF_CMD_VALIDATE_FILTERS:
                 ctx->read_input = 0;
                 ctx->state = JF_CMD_VALIDATE_OK;
                 break;
