@@ -299,6 +299,8 @@ static void jf_menu_filters_apply(void)
     s_filters_query_len = 0;
 
     if (s_filters == JF_FILTER_NONE) return;
+    // special case due to Emby idiocy
+    if (s_context->type == JF_ITEM_TYPE_MENU_LATEST_ADDED) return;
 
     first_filter = jf_menu_filters_query_try_append(first_filter, JF_FILTER_IS_PLAYED);
     first_filter = jf_menu_filters_query_try_append(first_filter, JF_FILTER_IS_UNPLAYED);
@@ -402,11 +404,22 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
         case JF_ITEM_TYPE_MENU_NEXT_UP:
             return jf_concat(3, "/shows/nextup?userid=", g_options.userid, "&limit=15");
         case JF_ITEM_TYPE_MENU_LATEST_ADDED:
-            return jf_concat(4,
+            if (s_filters & JF_FILTER_IS_PLAYED) {
+                return jf_concat(3,
+                        "/users/",
+                        g_options.userid,
+                        "/items/latest?recurisve=true&groupitems=true&includeitemtypes=audiobook,episode,movie,audio&limit=20&isplayed=true");
+            }
+            if (s_filters & JF_FILTER_IS_UNPLAYED) {
+                return jf_concat(3,
+                        "/users/",
+                        g_options.userid,
+                        "/items/latest?recurisve=true&groupitems=true&includeitemtypes=audiobook,episode,movie,audio&limit=20&isplayed=false");
+            }
+            return jf_concat(3,
                     "/users/",
                     g_options.userid,
-                    "/items?recursive=true&includeitemtypes=audiobook,episode,movie,musicalbum&excludelocationtypes=virtual&sortby=datecreated,sortname&sortorder=descending&limit=20",
-                    s_filters_query);
+                    "/items?recursive=true&includeitemtypes=audiobook,episode,movie,musicalbum&excludelocationtypes=virtual&sortby=datecreated,sortname&sortorder=descending&limit=20");
         case JF_ITEM_TYPE_MENU_LIBRARIES:
             return jf_concat(3, "/users/", g_options.userid, "/views");
         default:
