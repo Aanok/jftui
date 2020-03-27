@@ -206,18 +206,23 @@ static bool jf_menu_item_type_allows_filter(const jf_item_type type,
         case JF_ITEM_TYPE_MENU_CONTINUE:
         case JF_ITEM_TYPE_MENU_NEXT_UP:
         case JF_ITEM_TYPE_MENU_LIBRARIES:
+            // the last three are here due to bugs
+            // for these two see issue #2687
+        case JF_ITEM_TYPE_COLLECTION_MUSIC:
+        case JF_ITEM_TYPE_ARTIST:
+            // this last one instead is just a nice present from good ole emby
+            // which sets the Played property correctly for seasons
+            // but then considers everything unplayed when you query :)
+        case JF_ITEM_TYPE_SERIES:
             return false;
         case JF_ITEM_TYPE_COLLECTION:
-        case JF_ITEM_TYPE_COLLECTION_MUSIC:
         case JF_ITEM_TYPE_COLLECTION_SERIES:
         case JF_ITEM_TYPE_COLLECTION_MOVIES:
         case JF_ITEM_TYPE_USER_VIEW:
         case JF_ITEM_TYPE_FOLDER:
         case JF_ITEM_TYPE_PLAYLIST:
-        case JF_ITEM_TYPE_ARTIST:
         case JF_ITEM_TYPE_ALBUM:
         case JF_ITEM_TYPE_SEASON:
-        case JF_ITEM_TYPE_SERIES:
         case JF_ITEM_TYPE_SEARCH_RESULT:
             return true;
             break;
