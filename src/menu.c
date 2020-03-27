@@ -254,7 +254,7 @@ static void jf_menu_filters_print(void)
 
     if (s_filters == JF_FILTER_NONE) return;
 
-    printf("(");
+    printf(" (");
     first_filter = jf_menu_filters_try_print(first_filter, s_filters & JF_FILTER_IS_PLAYED);
     first_filter = jf_menu_filters_try_print(first_filter, s_filters & JF_FILTER_IS_UNPLAYED);
     first_filter = jf_menu_filters_try_print(first_filter, s_filters & JF_FILTER_RESUMABLE);
@@ -477,7 +477,7 @@ static bool jf_menu_print_context()
         case JF_ITEM_TYPE_ALBUM:
         case JF_ITEM_TYPE_SEASON:
         case JF_ITEM_TYPE_SERIES:
-            printf("\n===== %s ", s_context->name);
+            printf("\n===== %s", s_context->name);
             jf_menu_filters_print();
             printf(" =====\n");
             if ((request_url = jf_menu_item_get_request_url(s_context)) == NULL) {
@@ -503,7 +503,7 @@ static bool jf_menu_print_context()
             break;
         // PERSISTENT FOLDERS
         case JF_ITEM_TYPE_MENU_ROOT:
-            printf("\n===== %s ", s_context->name);
+            printf("\n===== %s", s_context->name);
             jf_menu_filters_print();
             printf(" =====\n");
             for (i = 0; i < s_context->children_count; i++) {
