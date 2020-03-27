@@ -80,8 +80,8 @@ static jf_menu_item *s_context = NULL;
 // FILTERS STUFF
 static jf_filter_mask s_filters = JF_FILTER_NONE;
 static jf_filter_mask s_filters_cmd = JF_FILTER_NONE;
-static char s_filters_query_string[128];
-static size_t s_filters_len;
+static char s_filters_query[128];
+static size_t s_filters_query_len;
 //////////////////////////////////////
 
 
@@ -116,6 +116,11 @@ static inline jf_menu_item *jf_menu_stack_pop(void);
 // CAN'T FAIL.
 static inline const jf_menu_item *jf_menu_stack_peek(const size_t pos);
 
+static const char *jf_menu_filter_string(const jf_filter filter);
+static bool jf_menu_item_type_allows_filter(const jf_item_type type, const jf_filter filter);
+static bool jf_menu_filters_try_print(const bool first_filter, const jf_filter filter);
+static void jf_menu_filters_print(void);
+static bool jf_menu_filters_query_try_append(const bool first_filter, const jf_filter filter);
 static void jf_menu_filters_apply(void);
 
 static jf_menu_item *jf_menu_child_get(size_t n);
@@ -164,15 +169,155 @@ static inline const jf_menu_item *jf_menu_stack_peek(const size_t pos)
 ///////////////////////////////////
 
 
-////////// USER INTERFACE LOOP //////////
+////////// QUERY FILTERS //////////
+static const char *jf_menu_filter_string(const enum jf_filter filter)
+{
+    switch (filter) {
+        case JF_FILTER_NONE:
+            return "none";
+        case JF_FILTER_FAVORITE:
+            return "isFavorite";
+        case JF_FILTER_IS_PLAYED:
+            return "isPlayed";
+        case JF_FILTER_IS_UNPLAYED:
+            return "isUnPlayed";
+        case JF_FILTER_RESUMABLE:
+            return "resumable";
+        case JF_FILTER_LIKES:
+            return "likes";
+        case JF_FILTER_DISLIKES:
+            return "dislikes";
+    }
+}
 
+
+static bool jf_menu_item_type_allows_filter(const jf_item_type type,
+        const jf_filter filter)
+{
+    switch (type) {
+        case JF_ITEM_TYPE_NONE:
+        case JF_ITEM_TYPE_AUDIO:
+        case JF_ITEM_TYPE_AUDIOBOOK:
+        case JF_ITEM_TYPE_EPISODE:
+        case JF_ITEM_TYPE_MOVIE:
+        case JF_ITEM_TYPE_VIDEO_SOURCE:
+        case JF_ITEM_TYPE_VIDEO_SUB:
+        case JF_ITEM_TYPE_MENU_ROOT:
+        case JF_ITEM_TYPE_MENU_CONTINUE:
+        case JF_ITEM_TYPE_MENU_NEXT_UP:
+        case JF_ITEM_TYPE_MENU_LIBRARIES:
+            return false;
+        case JF_ITEM_TYPE_COLLECTION:
+        case JF_ITEM_TYPE_COLLECTION_MUSIC:
+        case JF_ITEM_TYPE_COLLECTION_SERIES:
+        case JF_ITEM_TYPE_COLLECTION_MOVIES:
+        case JF_ITEM_TYPE_USER_VIEW:
+        case JF_ITEM_TYPE_FOLDER:
+        case JF_ITEM_TYPE_PLAYLIST:
+        case JF_ITEM_TYPE_ARTIST:
+        case JF_ITEM_TYPE_ALBUM:
+        case JF_ITEM_TYPE_SEASON:
+        case JF_ITEM_TYPE_SERIES:
+        case JF_ITEM_TYPE_SEARCH_RESULT:
+            return true;
+            break;
+        case JF_ITEM_TYPE_MENU_FAVORITES:
+            return filter != JF_FILTER_FAVORITE;
+        case JF_ITEM_TYPE_MENU_LATEST_ADDED:
+            return filter == JF_FILTER_IS_PLAYED || filter == JF_FILTER_IS_UNPLAYED;
+    }
+}
+
+
+static bool jf_menu_filters_try_print(const bool first_filter,
+        const jf_filter filter)
+{
+    if (filter == JF_FILTER_NONE) {
+        return first_filter;
+    }
+
+    if (first_filter == false) {
+        printf(", ");
+    }
+    printf("%s%s%s",
+            jf_menu_item_type_allows_filter(s_context->type, filter) ? "" : "~",
+            jf_menu_filter_string(filter),
+            jf_menu_item_type_allows_filter(s_context->type, filter) ? "" : "~");
+
+    return false;
+}
+
+
+static void jf_menu_filters_print(void)
+{
+    bool first_filter = true;
+
+    if (s_filters == JF_FILTER_NONE) return;
+
+    printf("(");
+    first_filter = jf_menu_filters_try_print(first_filter, s_filters & JF_FILTER_IS_PLAYED);
+    first_filter = jf_menu_filters_try_print(first_filter, s_filters & JF_FILTER_IS_UNPLAYED);
+    first_filter = jf_menu_filters_try_print(first_filter, s_filters & JF_FILTER_RESUMABLE);
+    first_filter = jf_menu_filters_try_print(first_filter, s_filters & JF_FILTER_FAVORITE);
+    first_filter = jf_menu_filters_try_print(first_filter, s_filters & JF_FILTER_LIKES);
+    first_filter = jf_menu_filters_try_print(first_filter, s_filters & JF_FILTER_DISLIKES);
+    printf(")");
+}
+
+
+static bool jf_menu_filters_query_try_append(const bool first_filter,
+        const enum jf_filter filter)
+{
+    if (! (s_filters & filter)
+            || ! jf_menu_item_type_allows_filter(s_context->type, filter)) {
+        return first_filter;
+    }
+
+    if (first_filter) {
+        strncpy(s_filters_query,
+                "&filters=",
+                JF_STATIC_STRLEN("&filters="));
+        s_filters_query_len += JF_STATIC_STRLEN("&filters=");
+    } else {
+        s_filters_query[s_filters_query_len] = ',';
+        s_filters_query_len++;
+    }
+    strcpy(s_filters_query + s_filters_query_len,
+            jf_menu_filter_string(filter));
+    s_filters_query_len += strlen(jf_menu_filter_string(filter));
+
+    return false;
+}
+
+
+static void jf_menu_filters_apply(void)
+{
+    bool first_filter = s_context->type != JF_ITEM_TYPE_MENU_FAVORITES;
+
+    s_filters = s_filters_cmd;
+    s_filters_query[0] = '\0';
+    s_filters_query_len = 0;
+
+    if (s_filters == JF_FILTER_NONE) return;
+
+    first_filter = jf_menu_filters_query_try_append(first_filter, JF_FILTER_IS_PLAYED);
+    first_filter = jf_menu_filters_query_try_append(first_filter, JF_FILTER_IS_UNPLAYED);
+    first_filter = jf_menu_filters_query_try_append(first_filter, JF_FILTER_RESUMABLE);
+    first_filter = jf_menu_filters_query_try_append(first_filter, JF_FILTER_FAVORITE);
+    first_filter = jf_menu_filters_query_try_append(first_filter, JF_FILTER_LIKES);
+    first_filter = jf_menu_filters_query_try_append(first_filter, JF_FILTER_DISLIKES);
+
+    s_filters_query[s_filters_query_len] = '\0';
+}
+///////////////////////////////////
+
+
+////////// USER INTERFACE LOOP //////////
 char *jf_menu_item_get_request_url(const jf_menu_item *item)
 {
     const jf_menu_item *parent;
 
-    if (item == NULL) {
-        return NULL;
-    }
+    if (item == NULL) return NULL;
 
     switch (item->type) {
         // Atoms
@@ -196,7 +341,7 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
                         g_options.userid,
                         "/items?sortby=isfolder,parentindexnumber,indexnumber,productionyear,sortname&parentid=",
                         item->id,
-                        s_filters_query_string);
+                        s_filters_query);
         case JF_ITEM_TYPE_COLLECTION_MUSIC:
             if ((parent = jf_menu_stack_peek(0)) != NULL && parent->type == JF_ITEM_TYPE_FOLDER) {
                 // we are inside a "by folders" view
@@ -205,14 +350,14 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
                         g_options.userid,
                         "/items?sortby=isfolder,sortname&parentid=",
                         item->id,
-                        s_filters_query_string);
+                        s_filters_query);
             } else {
                 return jf_concat(5,
                         "/artists?parentid=",
                         item->id,
                         "&userid=",
                         g_options.userid,
-                        s_filters_query_string);
+                        s_filters_query);
             }
         case JF_ITEM_TYPE_COLLECTION_SERIES:
             return jf_concat(5,
@@ -220,35 +365,35 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
                     g_options.userid,
                     "/items?includeitemtypes=series&recursive=true&sortby=isfolder,sortname&parentid=",
                     item->id,
-                    s_filters_query_string);
+                    s_filters_query);
         case JF_ITEM_TYPE_COLLECTION_MOVIES:
             return jf_concat(5,
                     "/users/",
                     g_options.userid,
                     "/items?includeitemtypes=Movie&recursive=true&sortby=isfolder,sortname&parentid=",
                     item->id,
-                    s_filters_query_string);
+                    s_filters_query);
         case JF_ITEM_TYPE_ARTIST:
             return jf_concat(5,
                     "/users/",
                     g_options.userid,
                     "/items?recursive=true&includeitemtypes=musicalbum&sortby=isfolder,productionyear,sortname&sortorder=ascending&albumartistids=",
                     item->id,
-                    s_filters_query_string);
+                    s_filters_query);
         case JF_ITEM_TYPE_SEARCH_RESULT:
             return jf_concat(5,
                     "/users/",
                     g_options.userid,
                     "/items?recursive=true&searchterm=",
                     item->name,
-                    s_filters_query_string);
+                    s_filters_query);
         // Persistent folders
         case JF_ITEM_TYPE_MENU_FAVORITES:
             return jf_concat(4,
                     "/users/",
                     g_options.userid,
                     "/items?recursive=true&sortby=sortname&filters=isfavorite",
-                    s_filters_query_string);
+                    s_filters_query);
         case JF_ITEM_TYPE_MENU_CONTINUE:
             return jf_concat(3,
                     "/users/",
@@ -261,7 +406,7 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
                     "/users/",
                     g_options.userid,
                     "/items?recursive=true&includeitemtypes=audiobook,episode,movie,musicalbum&excludelocationtypes=virtual&sortby=datecreated,sortname&sortorder=descending&limit=20",
-                    s_filters_query_string);
+                    s_filters_query);
         case JF_ITEM_TYPE_MENU_LIBRARIES:
             return jf_concat(3, "/users/", g_options.userid, "/views");
         default:
@@ -270,80 +415,6 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
                     item->type);
             return NULL;
     }
-}
-
-
-static void jf_menu_filters_apply(void)
-{
-    bool first_filter = true;
-
-    s_filters = s_filters_cmd;
-    s_filters_query_string[0] = '\0';
-    s_filters_len = 0;
-
-    if (s_filters == JF_FILTER_NONE) return;
-    
-    switch (s_context->type) {
-        case JF_ITEM_TYPE_NONE:
-        case JF_ITEM_TYPE_AUDIO:
-        case JF_ITEM_TYPE_AUDIOBOOK:
-        case JF_ITEM_TYPE_EPISODE:
-        case JF_ITEM_TYPE_MOVIE:
-        case JF_ITEM_TYPE_VIDEO_SOURCE:
-        case JF_ITEM_TYPE_VIDEO_SUB:
-        case JF_ITEM_TYPE_MENU_ROOT:
-        case JF_ITEM_TYPE_MENU_CONTINUE:
-        case JF_ITEM_TYPE_MENU_NEXT_UP:
-        case JF_ITEM_TYPE_MENU_LIBRARIES:
-            // can't filter these, no-op
-            break;
-        case JF_ITEM_TYPE_COLLECTION:
-        case JF_ITEM_TYPE_COLLECTION_MUSIC:
-        case JF_ITEM_TYPE_COLLECTION_SERIES:
-        case JF_ITEM_TYPE_COLLECTION_MOVIES:
-        case JF_ITEM_TYPE_USER_VIEW:
-        case JF_ITEM_TYPE_FOLDER:
-        case JF_ITEM_TYPE_PLAYLIST:
-        case JF_ITEM_TYPE_ARTIST:
-        case JF_ITEM_TYPE_ALBUM:
-        case JF_ITEM_TYPE_SEASON:
-        case JF_ITEM_TYPE_SERIES:
-        case JF_ITEM_TYPE_SEARCH_RESULT:
-            strncpy(s_filters_query_string, "&filters=", JF_STATIC_STRLEN("&filters="));
-            s_filters_len = JF_STATIC_STRLEN("&filters=");
-            JF_FILTER_URL_APPEND(JF_FILTER_IS_PLAYED, "isplayed");
-            JF_FILTER_URL_APPEND(JF_FILTER_IS_UNPLAYED, "isunplayed");
-            JF_FILTER_URL_APPEND(JF_FILTER_RESUMABLE, "resumable");
-            JF_FILTER_URL_APPEND(JF_FILTER_FAVORITE, "favorite");
-            JF_FILTER_URL_APPEND(JF_FILTER_LIKES, "likes");
-            JF_FILTER_URL_APPEND(JF_FILTER_DISLIKES, "dislikes");
-            break;
-        case JF_ITEM_TYPE_MENU_FAVORITES:
-            first_filter = false;
-            JF_FILTER_URL_APPEND(JF_FILTER_IS_PLAYED, "isplayed");
-            JF_FILTER_URL_APPEND(JF_FILTER_IS_UNPLAYED, "isunplayed");
-            JF_FILTER_URL_APPEND(JF_FILTER_RESUMABLE, "resumable");
-            // no "favorite", obviously
-            JF_FILTER_URL_APPEND(JF_FILTER_LIKES, "likes");
-            JF_FILTER_URL_APPEND(JF_FILTER_DISLIKES, "dislikes");
-            break;
-        case JF_ITEM_TYPE_MENU_LATEST_ADDED:
-            if (s_filters & JF_FILTER_IS_PLAYED) {
-                strncpy(s_filters_query_string,
-                        "&isplayed=true",
-                        JF_STATIC_STRLEN("&isplayed=true"));
-                s_filters_len += JF_STATIC_STRLEN("&isplayed=true");
-            }
-            if (s_filters & JF_FILTER_IS_UNPLAYED) {
-                strncpy(s_filters_query_string,
-                        "&isplayed=false",
-                        JF_STATIC_STRLEN("&isplayed=false"));
-                s_filters_len += JF_STATIC_STRLEN("&isplayed=false");
-            }
-            break;
-    }
-
-    s_filters_query_string[s_filters_len] = '\0';
 }
 
 
@@ -393,7 +464,9 @@ static bool jf_menu_print_context()
         case JF_ITEM_TYPE_ALBUM:
         case JF_ITEM_TYPE_SEASON:
         case JF_ITEM_TYPE_SERIES:
-            printf("\n===== %s =====\n", s_context->name);
+            printf("\n===== %s ", s_context->name);
+            jf_menu_filters_print();
+            printf(" =====\n");
             if ((request_url = jf_menu_item_get_request_url(s_context)) == NULL) {
                 jf_menu_item_free(s_context);
                 return false;
@@ -417,7 +490,9 @@ static bool jf_menu_print_context()
             break;
         // PERSISTENT FOLDERS
         case JF_ITEM_TYPE_MENU_ROOT:
-            printf("\n===== %s =====\n", s_context->name);
+            printf("\n===== %s ", s_context->name);
+            jf_menu_filters_print();
+            printf(" =====\n");
             for (i = 0; i < s_context->children_count; i++) {
                 printf("D %zu: %s\n", i + 1, s_context->children[i]->name);
             }

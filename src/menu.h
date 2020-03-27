@@ -8,17 +8,26 @@
 
 
 ////////// CODE MACROS //////////
-#define JF_FILTER_URL_APPEND(_f, _s)                        \
-    if (s_filters & (_f)) {                                 \
-        if (first_filter == false) {                        \
-            s_filters_query_string[s_filters_len] = ',';    \
-            s_filters_len++;                                \
-        }                                                   \
-        strncpy(s_filters_query_string + s_filters_len,     \
-                (_s),                                       \
-                JF_STATIC_STRLEN((_s)));                    \
-        s_filters_len += JF_STATIC_STRLEN((_s));            \
-        first_filter = false;                               \
+#define JF_FILTER_URL_APPEND(_f, _s)                            \
+    if (s_filters & (_f)) {                                     \
+        s_filters_print_string[s_filters_print_len] = ' ';      \
+        s_filters_print_len++;                                  \
+        if (first_filter == false) {                            \
+            s_filters_query_string[s_filters_len] = ',';        \
+            s_filters_len++;                                    \
+            s_filters_print_string[s_filters_print_len] = ',';  \
+            s_filters_print_len++;                              \
+        }                                                       \
+        strncpy(s_filters_query_string + s_filters_len,         \
+                (_s),                                           \
+                JF_STATIC_STRLEN((_s)));                        \
+        s_filters_len += JF_STATIC_STRLEN((_s));                \
+        first_filter = false;                                   \
+        strncpy(s_filters_print_string + s_filters_print_len,   \
+                (_s),                                           \
+                JF_STATIC_STRLEN((_s)));                        \
+        s_filters_print_len += JF_STATIC_STRLEN((_s));          \
+        first_filter = false;                                   \
     }
 /////////////////////////////////
 
@@ -26,7 +35,7 @@
 ////////// QUERY FILTERS //////////
 typedef uint8_t jf_filter_mask;
 
-enum jf_filter {
+typedef enum jf_filter {
     JF_FILTER_NONE = 0,
     JF_FILTER_IS_PLAYED = 1 << 0,
     JF_FILTER_IS_UNPLAYED = 1 << 1,
@@ -34,7 +43,7 @@ enum jf_filter {
     JF_FILTER_FAVORITE = 1 << 3, // blasted american english
     JF_FILTER_LIKES = 1 << 4,
     JF_FILTER_DISLIKES = 1 << 5
-};
+} jf_filter;
 
 
 void jf_menu_filters_clear(void);
