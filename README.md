@@ -1,4 +1,6 @@
-jftui is a minimalistic, lightweight command line client for the open source [Jellyfin](http://jellyfin.org/) media server. It is developed for the GNU/Linux OS only, although it may be possible to make it run on BSD's.
+jftui is a minimalistic, lightweight C99 command line client for the open source [Jellyfin](http://jellyfin.org/) media server.
+
+It is developed for the GNU/Linux OS only, although it may be possible to make it run on BSD's.
 
 # Installation
 The program must be built from source.
@@ -15,7 +17,7 @@ For Arch Linux users, there is an AUR [package](https://aur.archlinux.org/packag
 ## Building
 Make sure to checkout a release as the master branch is not guaranteed to work correctly or indeed compile at any time.
 
-Finally, run
+Then, simply run
 ```
 make && sudo make install
 ```
@@ -39,6 +41,7 @@ The grammar defining jftui commands is as follows:
 S ::= "q" (quits)
   | "h" (go to "home" root menu)
   | ".." (go to previous menu)
+  | "f" ( "c" | [pufrld]+ ) (filters: clear or played, unplayed, favourite, resumable, liked, disliked)
   | Selector (opens a single directory entry or sends a sequence of items to playback)
 Selector :: = '*' (everything in the current menu)
   | Items
@@ -56,6 +59,5 @@ There is one further command that will be parsed, but it is left undocumented be
 # Plans and TODO
 - Search;
 - Explicit command to recursively navigate folders to send items to playback;
-- Filters: played, unplayed etc, to be applied before requesting a directory or to the currently open menu;
 - Explicitly marking items played and unplayed;
 - Transcoding.
