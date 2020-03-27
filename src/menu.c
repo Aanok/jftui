@@ -182,7 +182,7 @@ static const char *jf_menu_filter_string(const enum jf_filter filter)
         case JF_FILTER_IS_UNPLAYED:
             return "isUnPlayed";
         case JF_FILTER_RESUMABLE:
-            return "resumable";
+            return "isResumable";
         case JF_FILTER_LIKES:
             return "likes";
         case JF_FILTER_DISLIKES:
