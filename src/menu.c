@@ -79,6 +79,7 @@ static jf_menu_item *s_context = NULL;
 
 // FILTERS STUFF
 static jf_filter_mask s_filters = JF_FILTER_NONE;
+static jf_filter_mask s_filters_cmd = JF_FILTER_NONE;
 static char s_filters_query_string[128];
 static size_t s_filters_len;
 //////////////////////////////////////
@@ -259,7 +260,7 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
             return jf_concat(4,
                     "/users/",
                     g_options.userid,
-                    "/items?recursive=true&excludeitemtypes=audio&excludelocationtypes=virtual&sortby=datecreated,sortname&sortorder=descending&limit=20",
+                    "/items?recursive=true&includeitemtypes=audiobook,episode,movie,musicalbum&excludelocationtypes=virtual&sortby=datecreated,sortname&sortorder=descending&limit=20",
                     s_filters_query_string);
         case JF_ITEM_TYPE_MENU_LIBRARIES:
             return jf_concat(3, "/users/", g_options.userid, "/views");
@@ -276,6 +277,7 @@ static void jf_menu_filters_apply(void)
 {
     bool first_filter = true;
 
+    s_filters = s_filters_cmd;
     s_filters_query_string[0] = '\0';
     s_filters_len = 0;
 
@@ -311,16 +313,33 @@ static void jf_menu_filters_apply(void)
             s_filters_len = JF_STATIC_STRLEN("&filters=");
             JF_FILTER_URL_APPEND(JF_FILTER_IS_PLAYED, "isplayed");
             JF_FILTER_URL_APPEND(JF_FILTER_IS_UNPLAYED, "isunplayed");
+            JF_FILTER_URL_APPEND(JF_FILTER_RESUMABLE, "resumable");
+            JF_FILTER_URL_APPEND(JF_FILTER_FAVORITE, "favorite");
+            JF_FILTER_URL_APPEND(JF_FILTER_LIKES, "likes");
+            JF_FILTER_URL_APPEND(JF_FILTER_DISLIKES, "dislikes");
             break;
         case JF_ITEM_TYPE_MENU_FAVORITES:
-            // FIXME: this is a persistent folder and the flags should be
-            // cleared when popped (... somehow!)
             first_filter = false;
             JF_FILTER_URL_APPEND(JF_FILTER_IS_PLAYED, "isplayed");
             JF_FILTER_URL_APPEND(JF_FILTER_IS_UNPLAYED, "isunplayed");
+            JF_FILTER_URL_APPEND(JF_FILTER_RESUMABLE, "resumable");
+            // no "favorite", obviously
+            JF_FILTER_URL_APPEND(JF_FILTER_LIKES, "likes");
+            JF_FILTER_URL_APPEND(JF_FILTER_DISLIKES, "dislikes");
             break;
         case JF_ITEM_TYPE_MENU_LATEST_ADDED:
-            // TODO
+            if (s_filters & JF_FILTER_IS_PLAYED) {
+                strncpy(s_filters_query_string,
+                        "&isplayed=true",
+                        JF_STATIC_STRLEN("&isplayed=true"));
+                s_filters_len += JF_STATIC_STRLEN("&isplayed=true");
+            }
+            if (s_filters & JF_FILTER_IS_UNPLAYED) {
+                strncpy(s_filters_query_string,
+                        "&isplayed=false",
+                        JF_STATIC_STRLEN("&isplayed=false"));
+                s_filters_len += JF_STATIC_STRLEN("&isplayed=false");
+            }
             break;
     }
 
@@ -642,13 +661,29 @@ void jf_menu_quit()
 
 void jf_menu_filters_clear()
 {
-    s_filters = JF_FILTER_NONE;
+    s_filters_cmd = JF_FILTER_NONE;
 }
 
 
-void jf_menu_filters_add(const enum jf_filter filter)
+bool jf_menu_filters_add(const enum jf_filter filter)
 {
-    s_filters |= filter;
+    s_filters_cmd |= filter;
+
+    // check for contradictory filters
+    if (s_filters_cmd & JF_FILTER_IS_PLAYED && s_filters_cmd & JF_FILTER_IS_UNPLAYED) {
+        fprintf(stderr,
+                "Error: filters \"isPlayed\" and \"isUnPlayed\" are incompatible.\n");
+        s_filters_cmd = s_filters;
+        return false;
+    }
+    if (s_filters_cmd & JF_FILTER_LIKES && s_filters_cmd & JF_FILTER_DISLIKES) {
+        fprintf(stderr,
+                "Error: filters \"likes\" and \"dislikes\" are incompatible.\n");
+        s_filters_cmd = s_filters;
+        return false;
+    }
+
+    return true;
 }
 
 
@@ -737,6 +772,8 @@ void jf_menu_ui()
                     break;
                 case JF_CMD_FAIL_SYNTAX:
                     fprintf(stderr, "Error: malformed command.\n");
+                    // no break
+                case JF_CMD_FAIL_SPECIAL:
                     free(line);
                     yyrelease(&yy);
                     memset(&yy, 0, sizeof(yycontext));

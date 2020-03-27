@@ -31,14 +31,14 @@ enum jf_filter {
     JF_FILTER_IS_PLAYED = 1 << 0,
     JF_FILTER_IS_UNPLAYED = 1 << 1,
     JF_FILTER_RESUMABLE = 1 << 2,
-    JF_FILTER_FAVOURITE = 1 << 3,
-    JF_FILTER_LIKED = 1 << 4,
-    JF_FILTER_DISLIKED = 1 << 5
+    JF_FILTER_FAVORITE = 1 << 3, // blasted american english
+    JF_FILTER_LIKES = 1 << 4,
+    JF_FILTER_DISLIKES = 1 << 5
 };
 
 
 void jf_menu_filters_clear(void);
-void jf_menu_filters_add(const enum jf_filter filter);
+bool jf_menu_filters_add(const enum jf_filter filter);
 ///////////////////////////////////
 
 

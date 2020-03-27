@@ -20,7 +20,8 @@ typedef enum jf_cmd_parser_state {
 
     JF_CMD_FAIL_FOLDER = -1,
     JF_CMD_FAIL_SYNTAX = -2,
-    JF_CMD_FAIL_DISPATCH = -3
+    JF_CMD_FAIL_DISPATCH = -3,
+    JF_CMD_FAIL_SPECIAL = -4
 } jf_cmd_parser_state;
 
 #define JF_CMD_IS_FAIL(state)   ((state) < 0)
@@ -60,7 +61,7 @@ typedef struct _yycontext yycontext;
 jf_cmd_parser_state yy_cmd_get_parser_state(const yycontext *ctx);
 
 static void yy_cmd_filters_start(yycontext *ctx);
-static void yy_cmd_digest_filter(const yycontext *ctx, const enum jf_filter filter);
+static void yy_cmd_digest_filter(yycontext *ctx, const enum jf_filter filter);
 static void yy_cmd_digest(yycontext *ctx, const size_t n);
 static void yy_cmd_digest_range(yycontext *ctx, size_t l, size_t r);
 static void yy_cmd_finalize(yycontext *ctx, const bool parse_ok);
@@ -88,6 +89,10 @@ Filters = ("clear" | "c")       { yy_cmd_digest_filter(yy, JF_FILTER_NONE); }
 
 Filter = ("played" | "p" )      { yy_cmd_digest_filter(yy, JF_FILTER_IS_PLAYED); }
     | ("unplayed" | "u" )       { yy_cmd_digest_filter(yy, JF_FILTER_IS_UNPLAYED); }
+    | ("resumable" | "r" )      { yy_cmd_digest_filter(yy, JF_FILTER_RESUMABLE); }
+    | ("favorite" | "f" )       { yy_cmd_digest_filter(yy, JF_FILTER_FAVORITE); }
+    | ("liked" | "l" )          { yy_cmd_digest_filter(yy, JF_FILTER_LIKES); }
+    | ("disliked" | "d" )       { yy_cmd_digest_filter(yy, JF_FILTER_DISLIKES); }
 
 Selector = "*"                  { yy_cmd_digest_range(yy, 1, jf_menu_child_count()); }
     | Items
@@ -129,10 +134,12 @@ static void yy_cmd_filters_start(yycontext *ctx)
 }
 
 
-static void yy_cmd_digest_filter(const yycontext *ctx, const enum jf_filter filter)
+static void yy_cmd_digest_filter(yycontext *ctx, const enum jf_filter filter)
 {
-    if (ctx->state == JF_CMD_SPECIAL && filter != JF_FILTER_NONE) {
-        jf_menu_filters_add(filter);
+    if (ctx->state != JF_CMD_SPECIAL || filter == JF_FILTER_NONE) return;
+
+    if (jf_menu_filters_add(filter) == false) {
+        ctx->state = JF_CMD_FAIL_SPECIAL;
     }
 }
 
@@ -211,6 +218,7 @@ static void yy_cmd_finalize(yycontext *ctx, const bool parse_ok)
                 ctx->state = JF_CMD_SUCCESS;
                 break;
             case JF_CMD_FAIL_FOLDER:
+            case JF_CMD_FAIL_SPECIAL:
                 break;
             default:
                 fprintf(stderr, "Error: yy_cmd_finalize: unexpected state transition. This is a bug.\n");   
