@@ -79,20 +79,20 @@ Start = ( ws*
     | "s" ws+ < .+ >            { yy->state = JF_CMD_SPECIAL; jf_menu_search(yytext); }
     | "q"                       { yy->state = JF_CMD_SPECIAL; jf_menu_quit(); }
     | "f"                       { yy_cmd_filters_start(yy); }
-        ws+ Filters           
+        ws+ ( "c"               { yy_cmd_digest_filter(yy, JF_FILTER_NONE); }
+        | Filters )
     | Selector
     ) ws* !.) ~ { yy_cmd_finalize(yy, false); } { yy_cmd_finalize(yy, true); }
 
-Filters = ("clear" | "c")       { yy_cmd_digest_filter(yy, JF_FILTER_NONE); }
-    | Filter ws* "," ws* Filters
+Filters = Filter ws* Filters
     | Filter
 
-Filter = ("played" | "p" )      { yy_cmd_digest_filter(yy, JF_FILTER_IS_PLAYED); }
-    | ("unplayed" | "u" )       { yy_cmd_digest_filter(yy, JF_FILTER_IS_UNPLAYED); }
-    | ("resumable" | "r" )      { yy_cmd_digest_filter(yy, JF_FILTER_RESUMABLE); }
-    | ("favorite" | "f" )       { yy_cmd_digest_filter(yy, JF_FILTER_FAVORITE); }
-    | ("liked" | "l" )          { yy_cmd_digest_filter(yy, JF_FILTER_LIKES); }
-    | ("disliked" | "d" )       { yy_cmd_digest_filter(yy, JF_FILTER_DISLIKES); }
+Filter = "p"                    { yy_cmd_digest_filter(yy, JF_FILTER_IS_PLAYED); }
+    | "u"                       { yy_cmd_digest_filter(yy, JF_FILTER_IS_UNPLAYED); }
+    | "r"                       { yy_cmd_digest_filter(yy, JF_FILTER_RESUMABLE); }
+    | "f"                       { yy_cmd_digest_filter(yy, JF_FILTER_FAVORITE); }
+    | "l"                       { yy_cmd_digest_filter(yy, JF_FILTER_LIKES); }
+    | "d"                       { yy_cmd_digest_filter(yy, JF_FILTER_DISLIKES); }
 
 Selector = "*"                  { yy_cmd_digest_range(yy, 1, jf_menu_child_count()); }
     | Items

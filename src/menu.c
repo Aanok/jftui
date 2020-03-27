@@ -266,7 +266,7 @@ static void jf_menu_filters_print(void)
 
 
 static bool jf_menu_filters_query_try_append(const bool first_filter,
-        const enum jf_filter filter)
+        const jf_filter filter)
 {
     if (! (s_filters & filter)
             || ! jf_menu_item_type_allows_filter(s_context->type, filter)) {
@@ -274,17 +274,17 @@ static bool jf_menu_filters_query_try_append(const bool first_filter,
     }
 
     if (first_filter) {
-        strncpy(s_filters_query,
-                "&filters=",
-                JF_STATIC_STRLEN("&filters="));
-        s_filters_query_len += JF_STATIC_STRLEN("&filters=");
+        s_filters_query_len += (size_t)snprintf(s_filters_query,
+                sizeof(s_filters_query),
+                "&filters=");
     } else {
         s_filters_query[s_filters_query_len] = ',';
         s_filters_query_len++;
     }
-    strcpy(s_filters_query + s_filters_query_len,
+    s_filters_query_len += (size_t)snprintf(s_filters_query + s_filters_query_len,
+            sizeof(s_filters_query) - s_filters_query_len,
+            "%s",
             jf_menu_filter_string(filter));
-    s_filters_query_len += strlen(jf_menu_filter_string(filter));
 
     return false;
 }
