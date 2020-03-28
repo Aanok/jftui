@@ -318,12 +318,6 @@ int main(int argc, char *argv[])
     
 
     // SETUP DISK
-    // apply runtime directory location default unless there was user override
-    if (g_state.runtime_dir == NULL
-            && (g_state.runtime_dir = jf_disk_get_default_runtime_dir()) == NULL) {
-        fprintf(stderr, "FATAL: could not acquire runtime directory location. $HOME could not be read and --runtime-dir was not passed.\n");
-        jf_exit(JF_EXIT_FAILURE);
-    }
     jf_disk_init();
     /////////////
 

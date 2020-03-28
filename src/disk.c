@@ -133,27 +133,25 @@ static jf_menu_item *jf_disk_get_item(jf_file_cache *cache, const size_t n)
 }
 
 
-char *jf_disk_get_default_runtime_dir()
+void jf_disk_init()
 {
-    char *dir;
-    if ((dir = getenv("XDG_DATA_HOME")) == NULL) {
-        if ((dir = getenv("HOME")) != NULL) {
-            dir = jf_concat(2, getenv("HOME"), "/.local/share/jftui");
+    // figure out runtime directory
+    if (g_state.runtime_dir == NULL) {
+        if ((g_state.runtime_dir = getenv("XDG_DATA_HOME")) == NULL) {
+            if ((g_state.runtime_dir= getenv("HOME")) != NULL) {
+                g_state.runtime_dir = jf_concat(2, getenv("HOME"), "/.local/share/jftui");
+            }
+        } else {
+            g_state.runtime_dir = jf_concat(2, g_state.runtime_dir, "/jftui");
         }
-    } else {
-        dir = jf_concat(2, dir, "/jftui");
-    }
 
-    if (dir == NULL) {
+    }
+    if (g_state.runtime_dir == NULL) {
         fprintf(stderr, "FATAL: could not acquire runtime directory location. $HOME could not be read and --runtime-dir was not passed.\n");
         jf_exit(JF_EXIT_FAILURE);
     }
-    return dir;
-}
 
-
-void jf_disk_init()
-{
+    // create runtime directory if it doesn't exist
     if (access(g_state.runtime_dir, F_OK) != 0) {
         assert(mkdir(g_state.runtime_dir, S_IRWXU) != -1);
     }

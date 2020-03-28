@@ -24,7 +24,6 @@ typedef struct jf_file_cache {
 
 
 ////////// FUNCTION STUBS //////////
-char *jf_disk_get_default_runtime_dir(void);
 void jf_disk_init(void);
 void jf_disk_refresh(void);
 void jf_disk_clear(void);
