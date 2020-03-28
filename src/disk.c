@@ -137,40 +137,39 @@ void jf_disk_init()
 {
     // figure out runtime directory
     if (g_state.runtime_dir == NULL) {
-        if ((g_state.runtime_dir = getenv("XDG_DATA_HOME")) == NULL) {
-            if ((g_state.runtime_dir= getenv("HOME")) != NULL) {
-                g_state.runtime_dir = jf_concat(2, getenv("HOME"), "/.local/share/jftui");
-            }
-        } else {
-            g_state.runtime_dir = jf_concat(2, g_state.runtime_dir, "/jftui");
+        // user gave none
+        char *tmp_dir;
+        if ((tmp_dir = getenv("TMPDIR")) == NULL) {
+#ifdef P_tmpdir
+            tmp_dir = P_tmpdir;
+#else
+            tmp_dir = "/tmp";
+#endif
         }
-
+        assert((g_state.runtime_dir = malloc((size_t)snprintf(NULL, 0,
+                "%s/jftui_%d_XXXXXX",
+                tmp_dir, getpid()) + 1)) != NULL);
+        sprintf(g_state.runtime_dir, "%s/jftui_%d_XXXXXX", tmp_dir, getpid());
+        if (mkdtemp(g_state.runtime_dir) == NULL) {
+            perror("mkdtemp");
+            jf_exit(JF_EXIT_FAILURE);
+        }
+    } else if (access(g_state.runtime_dir, F_OK) != 0) {
+        // create user-specified runtime dir if it doesn't exist
+        if (mkdir(g_state.runtime_dir, S_IRWXU) == -1) {
+            perror("mkdir");
+            jf_exit(JF_EXIT_FAILURE);
+        }
     }
-    if (g_state.runtime_dir == NULL) {
-        fprintf(stderr, "FATAL: could not acquire runtime directory location. $HOME could not be read and --runtime-dir was not passed.\n");
-        jf_exit(JF_EXIT_FAILURE);
-    }
 
-    // create runtime directory if it doesn't exist
-    if (access(g_state.runtime_dir, F_OK) != 0) {
-        assert(mkdir(g_state.runtime_dir, S_IRWXU) != -1);
+    if (s_buffer == NULL) {
+        assert((s_buffer = jf_growing_buffer_new(0)) != NULL);
     }
-
-    if (s_buffer == NULL) assert((s_buffer = jf_growing_buffer_new(0)) != NULL);
 
     assert((s_payload.header_path = jf_concat(2, g_state.runtime_dir, "/s_payload_header")) != NULL);
     assert((s_payload.body_path = jf_concat(2, g_state.runtime_dir, "/s_payload_body")) != NULL);
     assert((s_playlist.header_path = jf_concat(2, g_state.runtime_dir, "/s_playlist_header")) != NULL);
     assert((s_playlist.body_path = jf_concat(2, g_state.runtime_dir, "/s_playlist_body")) != NULL);
-
-    if ((access(s_payload.header_path, F_OK)
-                && access(s_payload.body_path, F_OK)
-                && access(s_playlist.header_path, F_OK)
-                && access(s_playlist.body_path, F_OK)) == 0) {
-        fprintf(stderr, "Warning: there are files from another jftui session in %s.\n", g_state.runtime_dir);
-        fprintf(stderr, "If you want to run multiple instances concurrently, make sure to specify a distinct --runtime-dir for each one after the first or they will interfere with each other.\n");
-        fprintf(stderr, "(if jftui terminated abruptly on the last run using this same runtime-dir, you may ignore this warning)\n\n");
-    }
 
     jf_disk_open(&s_payload);
     jf_disk_open(&s_playlist);
@@ -194,6 +193,9 @@ void jf_disk_clear()
     if (s_payload.body_path != NULL) unlink(s_payload.body_path);
     if (s_playlist.header_path != NULL) unlink(s_playlist.header_path);
     if (s_playlist.body_path != NULL) unlink(s_playlist.body_path);
+    if (rmdir(g_state.runtime_dir) == -1) {
+        perror("rmdir");
+    }
 }
 
 

@@ -1,2 +1,2 @@
 #!/bin/bash
-LSAN_OPTIONS=suppressions=lsan_suppr.txt build/jftui_debug --runtime-dir runtime "$@"
+LSAN_OPTIONS=suppressions=lsan_suppr.txt build/jftui_debug "$@"
