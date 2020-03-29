@@ -146,8 +146,12 @@ void jf_disk_init()
             tmp_dir = "/tmp";
 #endif
         }
-        // TODO find a portable way to figure out the maximum pid possible
-        assert((g_state.runtime_dir = malloc(strlen(tmp_dir) + sizeof("/jftui_xxpidxx_XXXXXX"))) != NULL);
+        // the highest PIDs possible are
+        // 4194304 on Linux (2^22)
+        // 99999 on BSD's (macOS too)
+        // so 7 chars can hold them all
+        assert((g_state.runtime_dir = malloc(strlen(tmp_dir)
+                        + sizeof("/jftui_xxpidxx_XXXXXX"))) != NULL);
         sprintf(g_state.runtime_dir, "%s/jftui_%d_XXXXXX", tmp_dir, getpid());
         if (mkdtemp(g_state.runtime_dir) == NULL) {
             perror("mkdtemp");
@@ -155,7 +159,10 @@ void jf_disk_init()
         }
     } else if (access(g_state.runtime_dir, F_OK) != 0) {
         // create user-specified runtime dir if it doesn't exist
-        assert(mkdir(g_state.runtime_dir, S_IRWXU) != -1);
+        if (mkdir(g_state.runtime_dir, S_IRWXU) == -1) {
+            perror("mkdir");
+            jf_exit(JF_EXIT_FAILURE);
+        }
     }
 
     if (s_buffer == NULL) {
@@ -166,15 +173,6 @@ void jf_disk_init()
     assert((s_payload.body_path = jf_concat(2, g_state.runtime_dir, "/s_payload_body")) != NULL);
     assert((s_playlist.header_path = jf_concat(2, g_state.runtime_dir, "/s_playlist_header")) != NULL);
     assert((s_playlist.body_path = jf_concat(2, g_state.runtime_dir, "/s_playlist_body")) != NULL);
-
-//     if ((access(s_payload.header_path, F_OK)
-//                 && access(s_payload.body_path, F_OK)
-//                 && access(s_playlist.header_path, F_OK)
-//                 && access(s_playlist.body_path, F_OK)) == 0) {
-//         fprintf(stderr, "Warning: there are files from another jftui session in %s.\n", g_state.runtime_dir);
-//         fprintf(stderr, "If you want to run multiple instances concurrently, make sure to specify a distinct --runtime-dir for each one after the first or they will interfere with each other.\n");
-//         fprintf(stderr, "(if jftui terminated abruptly on the last run using this same runtime-dir, you may ignore this warning)\n\n");
-//     }
 
     jf_disk_open(&s_payload);
     jf_disk_open(&s_playlist);

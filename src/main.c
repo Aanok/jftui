@@ -57,7 +57,7 @@ static void jf_print_usage() {
     printf("\t--help\n");
     printf("\t--version\n");
     printf("\t--config-dir <directory> (default: $XDG_CONFIG_HOME/jftui)\n");
-    printf("\t--runtime-dir <directory> (default: $XDG_DATA_HOME/jftui)\n");
+    printf("\t--runtime-dir <directory> (default: $TMPDIR, P_tmpdir or /tmp)\n");
     printf("\t--login.\n");
     printf("\t--no-check-updates\n");
 }
