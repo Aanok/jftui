@@ -193,8 +193,10 @@ void jf_disk_clear()
     if (s_payload.body_path != NULL) unlink(s_payload.body_path);
     if (s_playlist.header_path != NULL) unlink(s_playlist.header_path);
     if (s_playlist.body_path != NULL) unlink(s_playlist.body_path);
-    if (rmdir(g_state.runtime_dir) == -1) {
-        perror("rmdir");
+    if (g_state.runtime_dir != NULL) {
+        if (rmdir(g_state.runtime_dir) == -1) {
+            perror("rmdir");
+        }
     }
 }
 
