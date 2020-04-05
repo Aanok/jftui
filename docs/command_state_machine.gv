@@ -1,0 +1,36 @@
+digraph "Command Parser State Machine" {
+    pad=0.5
+    overlap=false
+    sep=10
+    splines=curved
+
+    // filters
+    JF_CMD_VALIDATE_START -> JF_CMD_VALIDATE_FILTERS [label="\"f\""] 
+    JF_CMD_VALIDATE_FILTERS -> JF_CMD_VALIDATE_FILTERS [label="filter"]
+    JF_CMD_VALIDATE_FILTERS -> JF_CMD_VALIDATE_OK [label="EOF"]
+    JF_CMD_VALIDATE_FILTERS -> JF_CMD_FAIL_SYNTAX [label="match error"]
+
+    // folder
+    JF_CMD_VALIDATE_START -> JF_CMD_VALIDATE_FOLDER [label="folder"]
+    JF_CMD_VALIDATE_FOLDER -> JF_CMD_FAIL_FOLDER [label="folder"]
+    JF_CMD_VALIDATE_FOLDER -> JF_CMD_FAIL_FOLDER [label="atom"]
+    JF_CMD_VALIDATE_FOLDER -> JF_CMD_VALIDATE_OK [label="EOF"]
+    JF_CMD_VALIDATE_FOLDER -> JF_CMD_FAIL_SYNTAX [label="match error"]
+
+    // atoms
+    JF_CMD_VALIDATE_START -> JF_CMD_VALIDATE_ATOMS [label="atom"]
+    JF_CMD_VALIDATE_ATOMS -> JF_CMD_VALIDATE_ATOMS [label="atom"]
+    JF_CMD_VALIDATE_ATOMS -> JF_CMD_FAIL_FOLDER [label="folder"]
+    JF_CMD_VALIDATE_ATOMS -> JF_CMD_VALIDATE_OK [label="EOF"]
+    JF_CMD_VALIDATE_ATOMS -> JF_CMD_FAIL_SYNTAX [label="match error"]
+
+    // dispatch
+    JF_CMD_VALIDATE_OK -> JF_CMD_VALIDATE_OK [label="filter"]
+    JF_CMD_VALIDATE_OK -> JF_CMD_VALIDATE_OK [label="folder"]
+    JF_CMD_VALIDATE_OK -> JF_CMD_VALIDATE_OK [label="atom"]
+    JF_CMD_VALIDATE_OK -> JF_CMD_FAIL_DISPATCH [label="dispatch error"]
+    JF_CMD_VALIDATE_OK -> JF_CMD_OK [label="EOF"]
+    
+    // misc
+    JF_CMD_VALIDATE_START -> JF_CMD_FAIL_SYNTAX [label="match error"]
+}

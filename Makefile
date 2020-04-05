@@ -8,9 +8,11 @@ SOURCES=src/linenoise.c src/shared.c src/config.c src/disk.c src/json.c src/menu
 
 OBJECTS=build/linenoise.o build/menu.o build/shared.o build/config.o build/disk.o build/json.o build/net.o build/playback.o build/main.o
 
+DOCS=docs/command_state_machine.png
+
 BUILD_DIR := build
 
-.PHONY: all debug install uninstall clean
+.PHONY: all debug install uninstall clean docs
 
 
 
@@ -28,6 +30,8 @@ uninstall:
 clean:
 	rm -rf ${BUILD_DIR} runtime
 
+docs: $(DOCS)
+	
 
 
 ${BUILD_DIR}:
@@ -68,3 +72,7 @@ ${BUILD_DIR}/playback.o: src/playback.c
 
 ${BUILD_DIR}/main.o: src/main.c
 	$(CC) $(WFLAGS) $(CFLAGS) $(DFLAGS) -c -o $@ $^
+
+
+docs/command_state_machine.png: docs/command_state_machine.gv
+	neato -T png $^ > $@
