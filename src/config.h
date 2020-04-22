@@ -44,6 +44,7 @@ do {                                                                \
 #define JF_CONFIG_DEVICE_SIZE               32
 #define JF_CONFIG_DEVICEID_SIZE             8
 #define JF_CONFIG_VERSION_DEFAULT           JF_VERSION
+#define JF_CONFIG_MPV_PROFILE_DEFAULT       "jftui"
 #define JF_CONFIG_CHECK_UPDATES_DEFAULT     true
 
 
@@ -57,6 +58,7 @@ typedef struct jf_options {
     char device[JF_CONFIG_DEVICE_SIZE];
     char deviceid[JF_CONFIG_DEVICEID_SIZE];
     char *version;
+    char *mpv_profile;
     bool check_updates;
 } jf_options;
 

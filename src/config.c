@@ -47,6 +47,9 @@ static void jf_options_complete_with_defaults()
     if (g_options.version == NULL) {
         assert((g_options.version = strdup(JF_CONFIG_VERSION_DEFAULT)) != NULL);
     }
+    if (g_options.mpv_profile == NULL) {
+        assert((g_options.mpv_profile = strdup(JF_CONFIG_MPV_PROFILE_DEFAULT)) != NULL);
+    }
 }
 
 
@@ -68,6 +71,7 @@ void jf_options_clear()
     free(g_options.userid);
     free(g_options.client);
     free(g_options.version);
+    free(g_options.mpv_profile);
 }
 ////////////////////////////////
 
@@ -134,6 +138,8 @@ void jf_config_read(const char *config_path)
             JF_CONFIG_FILL_VALUE_ARRAY(device, JF_CONFIG_DEVICE_SIZE);
         } else if (JF_CONFIG_KEY_IS("version")) {
             JF_CONFIG_FILL_VALUE(version);
+        } else if (JF_CONFIG_KEY_IS("mpv_profile")) {
+            JF_CONFIG_FILL_VALUE(mpv_profile);
         } else if (JF_CONFIG_KEY_IS("check_updates")) {
             JF_CONFIG_FILL_VALUE_BOOL(check_updates);
         } else {
@@ -179,6 +185,7 @@ bool jf_config_write(const char *config_path)
     JF_CONFIG_WRITE_VALUE(device);
     JF_CONFIG_WRITE_VALUE(deviceid);
     JF_CONFIG_WRITE_VALUE(version);
+    JF_CONFIG_WRITE_VALUE(mpv_profile);
     // NB don't write check_updates, we want it set manually
 
     if (fclose(tmp_file) != 0) {
