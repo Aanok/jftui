@@ -47,9 +47,6 @@ static void jf_options_complete_with_defaults()
     if (g_options.version == NULL) {
         assert((g_options.version = strdup(JF_CONFIG_VERSION_DEFAULT)) != NULL);
     }
-    if (g_options.mpv_profile == NULL) {
-        assert((g_options.mpv_profile = strdup(JF_CONFIG_MPV_PROFILE_DEFAULT)) != NULL);
-    }
 }
 
 
@@ -185,7 +182,9 @@ bool jf_config_write(const char *config_path)
     JF_CONFIG_WRITE_VALUE(device);
     JF_CONFIG_WRITE_VALUE(deviceid);
     JF_CONFIG_WRITE_VALUE(version);
-    JF_CONFIG_WRITE_VALUE(mpv_profile);
+    if (g_options.mpv_profile != NULL) {
+        JF_CONFIG_WRITE_VALUE(mpv_profile);
+    }
     // NB don't write check_updates, we want it set manually
 
     if (fclose(tmp_file) != 0) {

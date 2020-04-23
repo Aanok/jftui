@@ -640,7 +640,7 @@ static void jf_menu_try_play()
     JF_MPV_ASSERT(mpv_initialize(g_mpv_ctx));
 
     // profile must be applied as a command
-    {
+    if (g_options.mpv_profile != NULL) {
         const char *apply_profile[] = { "apply-profile", g_options.mpv_profile, NULL };
         if (mpv_command(g_mpv_ctx, apply_profile) < 0) {
             fprintf(stderr,
