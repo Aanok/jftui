@@ -111,7 +111,7 @@ void jf_config_read(const char *config_path)
         if ((value = strchr(line, '=')) == NULL) {
             // the line is malformed; issue a warning and skip it
             fprintf(stderr,
-                    "Warning: skipping malformed settings file line: %s.\n",
+                    "Warning: skipping malformed settings file line: %s",
                     line);
             continue;
         }
@@ -142,7 +142,7 @@ void jf_config_read(const char *config_path)
         } else {
             // option key was not recognized; print a warning and go on
             fprintf(stderr,
-                    "Warning: unrecognized option key in settings file line: %s.\n",
+                    "Warning: unrecognized option key in settings file line: %s",
                     line);
         }
     }
