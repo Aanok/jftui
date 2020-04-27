@@ -511,20 +511,28 @@ void jf_playback_end()
 }
 
 
-void jf_playback_print_playlist(size_t slice_height)
+void jf_playback_print_playlist(size_t window_size)
 {
     size_t i, low, high;
     size_t pos = g_state.playlist_position;
+    size_t item_count = jf_disk_playlist_item_count();
 
-    if (slice_height == 0) {
-        slice_height = jf_disk_playlist_item_count();
+    if (window_size == 0) {
+        window_size = item_count;
     }
-    
-    low = pos <= slice_height ? 1 : pos - slice_height;
-    high = jf_clamp_zu(g_state.playlist_position + slice_height,
-            pos,
-            jf_disk_playlist_item_count());
 
+    // the window size is guaranteed (if there are enough items)
+    // the window slides without ever going beyond boundaries
+    if (pos <= window_size / 2) {
+        low = 1;
+        high = window_size > item_count ? item_count : low + window_size - 1;
+    } else if (pos + window_size / 2 > item_count) {
+            high = item_count;
+            low = window_size >= high ? 1 : high - window_size + 1;
+    } else {
+        low = pos - window_size / 2;
+        high = low + window_size - 1;
+    }
 
     fprintf(stdout, "\n===== jftui playlist =====\n");
     for (i = low; i < pos; i++) {
