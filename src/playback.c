@@ -40,6 +40,9 @@ static void jf_post_session(const int64_t playback_ticks,
 //  - false: on failure, in which case playback_ticks may have been populated
 //      for some of the children before encountering the failure.
 static inline bool jf_playback_populate_video_ticks(jf_menu_item *item);
+
+
+static void jf_playback_playlist_window(size_t window_size, size_t window[2]);
 ///////////////////////////////////////////
 
 
@@ -511,9 +514,8 @@ void jf_playback_end()
 }
 
 
-void jf_playback_print_playlist(size_t window_size)
+static void jf_playback_playlist_window(size_t window_size, size_t window[2])
 {
-    size_t i, low, high;
     size_t pos = g_state.playlist_position;
     size_t item_count = jf_disk_playlist_item_count();
 
@@ -524,24 +526,58 @@ void jf_playback_print_playlist(size_t window_size)
     // the window size is guaranteed (if there are enough items)
     // the window slides without ever going beyond boundaries
     if (pos <= window_size / 2) {
-        low = 1;
-        high = window_size > item_count ? item_count : low + window_size - 1;
+        window[0] = 1;
+        window[1] = window_size > item_count ? item_count : window[0] + window_size - 1;
     } else if (pos + window_size / 2 > item_count) {
-            high = item_count;
-            low = window_size >= high ? 1 : high - window_size + 1;
+            window[1] = item_count;
+            window[0] = window_size >= window[1] ? 1 : window[1] - window_size + 1;
     } else {
-        low = pos - window_size / 2;
-        high = low + window_size - 1;
+        window[0] = pos - window_size / 2;
+        window[1] = window[0] + window_size - 1;
     }
+}
 
-    fprintf(stdout, "\n===== jftui playlist =====\n");
-    for (i = low; i < pos; i++) {
+
+void jf_playback_print_playlist(size_t window_size)
+{
+    size_t i;
+    size_t pos = g_state.playlist_position;
+    size_t terminal[2];
+    size_t osd[2]; 
+    jf_growing_buffer *osd_msg = jf_growing_buffer_new(0);
+    const char *osd_cmd[3]= { "show-text", NULL, NULL };
+
+    jf_playback_playlist_window(window_size, terminal);
+    jf_playback_playlist_window(5, osd);
+
+    // print to terminal
+    fprintf(stdout, "\n" JF_PLAYLIST_HEADER "\n");
+    for (i = terminal[0]; i < pos; i++) {
         fprintf(stdout, "%zu: %s\n", i, jf_disk_playlist_get_item_name(i)); 
     }
-    fprintf(stdout, "\t >>> %zu: %s <<<\n", i, g_state.now_playing->name);
-    for (i = pos + 1; i <= high; i++) {
+    fprintf(stdout, "\t>>> %zu: %s <<<\n", i, g_state.now_playing->name);
+    for (i = pos + 1; i <= terminal[1]; i++) {
         fprintf(stdout, "%zu: %s\n", i, jf_disk_playlist_get_item_name(i));
     }
     fprintf(stdout, "\n");
+
+    // prepare OSD string
+    jf_growing_buffer_append(osd_msg,
+            JF_PLAYLIST_HEADER,
+            JF_STATIC_STRLEN(JF_PLAYLIST_HEADER));
+    for (i = osd[0]; i < pos; i++) {
+        jf_growing_buffer_sprintf(osd_msg, 0, "\n%zu: %s", i, jf_disk_playlist_get_item_name(i));
+    }
+    jf_growing_buffer_sprintf(osd_msg, 0, "\n\t>>> %zu: %s <<<", i, g_state.now_playing->name);
+    for (i = pos + 1; i <= osd[1]; i++) {
+        jf_growing_buffer_sprintf(osd_msg, 0, "\n%zu: %s", i, jf_disk_playlist_get_item_name(i));
+    }
+    jf_growing_buffer_append(osd_msg, "", 1);
+
+    // print to OSD
+    osd_cmd[1] = osd_msg->buf;
+    JF_MPV_ASSERT(mpv_command(g_mpv_ctx, osd_cmd));
+    jf_growing_buffer_free(osd_msg);
+
 }
 ///////////////////////////////////////

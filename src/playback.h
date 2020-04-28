@@ -10,6 +10,8 @@
 #include <stdbool.h>
 
 
+#define JF_PLAYLIST_HEADER "===== jftui playlist ====="
+
 // Update playback progress marker of the currently playing item on the server
 // (as of g_state.now_playing).
 // Detect if we moved across split-file parts since the last such update and
