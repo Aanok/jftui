@@ -20,6 +20,8 @@ extern mpv_handle *g_mpv_ctx;
 #ifdef JF_DEBUG
 static void jf_menu_item_print_indented(const jf_menu_item *item, const size_t level);
 #endif
+inline static void jf_growing_buffer_make_space(jf_growing_buffer *buffer,
+        size_t to_add);
 //////////////////////////////////////
 
 
@@ -183,24 +185,65 @@ jf_growing_buffer *jf_growing_buffer_new(const size_t size)
 }
 
 
-void jf_growing_buffer_append(jf_growing_buffer *buffer, const void *data,
-        size_t length)
+inline static void jf_growing_buffer_make_space(jf_growing_buffer *buffer,
+        const size_t required)
 {
     size_t estimate;
 
+    if (buffer == NULL) return;
+
+    if (buffer->used + required > buffer->size) {
+        estimate = (buffer->used + required ) / 2 * 3;
+        buffer->size = estimate >= buffer->size * 2 ? estimate : buffer->size * 2;
+        assert((buffer->buf = realloc(buffer->buf, buffer->size)) != NULL);
+    }
+}
+
+
+void jf_growing_buffer_append(jf_growing_buffer *buffer, const void *data,
+        size_t length)
+{
     if (buffer == NULL) return;
 
     if (length == 0) {
         length = strlen(data);
     }
 
-    if (buffer->used + length > buffer->size) {
-        estimate = (buffer->used + length) / 2 * 3;
-        buffer->size = estimate >= buffer->size * 2 ? estimate : buffer->size * 2;
-        assert((buffer->buf = realloc(buffer->buf, buffer->size)) != NULL);
-    }
+    jf_growing_buffer_make_space(buffer, length);
     memcpy(buffer->buf + buffer->used, data, length);
     buffer->used += length;
+}
+
+
+void jf_growing_buffer_sprintf(jf_growing_buffer *buffer,
+        size_t offset,
+        const char *format,
+        ...)
+{
+    int sprintf_len;
+    va_list ap;
+
+    if (buffer == NULL) return;
+
+    if (offset == 0) {
+        offset = buffer->used;
+    }
+
+    va_start(ap, format);
+    // count terminating NULL too or output loses last character
+    assert((sprintf_len = vsnprintf(NULL, 0, format, ap) + 1) != -1);
+    va_end(ap);
+
+    jf_growing_buffer_make_space(buffer, offset + (size_t)sprintf_len - buffer->used);
+
+    va_start(ap, format);
+    // so this DOES write the terminating NULL as well
+    assert(vsnprintf(buffer->buf + offset, (size_t)sprintf_len, format, ap)
+            == sprintf_len - 1);
+    va_end(ap);
+
+    // but we ignore that it's there
+    buffer->used += (size_t)sprintf_len - 1;
 }
 
 

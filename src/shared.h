@@ -191,7 +191,12 @@ typedef struct jf_growing_buffer {
 
 
 jf_growing_buffer *jf_growing_buffer_new(const size_t size);
-void jf_growing_buffer_append(jf_growing_buffer *buffer, const void *data, const size_t length);
+void jf_growing_buffer_append(jf_growing_buffer *buffer,
+        const void *data,
+        const size_t length);
+void jf_growing_buffer_sprintf(jf_growing_buffer *buffer,
+        size_t offset,
+        const char *format, ...);
 void jf_growing_buffer_empty(jf_growing_buffer *buffer);
 void jf_growing_buffer_free(jf_growing_buffer *buffer);
 ////////////////////////////////////
@@ -291,8 +296,6 @@ void *jf_synced_queue_dequeue(jf_synced_queue *q);
 
 
 ////////// MISCELLANEOUS GARBAGE //////////
-
-
 // Concatenates any amount of NULL-terminated strings. The result will be
 // dynamically allocated and will need to be free'd.
 //
