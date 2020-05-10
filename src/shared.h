@@ -89,7 +89,8 @@ typedef enum __attribute__((__packed__)) jf_item_type {
     JF_ITEM_TYPE_AUDIOBOOK = 2,
     JF_ITEM_TYPE_EPISODE = 3,
     JF_ITEM_TYPE_MOVIE = 4,
-    JF_ITEM_TYPE_VIDEO_SOURCE = 5,
+    JF_ITEM_TYPE_MUSIC_VIDEO = 5,
+    JF_ITEM_TYPE_VIDEO_SOURCE = 6,
     // Subs break the usual format:
     //  name: suffix URL for the stream. This is better computed at parse time
     //      and cached for later use instead of computed on the fly by
@@ -100,20 +101,21 @@ typedef enum __attribute__((__packed__)) jf_item_type {
     //      characters mark an ISO language code (id[0] == '\0' if not
     //      available) while the remaining 29 characters contain as much of
     //      the JF DisplayTitle as possible.
-    JF_ITEM_TYPE_VIDEO_SUB = 6,
+    JF_ITEM_TYPE_VIDEO_SUB = 7,
 
     // Folders
     JF_ITEM_TYPE_COLLECTION = 20,
     JF_ITEM_TYPE_COLLECTION_MUSIC = 21,
     JF_ITEM_TYPE_COLLECTION_SERIES = 22,
     JF_ITEM_TYPE_COLLECTION_MOVIES = 23,
-    JF_ITEM_TYPE_USER_VIEW = 24,
-    JF_ITEM_TYPE_FOLDER = 25,
-    JF_ITEM_TYPE_PLAYLIST = 26,
-    JF_ITEM_TYPE_ARTIST = 27,
-    JF_ITEM_TYPE_ALBUM = 28,
-    JF_ITEM_TYPE_SEASON = 29,
-    JF_ITEM_TYPE_SERIES = 30,
+    JF_ITEM_TYPE_COLLECTION_MUSIC_VIDEOS = 24,
+    JF_ITEM_TYPE_USER_VIEW = 25,
+    JF_ITEM_TYPE_FOLDER = 26,
+    JF_ITEM_TYPE_PLAYLIST = 27,
+    JF_ITEM_TYPE_ARTIST = 28,
+    JF_ITEM_TYPE_ALBUM = 29,
+    JF_ITEM_TYPE_SEASON = 30,
+    JF_ITEM_TYPE_SERIES = 31,
 
     // Special folder
     JF_ITEM_TYPE_SEARCH_RESULT = 100,

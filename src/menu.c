@@ -218,6 +218,7 @@ static bool jf_menu_item_type_allows_filter(const jf_item_type type,
         case JF_ITEM_TYPE_COLLECTION:
         case JF_ITEM_TYPE_COLLECTION_SERIES:
         case JF_ITEM_TYPE_COLLECTION_MOVIES:
+        case JF_ITEM_TYPE_COLLECTION_MUSIC_VIDEOS:
         case JF_ITEM_TYPE_USER_VIEW:
         case JF_ITEM_TYPE_FOLDER:
         case JF_ITEM_TYPE_PLAYLIST:
@@ -334,6 +335,7 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
             return jf_concat(4, g_options.server, "/items/", item->id, "/file");
         case JF_ITEM_TYPE_EPISODE:
         case JF_ITEM_TYPE_MOVIE:
+        case JF_ITEM_TYPE_MUSIC_VIDEO:
             return jf_concat(4, "/users/", g_options.userid, "/items/", item->id);
         case JF_ITEM_TYPE_VIDEO_SUB:
             return strdup(item->name);
@@ -343,6 +345,7 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
         case JF_ITEM_TYPE_ALBUM:
         case JF_ITEM_TYPE_SEASON:
         case JF_ITEM_TYPE_SERIES:
+        case JF_ITEM_TYPE_COLLECTION_MUSIC_VIDEOS:
                 return jf_concat(5,
                         "/users/",
                         g_options.userid,
@@ -478,6 +481,7 @@ static bool jf_menu_print_context()
         case JF_ITEM_TYPE_COLLECTION_MUSIC:
         case JF_ITEM_TYPE_COLLECTION_SERIES:
         case JF_ITEM_TYPE_COLLECTION_MOVIES:
+        case JF_ITEM_TYPE_COLLECTION_MUSIC_VIDEOS:
         case JF_ITEM_TYPE_ARTIST:
         case JF_ITEM_TYPE_ALBUM:
         case JF_ITEM_TYPE_SEASON:
@@ -695,6 +699,7 @@ bool jf_menu_child_dispatch(size_t n)
         case JF_ITEM_TYPE_AUDIOBOOK:
         case JF_ITEM_TYPE_EPISODE:
         case JF_ITEM_TYPE_MOVIE:
+        case JF_ITEM_TYPE_MUSIC_VIDEO:
             jf_disk_playlist_add_item(child);
             jf_menu_item_free(child);
             break;
@@ -711,6 +716,7 @@ bool jf_menu_child_dispatch(size_t n)
         case JF_ITEM_TYPE_COLLECTION_MUSIC:
         case JF_ITEM_TYPE_COLLECTION_SERIES:
         case JF_ITEM_TYPE_COLLECTION_MOVIES:
+        case JF_ITEM_TYPE_COLLECTION_MUSIC_VIDEOS:
         case JF_ITEM_TYPE_ARTIST:
         case JF_ITEM_TYPE_ALBUM:
         case JF_ITEM_TYPE_SEASON:

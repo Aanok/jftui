@@ -281,6 +281,8 @@ static int jf_sax_items_string(void *ctx, const unsigned char *string, size_t st
                 context->current_item_type = JF_ITEM_TYPE_SERIES;
             } else if (JF_SAX_STRING_IS("Movie")) {
                 context->current_item_type = JF_ITEM_TYPE_MOVIE;
+            } else if (JF_SAX_STRING_IS("MusicVideo")) {
+                context->current_item_type = JF_ITEM_TYPE_MUSIC_VIDEO;
             } else if (JF_SAX_STRING_IS("AudioBook")) {
                 context->current_item_type = JF_ITEM_TYPE_AUDIOBOOK;
             }
@@ -291,9 +293,10 @@ static int jf_sax_items_string(void *ctx, const unsigned char *string, size_t st
                 context->current_item_type = JF_ITEM_TYPE_COLLECTION_MUSIC;
             } else if (JF_SAX_STRING_IS("tvshows")) {
                 context->current_item_type = JF_ITEM_TYPE_COLLECTION_SERIES;
-            } else if (JF_SAX_STRING_IS("movies") || JF_SAX_STRING_IS("homevideos")
-                    || JF_SAX_STRING_IS("musicvideos")) {
+            } else if (JF_SAX_STRING_IS("movies") || JF_SAX_STRING_IS("homevideos")) {
                 context->current_item_type = JF_ITEM_TYPE_COLLECTION_MOVIES;
+            } else if (JF_SAX_STRING_IS("musicvideos")) {
+                context->current_item_type = JF_ITEM_TYPE_COLLECTION_MUSIC_VIDEOS;
             } else if (JF_SAX_STRING_IS("folders")) {
                 context->current_item_type = JF_ITEM_TYPE_FOLDER;
             }
@@ -412,6 +415,7 @@ static inline void jf_sax_current_item_make_and_print_name(jf_sax_context *conte
                     context->name, context->name_len);
             break;
         case JF_ITEM_TYPE_MOVIE:
+        case JF_ITEM_TYPE_MUSIC_VIDEO:
             JF_SAX_PRINT_LEADER("V");
             jf_growing_buffer_append(context->current_item_display_name,
                     context->name, context->name_len);
@@ -425,6 +429,7 @@ static inline void jf_sax_current_item_make_and_print_name(jf_sax_context *conte
         case JF_ITEM_TYPE_COLLECTION_MUSIC:
         case JF_ITEM_TYPE_COLLECTION_SERIES:
         case JF_ITEM_TYPE_COLLECTION_MOVIES:
+        case JF_ITEM_TYPE_COLLECTION_MUSIC_VIDEOS:
         case JF_ITEM_TYPE_USER_VIEW:
             JF_SAX_PRINT_LEADER("D");
             jf_growing_buffer_append(context->current_item_display_name,
