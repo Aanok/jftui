@@ -343,6 +343,7 @@ void jf_playback_play_item(jf_menu_item *item)
             break;
         case JF_ITEM_TYPE_EPISODE:
         case JF_ITEM_TYPE_MOVIE:
+        case JF_ITEM_TYPE_MUSIC_VIDEO:
             // check if item was already evaded re: split file and versions
             if (item->children_count > 0) {
                 jf_menu_ask_resume(item);

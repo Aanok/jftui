@@ -89,6 +89,7 @@ typedef enum __attribute__((__packed__)) jf_item_type {
     JF_ITEM_TYPE_AUDIOBOOK = 2,
     JF_ITEM_TYPE_EPISODE = 3,
     JF_ITEM_TYPE_MOVIE = 4,
+    JF_ITEM_TYPE_MUSIC_VIDEO = 7,
     JF_ITEM_TYPE_VIDEO_SOURCE = 5,
     // Subs break the usual format:
     //  name: suffix URL for the stream. This is better computed at parse time
@@ -107,6 +108,7 @@ typedef enum __attribute__((__packed__)) jf_item_type {
     JF_ITEM_TYPE_COLLECTION_MUSIC = 21,
     JF_ITEM_TYPE_COLLECTION_SERIES = 22,
     JF_ITEM_TYPE_COLLECTION_MOVIES = 23,
+    JF_ITEM_TYPE_COLLECTION_MUSIC_VIDEOS = 31,
     JF_ITEM_TYPE_USER_VIEW = 24,
     JF_ITEM_TYPE_FOLDER = 25,
     JF_ITEM_TYPE_PLAYLIST = 26,
