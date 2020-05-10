@@ -345,6 +345,7 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
         case JF_ITEM_TYPE_ALBUM:
         case JF_ITEM_TYPE_SEASON:
         case JF_ITEM_TYPE_SERIES:
+        case JF_ITEM_TYPE_COLLECTION_MUSIC_VIDEOS:
                 return jf_concat(5,
                         "/users/",
                         g_options.userid,
@@ -380,13 +381,6 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
                     "/users/",
                     g_options.userid,
                     "/items?includeitemtypes=Movie&recursive=true&sortby=isfolder,sortname&parentid=",
-                    item->id,
-                    s_filters_query);
-        case JF_ITEM_TYPE_COLLECTION_MUSIC_VIDEOS:
-            return jf_concat(5,
-                    "/users/",
-                    g_options.userid,
-                    "/items?includeitemtypes=MusicVideo&recursive=true&sortby=isfolder,sortname&parentid=",
                     item->id,
                     s_filters_query);
         case JF_ITEM_TYPE_ARTIST:
