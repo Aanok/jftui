@@ -489,12 +489,11 @@ static inline void jf_sax_context_current_item_copy(jf_sax_context *context)
 {
     // allocate a contiguous buffer containing the copied values
     // then update the context pointers to point within it
-    size_t item_size;
     size_t used = 0;
-    item_size = (size_t)(context->name_len + context->id_len
-            + context->artist_len + context->album_len + context->series_len
-            + context->year_len + context->index_len + context->parent_index_len);
-    assert((context->copy_buffer = malloc(item_size)) != NULL);
+    size_t item_size = (size_t)(JF_SAX_CONTEXT_PTR_PARSED_DATA_LENGTH(context));
+    char *buf;
+
+    assert((buf = malloc(item_size)) != NULL);
     JF_SAX_CONTEXT_COPY(name);
     JF_SAX_CONTEXT_COPY(id);
     JF_SAX_CONTEXT_COPY(artist);
@@ -503,6 +502,9 @@ static inline void jf_sax_context_current_item_copy(jf_sax_context *context)
     JF_SAX_CONTEXT_COPY(year);
     JF_SAX_CONTEXT_COPY(index);
     JF_SAX_CONTEXT_COPY(parent_index);
+
+    free(context->copy_buffer);
+    context->copy_buffer = buf;
 }
 
 
@@ -549,13 +551,12 @@ void *jf_json_sax_thread(void *arg)
             // JSON fully parsed
             yajl_complete_parse(parser);
             context.tb->state = JF_THREAD_BUFFER_STATE_CLEAR;
-        } else if (context.copy_buffer == NULL) {
-            // we've still more to go, so we populate the copy buffer to not lose data
-            // but if it is already filled from last time, filling it again would be unnecessary
-            // and lead to a memory leak
+        } else if (JF_SAX_CONTEXT_PTR_PARSED_DATA_LENGTH(&context) > 0) {
+            // we've still more to go and we've seen data we need to save
             context.tb->state = JF_THREAD_BUFFER_STATE_AWAITING_DATA;
             jf_sax_context_current_item_copy(&context);
         } else {
+            // we've still more to go but don't have any data we need to save
             context.tb->state = JF_THREAD_BUFFER_STATE_AWAITING_DATA;
         }
         

@@ -22,15 +22,24 @@ do {                                                \
     context->field ## _len = string_len;            \
 } while (false)
 
-#define JF_SAX_CONTEXT_COPY(field)                                                  \
-do {                                                                                \
-    if (context->field ## _len > 0) {                                               \
-        strncpy(context->copy_buffer + used, (const char *)context->field,          \
-                (size_t)context->field ## _len);                                    \
-        context->field = (const unsigned char *)(context->copy_buffer + used);      \
-        used += (size_t)context->field ## _len;                                     \
-    }                                                                               \
+#define JF_SAX_CONTEXT_COPY(field)                              \
+do {                                                            \
+    if (context->field ## _len > 0) {                           \
+        strncpy(buf + used, (const char *)context->field,       \
+                (size_t)context->field ## _len);                \
+        context->field = (const unsigned char *)(buf + used);   \
+        used += (size_t)context->field ## _len;                 \
+    }                                                           \
 } while (false)
+
+#define JF_SAX_CONTEXT_PTR_PARSED_DATA_LENGTH(_c) ((_c)->name_len \
+        + (_c)->id_len                                            \
+        + (_c)->artist_len                                        \
+        + (_c)->album_len                                         \
+        + (_c)->series_len                                        \
+        + (_c)->year_len                                          \
+        + (_c)->index_len                                         \
+        + (_c)->parent_index_len)
 
 #define JF_SAX_KEY_IS(name) (strncmp((const char *)key, name, sizeof(name) > key_len ? key_len : sizeof(name)) == 0)
 
