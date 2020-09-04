@@ -200,6 +200,7 @@ static bool jf_menu_item_type_allows_filter(const jf_item_type type,
         case JF_ITEM_TYPE_AUDIOBOOK:
         case JF_ITEM_TYPE_EPISODE:
         case JF_ITEM_TYPE_MOVIE:
+        case JF_ITEM_TYPE_MUSIC_VIDEO:
         case JF_ITEM_TYPE_VIDEO_SOURCE:
         case JF_ITEM_TYPE_VIDEO_SUB:
         case JF_ITEM_TYPE_MENU_ROOT:
