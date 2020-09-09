@@ -333,7 +333,7 @@ void jf_print_zu(size_t n);
 //
 // Returns:
 //  Pointer to the string. It will need be free'd.
-// CAN'T FAIL.
+// CAN FATAL.
 char *jf_generate_random_id(size_t length);
 
 
@@ -346,7 +346,7 @@ void jf_clear_stdin(void);
 // space, by priting a line of whitespace.
 //
 // Parameters:
-//  - stream: the actual stream that will be printer do.
+//  - stream: the actual stream that will be printed to.
 //      Can be NULL to default to stdout.
 //
 // CAN'T FAIL.
