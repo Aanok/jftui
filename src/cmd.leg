@@ -16,7 +16,9 @@ typedef enum jf_cmd_parser_state {
     JF_CMD_VALIDATE_FILTERS = 3,
     JF_CMD_VALIDATE_OK = 4,
     JF_CMD_SPECIAL = 5,
-    JF_CMD_SUCCESS = 6,
+    JF_CMD_MARK_PLAYED = 6,
+    JF_CMD_MARK_UNPLAYED = 7,
+    JF_CMD_SUCCESS = 8,
 
     JF_CMD_FAIL_FOLDER = -1,
     JF_CMD_FAIL_SYNTAX = -2,
@@ -81,6 +83,10 @@ Start = ( ws*
     | "f"                       { yy_cmd_filters_start(yy); }
         ws+ ( "c"               { yy_cmd_digest_filter(yy, JF_FILTER_NONE); }
         | Filters )
+    | "m" ws+ "p"               { yy->state = JF_CMD_MARK_PLAYED; }
+        ws+ Selector
+    | "m" ws+ "u"               { yy->state = JF_CMD_MARK_UNPLAYED; }
+        ws+ Selector
     | Selector
     ) ws* !.) ~ { yy_cmd_finalize(yy, false); } { yy_cmd_finalize(yy, true); }
 
@@ -179,6 +185,12 @@ static void yy_cmd_digest(yycontext *ctx, size_t n)
                 ctx->state = JF_CMD_FAIL_DISPATCH;
             }
             break;
+        case JF_CMD_MARK_PLAYED:
+            jf_menu_child_mark_played(n, JF_PLAYED_STATUS_YES);
+            break;
+        case JF_CMD_MARK_UNPLAYED:
+            jf_menu_child_mark_played(n, JF_PLAYED_STATUS_NO);
+            break;
         default:
             fprintf(stderr, "Error: yy_cmd_digest: unexpected state transition. This is a bug.\n"); 
             break;
@@ -212,6 +224,10 @@ static void yy_cmd_finalize(yycontext *ctx, const bool parse_ok)
                 ctx->read_input = 0;
                 ctx->state = JF_CMD_VALIDATE_OK;
                 break;
+            case JF_CMD_MARK_PLAYED:
+            case JF_CMD_MARK_UNPLAYED:
+                jf_menu_item_mark_played_await_all();
+                // no break
             case JF_CMD_VALIDATE_OK:
             case JF_CMD_SPECIAL:
             case JF_CMD_VALIDATE_START: // all items out of bounds

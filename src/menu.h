@@ -51,6 +51,23 @@ bool jf_menu_filters_add(const enum jf_filter filter);
 ///////////////////////////////////
 
 
+////////// PLAYED STATUS //////////
+#define JF_PLAYED_STATUS_REQUESTS_LEN (JF_NET_ASYNC_THREADS * 4)
+
+typedef enum jf_played_status {
+    JF_PLAYED_STATUS_YES = 0,
+    JF_PLAYED_STATUS_NO = 1
+    // there should technically be a third entry for a partially played file
+    // but we don't need it
+} jf_played_status;
+
+
+void jf_menu_child_mark_played(const size_t n, const jf_played_status status);
+void jf_menu_item_mark_played_detach(const jf_menu_item *item, const jf_played_status status);
+void jf_menu_item_mark_played_await_all(void);
+///////////////////////////////////
+
+
 ////////// JF_MENU_STACK //////////
 typedef struct jf_menu_stack {
     jf_menu_item **items;
@@ -68,8 +85,6 @@ bool jf_menu_child_dispatch(const size_t n);
 void jf_menu_dotdot(void);
 void jf_menu_quit(void);
 void jf_menu_search(const char *s);
-void jf_menu_mark_played(const jf_menu_item *item);
-void jf_menu_mark_unplayed(const jf_menu_item *item);
 
 void jf_menu_ui(void);
 /////////////////////////////////////////

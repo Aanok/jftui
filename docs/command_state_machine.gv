@@ -5,32 +5,32 @@ digraph "Command Parser State Machine" {
     splines=curved
 
     // filters
-    JF_CMD_VALIDATE_START -> JF_CMD_VALIDATE_FILTERS [label="\"f\""] 
-    JF_CMD_VALIDATE_FILTERS -> JF_CMD_VALIDATE_FILTERS [label="filter"]
-    JF_CMD_VALIDATE_FILTERS -> JF_CMD_VALIDATE_OK [label="EOF"]
-    JF_CMD_VALIDATE_FILTERS -> JF_CMD_FAIL_SYNTAX [label="match error"]
+    VALIDATE_START -> VALIDATE_FILTERS [label="\"f\""] 
+    VALIDATE_FILTERS -> VALIDATE_FILTERS [label="filter"]
+    VALIDATE_FILTERS -> VALIDATE_OK [label="EOF"]
+    VALIDATE_FILTERS -> FAIL_SYNTAX [label="match error"]
 
     // folder
-    JF_CMD_VALIDATE_START -> JF_CMD_VALIDATE_FOLDER [label="folder"]
-    JF_CMD_VALIDATE_FOLDER -> JF_CMD_FAIL_FOLDER [label="folder"]
-    JF_CMD_VALIDATE_FOLDER -> JF_CMD_FAIL_FOLDER [label="atom"]
-    JF_CMD_VALIDATE_FOLDER -> JF_CMD_VALIDATE_OK [label="EOF"]
-    JF_CMD_VALIDATE_FOLDER -> JF_CMD_FAIL_SYNTAX [label="match error"]
+    VALIDATE_START -> VALIDATE_FOLDER [label="folder"]
+    VALIDATE_FOLDER -> FAIL_FOLDER [label="folder"]
+    VALIDATE_FOLDER -> FAIL_FOLDER [label="atom"]
+    VALIDATE_FOLDER -> VALIDATE_OK [label="EOF"]
+    VALIDATE_FOLDER -> FAIL_SYNTAX [label="match error"]
 
     // atoms
-    JF_CMD_VALIDATE_START -> JF_CMD_VALIDATE_ATOMS [label="atom"]
-    JF_CMD_VALIDATE_ATOMS -> JF_CMD_VALIDATE_ATOMS [label="atom"]
-    JF_CMD_VALIDATE_ATOMS -> JF_CMD_FAIL_FOLDER [label="folder"]
-    JF_CMD_VALIDATE_ATOMS -> JF_CMD_VALIDATE_OK [label="EOF"]
-    JF_CMD_VALIDATE_ATOMS -> JF_CMD_FAIL_SYNTAX [label="match error"]
+    VALIDATE_START -> VALIDATE_ATOMS [label="atom"]
+    VALIDATE_ATOMS -> VALIDATE_ATOMS [label="atom"]
+    VALIDATE_ATOMS -> FAIL_FOLDER [label="folder"]
+    VALIDATE_ATOMS -> VALIDATE_OK [label="EOF"]
+    VALIDATE_ATOMS -> FAIL_SYNTAX [label="match error"]
 
     // dispatch
-    JF_CMD_VALIDATE_OK -> JF_CMD_VALIDATE_OK [label="filter"]
-    JF_CMD_VALIDATE_OK -> JF_CMD_VALIDATE_OK [label="folder"]
-    JF_CMD_VALIDATE_OK -> JF_CMD_VALIDATE_OK [label="atom"]
-    JF_CMD_VALIDATE_OK -> JF_CMD_FAIL_DISPATCH [label="dispatch error"]
-    JF_CMD_VALIDATE_OK -> JF_CMD_OK [label="EOF"]
+    VALIDATE_OK -> VALIDATE_OK [label="filter"]
+    VALIDATE_OK -> VALIDATE_OK [label="folder"]
+    VALIDATE_OK -> VALIDATE_OK [label="atom"]
+    VALIDATE_OK -> FAIL_DISPATCH [label="dispatch error"]
+    VALIDATE_OK -> OK [label="EOF"]
     
     // misc
-    JF_CMD_VALIDATE_START -> JF_CMD_FAIL_SYNTAX [label="match error"]
+    VALIDATE_START -> FAIL_SYNTAX [label="match error"]
 }

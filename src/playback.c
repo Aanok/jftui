@@ -113,9 +113,11 @@ static void jf_post_session(const int64_t playback_ticks,
     if (last_part == current_part) return;
     for (i = 0; i < g_state.now_playing->children_count; i++) {
         if (i < current_part) {
-            jf_menu_mark_played(g_state.now_playing->children[i]);
+            jf_menu_item_mark_played_detach(g_state.now_playing->children[i],
+                    JF_PLAYED_STATUS_YES);
         } else if (i > current_part) {
-            jf_menu_mark_unplayed(g_state.now_playing->children[i]);
+            jf_menu_item_mark_played_detach(g_state.now_playing->children[i],
+                    JF_PLAYED_STATUS_NO);
         }
     }
 }

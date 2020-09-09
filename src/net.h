@@ -65,6 +65,7 @@ typedef struct jf_reply {
 } jf_reply;
 
 
+#define JF_REPLY_PTR_IS_PENDING(_p) ((_p)->state == 0)
 #define JF_REPLY_PTR_HAS_ERROR(_p)  ((_p)->state < 0)
 #define JF_REPLY_PTR_SHOULD_FREE_PAYLOAD(_p) ((_p)->state == 1 || (_p)->state <= -32)
 

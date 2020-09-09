@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <assert.h>
+#include <time.h>
 
 
 ////////// COMMAND PARSER //////////
@@ -77,6 +78,10 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
 static jf_menu_stack s_menu_stack = (jf_menu_stack){ 0 };
 static jf_menu_item *s_context = NULL;
 
+// PLAYED STATUS REQUESTS TRACKING
+static jf_reply *s_played_status_requests[JF_PLAYED_STATUS_REQUESTS_LEN];
+static struct timespec s_25msec = (struct timespec){ 0, 25 * 1000000 };
+
 // FILTERS STUFF
 static jf_filter_mask s_filters = JF_FILTER_NONE;
 static jf_filter_mask s_filters_cmd = JF_FILTER_NONE;
@@ -115,6 +120,8 @@ static inline jf_menu_item *jf_menu_stack_pop(void);
 //  too short.
 // CAN'T FAIL.
 static inline const jf_menu_item *jf_menu_stack_peek(const size_t pos);
+
+static inline void jf_menu_played_status_request_resolve(jf_reply *r);
 
 static const char *jf_menu_filter_string(const jf_filter filter);
 static bool jf_menu_item_type_allows_filter(const jf_item_type type, const jf_filter filter);
@@ -770,6 +777,85 @@ void jf_menu_quit()
 }
 
 
+////////// PLAYED STATUS //////////
+static inline void jf_menu_played_status_request_resolve(jf_reply *r)
+// TODO save the menu index contextually with the request so we can fetch item name
+{
+    jf_net_await(r);
+    if (JF_REPLY_PTR_HAS_ERROR(r)) {
+        fprintf(stderr,
+                "Warning: played status of item could not be updated: %s.\n",
+                jf_reply_error_string(r));
+    }
+    jf_reply_free(r);
+}
+
+
+void jf_menu_child_mark_played(const size_t n, const jf_played_status status)
+{
+    jf_menu_item *child;
+    char *url;
+    size_t i;
+
+    if ((child = jf_menu_child_get(n)) == NULL) return;
+
+    url = jf_concat(4, "/users/", g_options.userid, "/playeditems/", child->id);
+
+    // look for next clear spot
+    for (i = 0; i < sizeof(s_played_status_requests) / sizeof(*s_played_status_requests); i++) {
+        if (s_played_status_requests[i] == NULL) break;
+    }
+
+    while (i >= sizeof(s_played_status_requests) / sizeof(*s_played_status_requests)
+                || s_played_status_requests[i] != NULL) {
+        // the buffer is full
+        for (i = 0; i < sizeof(s_played_status_requests) / sizeof(*s_played_status_requests); i++) {
+            if (! JF_REPLY_PTR_IS_PENDING(s_played_status_requests[i])) {
+                jf_menu_played_status_request_resolve(s_played_status_requests[i]);
+                s_played_status_requests[i] = NULL;
+                break;
+            }
+        }
+        // take a nap and try again
+        // a precise notification mechanism would be hugely overkill
+        // this subsystem is overengineered enough
+        nanosleep(&s_25msec, NULL);
+        // don't bother dealing with early wakeup
+    }
+            
+    s_played_status_requests[i] = jf_net_request(url,
+            JF_REQUEST_ASYNC_IN_MEMORY,
+            status == JF_PLAYED_STATUS_YES ? JF_HTTP_POST : JF_HTTP_DELETE,
+            NULL);
+
+    free(url);
+    free(child);
+}
+
+
+void jf_menu_item_mark_played_detach(const jf_menu_item *item, const jf_played_status status)
+{
+    char *url = jf_concat(4, "/users/", g_options.userid, "/playeditems/", item->id);
+    jf_net_request(url,
+            JF_REQUEST_ASYNC_DETACH,
+            status == JF_PLAYED_STATUS_YES ? JF_HTTP_POST : JF_HTTP_DELETE,
+            NULL);
+}
+
+
+void jf_menu_item_mark_played_await_all(void)
+{
+    size_t i;
+
+    for (i = 0; i < sizeof(s_played_status_requests) / sizeof (*s_played_status_requests); i++) {
+        if (s_played_status_requests[i] == NULL) continue;
+        jf_menu_played_status_request_resolve(s_played_status_requests[i]);
+        s_played_status_requests[i] = NULL;
+    }
+}
+///////////////////////////////////
+
+
 void jf_menu_filters_clear()
 {
     s_filters_cmd = JF_FILTER_NONE;
@@ -807,24 +893,6 @@ void jf_menu_search(const char *s)
     menu_item = jf_menu_item_new(JF_ITEM_TYPE_SEARCH_RESULT, NULL, NULL, escaped, 0, 0);
     free(escaped);
     jf_menu_stack_push(menu_item);
-}
-
-
-void jf_menu_mark_played(const jf_menu_item *item)
-{
-    char *url;
-    url = jf_concat(4, "/users/", g_options.userid, "/playeditems/", item->id);
-    jf_net_request(url, JF_REQUEST_ASYNC_DETACH, JF_HTTP_POST, NULL);
-    free(url);
-}
-
-
-void jf_menu_mark_unplayed(const jf_menu_item *item)
-{
-    char *url;
-    url = jf_concat(4, "/users/", g_options.userid, "/playeditems/", item->id);
-    jf_net_request(url, JF_REQUEST_ASYNC_DETACH, JF_HTTP_DELETE, NULL);
-    free(url);
 }
 
 
@@ -910,6 +978,8 @@ void jf_menu_ui()
 ////////// MISCELLANEOUS //////////
 void jf_menu_init()
 {
+    size_t i;
+
     // all linenoise setup
     linenoiseHistorySetMaxLen(16);
     
@@ -920,6 +990,11 @@ void jf_menu_init()
     assert((s_menu_stack.items = malloc(10 * sizeof(jf_menu_item *))) != NULL);
     s_menu_stack.size = 10;
     s_menu_stack.used = 0;
+
+    // init played status tracker
+    for (i = 0; i < JF_PLAYED_STATUS_REQUESTS_LEN; i++) {
+        s_played_status_requests[i] = NULL;
+    }
 }
 
 
