@@ -33,8 +33,6 @@ jftui will drop into a command line instance of mpv when starting playback. It w
 
 It is recommended to consult the [wiki page](https://github.com/Aanok/jftui/wiki/mpv-commands) on configuring mpv commands to use jftui: a few special ones are required in particular to manipulate the playback playlist.
 
-To safely run multiple instances of jftui concurrently, make sure to specify distinct `--runtime-dir` arguments to at least each one after the first. This requirement will be removed in the next release.
-
 ## Jftui commands
 The grammar defining jftui commands is as follows:
 ```
@@ -42,6 +40,7 @@ S ::= "q" (quits)
   | "h" (go to "home" root menu)
   | ".." (go to previous menu)
   | "f" ( "c" | [pufrld]+ ) (filters: clear or played, unplayed, favourite, resumable, liked, disliked)
+  | "m" ("p" | "u") Selector (marks items played or unplayed)
   | Selector (opens a single directory entry or sends a sequence of items to playback)
 Selector :: = '*' (everything in the current menu)
   | Items
@@ -59,5 +58,4 @@ There is one further command that will be parsed, but it is left undocumented be
 # Plans and TODO
 - Search;
 - Explicit command to recursively navigate folders to send items to playback;
-- Explicitly marking items played and unplayed;
 - Transcoding.
