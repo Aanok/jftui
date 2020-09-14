@@ -43,7 +43,6 @@ void jf_exit(int sig)
     if (sig == SIGABRT) {
         perror("FATAL");
     }
-    jf_disk_clear();
     jf_net_clear();
     mpv_terminate_destroy(g_mpv_ctx);
     _exit(sig == JF_EXIT_SUCCESS ? EXIT_SUCCESS : EXIT_FAILURE);
@@ -57,7 +56,6 @@ static void jf_print_usage() {
     printf("\t--help\n");
     printf("\t--version\n");
     printf("\t--config-dir <directory> (default: $XDG_CONFIG_HOME/jftui)\n");
-    printf("\t--runtime-dir <directory> (default: $TMPDIR, P_tmpdir or /tmp)\n");
     printf("\t--login.\n");
     printf("\t--no-check-updates\n");
 }
@@ -289,12 +287,6 @@ int main(int argc, char *argv[])
                 jf_exit(JF_EXIT_FAILURE);
             }
             assert((g_state.config_dir = strdup(argv[i])) != NULL);
-        } else if (strcmp(argv[i], "--runtime-dir") == 0) {
-            if (++i >= argc) {
-                jf_missing_arg("--runtime-dir");
-                jf_exit(JF_EXIT_FAILURE);
-            }
-            assert((g_state.runtime_dir = strdup(argv[i])) != NULL);
         } else if (strcmp(argv[i], "--login") == 0) {
             g_state.state = JF_STATE_STARTING_LOGIN;
         } else if (strcmp(argv[i], "--no-check-updates") == 0) {

@@ -17,6 +17,7 @@ extern jf_global_state g_state;
 
 ////////// STATIC VARIABLES //////////
 static jf_growing_buffer *s_buffer = NULL;
+static char *s_file_prefix = NULL;
 static jf_file_cache s_payload = (jf_file_cache){ 0 };
 static jf_file_cache s_playlist = (jf_file_cache){ 0 };
 //////////////////////////////////////
@@ -37,6 +38,10 @@ static inline void jf_disk_open(jf_file_cache *cache)
     assert((cache->header = fopen(cache->header_path, "w+")) != NULL);
     assert((cache->body = fopen(cache->body_path, "w+")) != NULL);
     cache->count = 0;
+    // no error checking on these two, nothing to do if they fail
+    // at worst we pollute the temp dir, which is not the end of the world
+    unlink(cache->header_path);
+    unlink(cache->body_path);
 }
 
 
@@ -135,41 +140,28 @@ static jf_menu_item *jf_disk_get_item(jf_file_cache *cache, const size_t n)
 
 void jf_disk_init()
 {
-    // figure out runtime directory
-    if (g_state.runtime_dir == NULL) {
-        // user gave none
-        char *tmp_dir;
-        if ((tmp_dir = getenv("TMPDIR")) == NULL) {
+    char *tmp_dir;
+    if ((tmp_dir = getenv("TMPDIR")) == NULL) {
 #ifdef P_tmpdir
-            tmp_dir = P_tmpdir;
+        tmp_dir = P_tmpdir;
 #else
-            tmp_dir = "/tmp";
+        tmp_dir = "/tmp";
 #endif
-        }
-        assert((g_state.runtime_dir = malloc((size_t)snprintf(NULL, 0,
-                "%s/jftui_%d_XXXXXX",
-                tmp_dir, getpid()) + 1)) != NULL);
-        sprintf(g_state.runtime_dir, "%s/jftui_%d_XXXXXX", tmp_dir, getpid());
-        if (mkdtemp(g_state.runtime_dir) == NULL) {
-            perror("mkdtemp");
-            jf_exit(JF_EXIT_FAILURE);
-        }
-    } else if (access(g_state.runtime_dir, F_OK) != 0) {
-        // create user-specified runtime dir if it doesn't exist
-        if (mkdir(g_state.runtime_dir, S_IRWXU) == -1) {
-            perror("mkdir");
-            jf_exit(JF_EXIT_FAILURE);
-        }
     }
+    assert(access(tmp_dir, F_OK) == 0);
+    assert((s_file_prefix = malloc((size_t)snprintf(NULL, 0,
+            "%s/jftui_%d_XXXXXX",
+            tmp_dir, getpid()) + 1)) != NULL);
+    sprintf(s_file_prefix, "%s/jftui_%d_XXXXXX", tmp_dir, getpid());
 
     if (s_buffer == NULL) {
         assert((s_buffer = jf_growing_buffer_new(0)) != NULL);
     }
 
-    assert((s_payload.header_path = jf_concat(2, g_state.runtime_dir, "/s_payload_header")) != NULL);
-    assert((s_payload.body_path = jf_concat(2, g_state.runtime_dir, "/s_payload_body")) != NULL);
-    assert((s_playlist.header_path = jf_concat(2, g_state.runtime_dir, "/s_playlist_header")) != NULL);
-    assert((s_playlist.body_path = jf_concat(2, g_state.runtime_dir, "/s_playlist_body")) != NULL);
+    assert((s_payload.header_path = jf_concat(2, s_file_prefix, "_s_payload_header")) != NULL);
+    assert((s_payload.body_path = jf_concat(2, s_file_prefix, "_s_payload_body")) != NULL);
+    assert((s_playlist.header_path = jf_concat(2, s_file_prefix, "_s_playlist_header")) != NULL);
+    assert((s_playlist.body_path = jf_concat(2, s_file_prefix, "_s_playlist_body")) != NULL);
 
     jf_disk_open(&s_payload);
     jf_disk_open(&s_playlist);
@@ -184,20 +176,6 @@ void jf_disk_refresh()
     assert(fclose(s_playlist.header) == 0);
     assert(fclose(s_playlist.body) == 0);
     jf_disk_open(&s_playlist);
-}
-
-
-void jf_disk_clear()
-{
-    if (s_payload.header_path != NULL) unlink(s_payload.header_path);
-    if (s_payload.body_path != NULL) unlink(s_payload.body_path);
-    if (s_playlist.header_path != NULL) unlink(s_playlist.header_path);
-    if (s_playlist.body_path != NULL) unlink(s_playlist.body_path);
-    if (g_state.runtime_dir != NULL) {
-        if (rmdir(g_state.runtime_dir) == -1) {
-            perror("rmdir");
-        }
-    }
 }
 
 

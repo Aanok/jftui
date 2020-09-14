@@ -26,7 +26,6 @@ typedef struct jf_file_cache {
 ////////// FUNCTION STUBS //////////
 void jf_disk_init(void);
 void jf_disk_refresh(void);
-void jf_disk_clear(void);
 
 
 void jf_disk_payload_add_item(const jf_menu_item *item);

@@ -256,7 +256,6 @@ typedef enum jf_loop_state {
 
 typedef struct jf_global_state {
     char *config_dir;
-    char *runtime_dir;
     char *session_id;
     char *server_name;
     jf_jftui_state state;
