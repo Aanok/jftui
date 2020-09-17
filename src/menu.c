@@ -689,7 +689,7 @@ jf_item_type jf_menu_child_get_type(size_t n)
     if (JF_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(s_context->type)) {
         return jf_disk_payload_get_type(n);
     } else {
-        return n - 1 <= s_context->children_count ?
+        return n - 1 < s_context->children_count ?
             s_context->children[n - 1]->type : JF_ITEM_TYPE_NONE;
     }
 }
