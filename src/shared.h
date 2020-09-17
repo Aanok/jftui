@@ -71,7 +71,7 @@ do {                                \
 // Meant as a catch-all, including normal termination and signal handling.
 //
 // Parameters:
-//  sig: can be a UNIX signal identifier or either JF_EXIT_FAILURE or
+//  - sig: can be a UNIX signal identifier or either JF_EXIT_FAILURE or
 //      JF_EXIT_SUCCESS. In the latter two cases, the process wil return the
 //      corresponding stdlib exit codes.
 // CAN (unsurprisingly) FATAL.
@@ -154,12 +154,18 @@ typedef struct jf_menu_item {
 //
 // Parameters:
 //  - type: the jf_item_type of the menu item being represented.
-//  - children: a NULL-terminated array of pointers to jf_menu_item's that descend from the current one in the UI/library hierarchy.
+//  - children: a NULL-terminated array of pointers to jf_menu_item's that
+//      descend from the current one in the UI/library hierarchy.
 //      IT IS NOT COPIED BUT ASSIGNED (MOVE).
-//  - id: the string marking the id of the item. It will be copied to an internal buffer and must have JF_ID_LENGTH size but does not need to be \0-terminated. May be NULL for persistent menu items, in which case the internal buffer will contain a \0-terminated empty string.
-//  - name: the string marking the display name of the item. It must be \0-terminated. It will be copied by means of strdup. May be NULL, in which case the corresponding field of the jf_menu_item will be NULL.
-//  - runtime_ticks: length of underlying media item measured in Jellyfin ticks.
-//  - playback_ticks: progress marker for partially viewed items measured in Jellyfin ticks.
+//  - id: the string marking the id of the item. It will be copied to an
+//      internal buffer and must have JF_ID_LENGTH size but does not need to be
+//      \0-terminated. May be NULL for persistent menu items, in which case the
+//      internal buffer will contain a \0-terminated empty string.
+//  - name: the string marking the display name of the item. It must be
+//      \0-terminated. It will be copied by means of strdup. May be NULL, in
+//      which case the corresponding field of the jf_menu_item will be NULL.
+//  - runtime_ticks: length of underlying media item measured in JF ticks.
+//  - playback_ticks: progress marker for partially viewed items measured in JF ticks.
 //
 // Returns:
 //  A pointer to the newly allocated struct.
@@ -171,10 +177,12 @@ jf_menu_item *jf_menu_item_new(jf_item_type type,
         const long long runtime_ticks,
         const long long playback_ticks);
 
-// Deallocates a jf_menu_item and all its descendants recursively, unless they are marked as persistent (as per JF_ITEM_TYPE_IS_PERSISTENT).
+// Deallocates a jf_menu_item and all its descendants recursively, unless they
+// are marked as persistent (as per JF_ITEM_TYPE_IS_PERSISTENT).
 //
 // Parameters:
-//  - menu_item: a pointer to the struct to deallocate. It may be NULL, in which case the function will no-op.
+//  - menu_item: a pointer to the struct to deallocate. It may be NULL, in which
+//      case the function will no-op.
 void jf_menu_item_free(jf_menu_item *menu_item);
 
 
