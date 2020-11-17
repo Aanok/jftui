@@ -546,15 +546,17 @@ void jf_playback_print_playlist(size_t window_size)
     size_t i;
     size_t pos = g_state.playlist_position;
     size_t terminal[2];
+    int is_video;
+    int64_t osd_h;
+    int64_t osd_font_size;
     size_t osd[2]; 
-    jf_growing_buffer *osd_msg = jf_growing_buffer_new(0);
-    const char *osd_cmd[3]= { "show-text", NULL, NULL };
+    jf_growing_buffer *osd_msg;
+    const char *osd_cmd[3] = { "show-text", NULL, NULL };
 
-    jf_playback_playlist_window(window_size, terminal);
-    jf_playback_playlist_window(5, osd);
 
     // print to terminal
-    fprintf(stdout, "\n" JF_PLAYLIST_HEADER "\n");
+    jf_playback_playlist_window(window_size, terminal);
+    fprintf(stdout, "\n===== jftui playlist (%zu items) =====\n", jf_disk_playlist_item_count());
     for (i = terminal[0]; i < pos; i++) {
         fprintf(stdout, "%zu: %s\n", i, jf_disk_playlist_get_item_name(i)); 
     }
@@ -564,10 +566,18 @@ void jf_playback_print_playlist(size_t window_size)
     }
     fprintf(stdout, "\n");
 
+
+    // if there is a video output, print to OSD there too
+    JF_MPV_ASSERT(mpv_get_property(g_mpv_ctx, "vo-configured", MPV_FORMAT_FLAG, &is_video));
+    if (! is_video) return;
+
     // prepare OSD string
-    jf_growing_buffer_append(osd_msg,
-            JF_PLAYLIST_HEADER,
-            JF_STATIC_STRLEN(JF_PLAYLIST_HEADER));
+    JF_MPV_ASSERT(mpv_get_property(g_mpv_ctx, "osd-height", MPV_FORMAT_INT64, &osd_h));
+    JF_MPV_ASSERT(mpv_get_property(g_mpv_ctx, "osd-font-size", MPV_FORMAT_INT64, &osd_font_size));
+    // bad heuristic but better than nothing
+    jf_playback_playlist_window((size_t)(osd_h/osd_font_size/2), osd);
+    osd_msg = jf_growing_buffer_new(0);
+    jf_growing_buffer_sprintf(osd_msg, 0, "===== jftui playlist (%zu items) =====", jf_disk_playlist_item_count());
     for (i = osd[0]; i < pos; i++) {
         jf_growing_buffer_sprintf(osd_msg, 0, "\n%zu: %s", i, jf_disk_playlist_get_item_name(i));
     }
@@ -581,6 +591,5 @@ void jf_playback_print_playlist(size_t window_size)
     osd_cmd[1] = osd_msg->buf;
     JF_MPV_ASSERT(mpv_command(g_mpv_ctx, osd_cmd));
     jf_growing_buffer_free(osd_msg);
-
 }
 ///////////////////////////////////////
