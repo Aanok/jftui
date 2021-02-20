@@ -38,6 +38,8 @@ void jf_playback_play_video(const jf_menu_item *item);
 bool jf_playback_next(void);
 bool jf_playback_previous(void);
 void jf_playback_end(void);
+// won't move item currently playing
+void jf_playback_shuffle_playlist(void);
 
 // Will print part or the entirety of the current jftui playback playlist to
 // stdout.

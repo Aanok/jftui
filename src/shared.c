@@ -378,9 +378,8 @@ char *jf_generate_random_id(size_t len)
 
     assert((rand_id = malloc(len + 1)) != NULL);
     rand_id[len] = '\0';
-    srand((unsigned int)time(NULL));
     for (; len > 0; len--) {
-        rand_id[len - 1] = '0' + rand() % 10;
+        rand_id[len - 1] = '0' + random() % 10;
     }
     return rand_id;
 }

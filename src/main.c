@@ -15,6 +15,7 @@
 #include <errno.h>
 #include <locale.h>
 #include <assert.h>
+#include <time.h>
 #include <mpv/client.h>
 #include <yajl/yajl_version.h>
 
@@ -97,6 +98,9 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
                     jf_term_clear_bottom(NULL);
                     jf_playback_print_playlist(0);
                     JF_MPV_ASSERT(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+                } else if (strcmp(((mpv_event_client_message *)event->data)->args[0],
+                            "jftui-playlist-shuffle") == 0) {
+                    jf_playback_shuffle_playlist();
                 }
             }
             break;
@@ -272,6 +276,7 @@ int main(int argc, char *argv[])
     // SETUP GLOBAL STATE
     g_state = (jf_global_state){ 0 };
     assert((g_state.session_id = jf_generate_random_id(0)) != NULL);
+    srandom((unsigned)time(NULL));
     /////////////////////
 
 

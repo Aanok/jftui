@@ -517,6 +517,23 @@ void jf_playback_end()
 }
 
 
+void jf_playback_shuffle_playlist()
+{
+    size_t pos = g_state.playlist_position - 1;
+    size_t item_count_no_curr = jf_disk_playlist_item_count() - 1;
+    size_t i;
+    size_t j;
+
+    for (i = 0; i < item_count_no_curr - 1; i++) {
+        if (i == pos) continue;
+        if ((j = (size_t)random() % (item_count_no_curr - i - 1) + i + 1) >= pos) {
+            j++;
+        }
+        jf_disk_playlist_swap_items(i + 1, j + 1);
+    }
+}
+
+
 static void jf_playback_playlist_window(size_t window_size, size_t window[2])
 {
     size_t pos = g_state.playlist_position;

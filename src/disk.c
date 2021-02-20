@@ -179,6 +179,7 @@ void jf_disk_refresh()
 }
 
 
+////////// PAYLOAD ///////////
 void jf_disk_payload_add_item(const jf_menu_item *item)
 {
     if (item == NULL) return;
@@ -189,25 +190,6 @@ void jf_disk_payload_add_item(const jf_menu_item *item)
 jf_menu_item *jf_disk_payload_get_item(const size_t n)
 {
     return jf_disk_get_item(&s_payload, n);
-}
-
-
-const char *jf_disk_playlist_get_item_name(const size_t n)
-{
-
-    if (n == 0 || n > s_playlist.count) {
-        return "Warning: requesting item out of bounds. This is a bug.";
-    }
-
-    jf_disk_align_to(&s_playlist, n);
-    assert(fseek(s_playlist.body,
-                // let him who hath understanding reckon the number of the beast!
-                sizeof(jf_item_type) + sizeof(((jf_menu_item *)666)->id),
-                SEEK_CUR) == 0);
-
-    jf_disk_read_to_null_to_buffer(&s_playlist);
-
-    return (const char *)s_buffer->buf;
 }
 
 
@@ -232,8 +214,10 @@ size_t jf_disk_payload_item_count()
 {
     return s_payload.count;
 }
+//////////////////////////////
 
 
+////////// PLAYLIST ///////////
 void jf_disk_playlist_add_item(const jf_menu_item *item)
 {
     if (item == NULL || JF_ITEM_TYPE_IS_FOLDER(item->type)) return;
@@ -244,6 +228,47 @@ void jf_disk_playlist_add_item(const jf_menu_item *item)
 jf_menu_item *jf_disk_playlist_get_item(const size_t n)
 {
     return jf_disk_get_item(&s_playlist, n);
+}
+
+
+const char *jf_disk_playlist_get_item_name(const size_t n)
+{
+
+    if (n == 0 || n > s_playlist.count) {
+        return "Warning: requesting item out of bounds. This is a bug.";
+    }
+
+    jf_disk_align_to(&s_playlist, n);
+    assert(fseek(s_playlist.body,
+        // let him who hath understanding reckon the number of the beast!
+        sizeof(jf_item_type) + sizeof(((jf_menu_item *)666)->id),
+        SEEK_CUR) == 0);
+
+    jf_disk_read_to_null_to_buffer(&s_playlist);
+
+    return (const char *)s_buffer->buf;
+}
+
+
+void jf_disk_playlist_swap_items(const size_t a, const size_t b)
+{
+    long old_a_value;
+    long old_b_value;
+
+    if (a > s_playlist.count || b > s_playlist.count || a == b) return;
+
+    // read offset a
+    assert(fseek(s_playlist.header, (long)((a - 1) * sizeof(long)), SEEK_SET) == 0);
+    assert(fread(&old_a_value, sizeof(long), 1, s_playlist.header) == 1);
+    // read offset b
+    assert(fseek(s_playlist.header, (long)((b - 1) * sizeof(long)), SEEK_SET) == 0);
+    assert(fread(&old_b_value, sizeof(long), 1, s_playlist.header) == 1);
+    // overwrite b
+    assert(fseek(s_playlist.header, (long)((b - 1) * sizeof(long)), SEEK_SET) == 0);
+    assert(fwrite(&old_a_value, sizeof(long), 1, s_playlist.header) == 1);
+    // overwrite a
+    assert(fseek(s_playlist.header, (long)((a - 1) * sizeof(long)), SEEK_SET) == 0);
+    assert(fwrite(&old_b_value, sizeof(long), 1, s_playlist.header) == 1);
 }
 
 
@@ -268,3 +293,4 @@ size_t jf_disk_playlist_item_count()
 {
     return s_playlist.count;
 }
+///////////////////////////////
