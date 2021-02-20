@@ -274,9 +274,9 @@ int main(int argc, char *argv[])
 
 
     // SETUP GLOBAL STATE
+    srandom((unsigned)time(NULL));
     g_state = (jf_global_state){ 0 };
     assert((g_state.session_id = jf_generate_random_id(0)) != NULL);
-    srandom((unsigned)time(NULL));
     /////////////////////
 
 
