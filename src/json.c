@@ -166,8 +166,8 @@ static int jf_sax_items_map_key(void *ctx, const unsigned char *key, size_t key_
                 context->parser_state = JF_SAX_IN_ITEM_COLLECTION_TYPE_VALUE;
             } else if (JF_SAX_KEY_IS("Id")) {
                 context->parser_state = JF_SAX_IN_ITEM_ID_VALUE;
-            } else if (JF_SAX_KEY_IS("Artists")) {
-                context->parser_state = JF_SAX_IN_ITEM_ARTISTS_VALUE;
+            } else if (JF_SAX_KEY_IS("AlbumArtist")) {
+                context->parser_state = JF_SAX_IN_ITEM_ALBUMARTIST_VALUE;
             } else if (JF_SAX_KEY_IS("Album")) {
                 context->parser_state = JF_SAX_IN_ITEM_ALBUM_VALUE;
             } else if (JF_SAX_KEY_IS("SeriesName")) {
@@ -206,9 +206,6 @@ static int jf_sax_items_start_array(void *ctx)
         case JF_SAX_IN_ITEMS_VALUE:
             context->parser_state = JF_SAX_IN_ITEMS_ARRAY;
             break;
-        case JF_SAX_IN_ITEM_ARTISTS_VALUE:
-            context->parser_state = JF_SAX_IN_ITEM_ARTISTS_ARRAY;
-            break;
         case JF_SAX_IN_ITEM_MAP:
             context->parser_state = JF_SAX_IGNORE;
             context->state_to_resume = JF_SAX_IN_ITEM_MAP;
@@ -233,9 +230,6 @@ static int jf_sax_items_end_array(void *ctx)
             break;
         case JF_SAX_IN_ITEMS_ARRAY:
             context->parser_state = JF_SAX_IN_QUERYRESULT_MAP;
-            break;
-        case JF_SAX_IN_ITEM_ARTISTS_ARRAY:
-            context->parser_state = JF_SAX_IN_ITEM_MAP;
             break;
         case JF_SAX_IGNORE:
             context->arrays_ignoring--;
@@ -277,7 +271,7 @@ static int jf_sax_items_string(void *ctx, const unsigned char *string, size_t st
                 context->current_item_type = JF_ITEM_TYPE_EPISODE;
             } else if (JF_SAX_STRING_IS("Season")) {
                 context->current_item_type = JF_ITEM_TYPE_SEASON;
-            } else if (JF_SAX_STRING_IS("Series")) {
+            } else if (JF_SAX_STRING_IS("SeriesName")) {
                 context->current_item_type = JF_ITEM_TYPE_SERIES;
             } else if (JF_SAX_STRING_IS("Movie")) {
                 context->current_item_type = JF_ITEM_TYPE_MOVIE;
@@ -306,9 +300,9 @@ static int jf_sax_items_string(void *ctx, const unsigned char *string, size_t st
             JF_SAX_ITEM_FILL(id);
             context->parser_state = JF_SAX_IN_ITEM_MAP;
             break;
-        case JF_SAX_IN_ITEM_ARTISTS_ARRAY:
-            // TODO we're effectively keeping only the last one of the list: review how reasonable this is
+        case JF_SAX_IN_ITEM_ALBUMARTIST_VALUE:
             JF_SAX_ITEM_FILL(artist);
+            context->parser_state = JF_SAX_IN_ITEM_MAP;
             break;
         case JF_SAX_IN_ITEM_ALBUM_VALUE:
             JF_SAX_ITEM_FILL(album);

@@ -371,7 +371,7 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
                         s_filters_query);
             } else {
                 return jf_concat(5,
-                        "/artists?parentid=",
+                        "/artists/albumartists?parentid=",
                         item->id,
                         "&userid=",
                         g_options.userid,

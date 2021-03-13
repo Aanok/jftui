@@ -9,11 +9,14 @@
 
 
 ////////// CODE MACROS //////////
-#define JF_SAX_BAD_STATE()                                              \
-do {                                                                    \
-    fprintf(stderr, "%s:%d: JF_SAX_BAD_STATE.\n", __FILE__, __LINE__);  \
-    fprintf(stderr, "This is a bug.\n");                                \
-    return 0;                                                           \
+#define JF_SAX_BAD_STATE()                      \
+do {                                            \
+    fprintf(stderr,                             \
+            "%s:%d: JF_SAX_BAD_STATE (%zu).\n", \
+            __FILE__, __LINE__,                 \
+            context->parser_state);             \
+    fprintf(stderr, "This is a bug.\n");        \
+    return 0;                                   \
 } while (false)
 
 #define JF_SAX_ITEM_FILL(field)                     \
@@ -41,9 +44,9 @@ do {                                                            \
         + (_c)->index_len                                         \
         + (_c)->parent_index_len)
 
-#define JF_SAX_KEY_IS(name) (strncmp((const char *)key, name, sizeof(name) > key_len ? key_len : sizeof(name)) == 0)
+#define JF_SAX_KEY_IS(name) (JF_STATIC_STRLEN(name) == key_len && strncmp((const char *)key, name, JF_STATIC_STRLEN(name)) == 0)
 
-#define JF_SAX_STRING_IS(name) (strncmp((const char *)string, name, sizeof(name) > string_len ? string_len : sizeof(name)) == 0)
+#define JF_SAX_STRING_IS(name) (JF_STATIC_STRLEN(name) == string_len && strncmp((const char *)string, name, JF_STATIC_STRLEN(name)) == 0)
 
 #define JF_SAX_PRINT_LEADER(tag) printf(tag " %zu: ", context->tb->item_count)
 
@@ -91,17 +94,16 @@ typedef enum jf_sax_parser_state {
     JF_SAX_IN_ITEM_COLLECTION_TYPE_VALUE = 8,
     JF_SAX_IN_ITEM_NAME_VALUE = 9,
     JF_SAX_IN_ITEM_ID_VALUE = 10,
-    JF_SAX_IN_ITEM_ARTISTS_ARRAY = 11,
-    JF_SAX_IN_ITEM_ARTISTS_VALUE = 12,
-    JF_SAX_IN_ITEM_ALBUM_VALUE = 13,
-    JF_SAX_IN_ITEM_SERIES_VALUE = 14,
-    JF_SAX_IN_ITEM_YEAR_VALUE = 15,
-    JF_SAX_IN_ITEM_INDEX_VALUE = 16,
-    JF_SAX_IN_ITEM_PARENT_INDEX_VALUE = 17,
-    JF_SAX_IN_ITEM_RUNTIME_TICKS_VALUE = 18,
-    JF_SAX_IN_USERDATA_MAP = 19,
-    JF_SAX_IN_USERDATA_VALUE = 20,
-    JF_SAX_IN_USERDATA_TICKS_VALUE = 21,
+    JF_SAX_IN_ITEM_ALBUMARTIST_VALUE = 11,
+    JF_SAX_IN_ITEM_ALBUM_VALUE = 12,
+    JF_SAX_IN_ITEM_SERIES_VALUE = 13,
+    JF_SAX_IN_ITEM_YEAR_VALUE = 14,
+    JF_SAX_IN_ITEM_INDEX_VALUE = 15,
+    JF_SAX_IN_ITEM_PARENT_INDEX_VALUE = 16,
+    JF_SAX_IN_ITEM_RUNTIME_TICKS_VALUE = 17,
+    JF_SAX_IN_USERDATA_MAP = 18,
+    JF_SAX_IN_USERDATA_VALUE = 19,
+    JF_SAX_IN_USERDATA_TICKS_VALUE = 20,
     JF_SAX_IGNORE = 127
 } jf_sax_parser_state;
 
