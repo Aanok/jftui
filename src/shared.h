@@ -41,6 +41,13 @@ do {                                \
 #endif
 
 
+#ifdef JF_DEBUG
+#define JF_DEBUG_PRINTF(...) fprintf(stderr, "DEBUG: " __VA_ARGS__)
+#else
+#define JF_DEBUG_PRINTF(...)
+#endif
+
+
 // workaround for mpv bug #3988
 #if MPV_CLIENT_API_VERSION <= MPV_MAKE_VERSION(1,24)
 #define JF_MPV_SET_OPTPROP mpv_set_option

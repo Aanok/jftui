@@ -501,11 +501,9 @@ static bool jf_menu_print_context()
                 jf_menu_item_free(s_context);
                 return false;
             }
-#ifdef JF_DEBUG
-            printf("DEBUG: %s URL: %s\n",
+            JF_DEBUG_PRINTF("%s URL: %s\n",
                     jf_item_type_get_name(s_context->type),
                     request_url);
-#endif
             reply = jf_net_request(request_url, request_type, JF_HTTP_GET, NULL);
             free(request_url);
             if (JF_REPLY_PTR_HAS_ERROR(reply)) {

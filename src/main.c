@@ -79,9 +79,7 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
     mpv_node *node;
     int mpv_flag_yes = 1, mpv_flag_no = 0;
 
-#ifdef JF_DEBUG
-    printf("DEBUG: event: %s\n", mpv_event_name(event->event_id));
-#endif
+    JF_DEBUG_PRINTF("event: %s\n", mpv_event_name(event->event_id));
     switch (event->event_id) {
         case MPV_EVENT_CLIENT_MESSAGE:
             // playlist controls
