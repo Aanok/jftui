@@ -339,8 +339,14 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
         // Atoms
         case JF_ITEM_TYPE_AUDIO:
         case JF_ITEM_TYPE_AUDIOBOOK:
-        case JF_ITEM_TYPE_VIDEO_SOURCE:
             return jf_concat(4, g_options.server, "/items/", item->id, "/file");
+        case JF_ITEM_TYPE_VIDEO_SOURCE:
+            return jf_concat(5,
+                    g_options.server,
+                    "/videos/",
+                    item->id,
+                    "/stream?static=true&mediasourceid=",
+                    item->id);
         case JF_ITEM_TYPE_EPISODE:
         case JF_ITEM_TYPE_MOVIE:
         case JF_ITEM_TYPE_MUSIC_VIDEO:

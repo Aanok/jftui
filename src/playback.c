@@ -283,6 +283,7 @@ void jf_playback_align_subtitle(const int64_t sid)
 void jf_playback_play_video(const jf_menu_item *item)
 {
     jf_growing_buffer *filename;
+    char *part_url;
     size_t i;
     jf_menu_item *child;
 
@@ -299,13 +300,14 @@ void jf_playback_play_video(const jf_menu_item *item)
                     jf_item_type_get_name(child->type), item->name, i);
             continue;
         }
-        jf_growing_buffer_append(filename,
-                jf_menu_item_get_request_url(child),
-                0);
+        part_url = jf_menu_item_get_request_url(child);
+        jf_growing_buffer_sprintf(filename, 0, "%%%zu%%%s", strlen(part_url), part_url);
+        free(part_url);
         jf_growing_buffer_append(filename, ";", 1);
     }
     jf_growing_buffer_append(filename, "", 1);
     const char *loadfile[] = { "loadfile", filename->buf, NULL };
+    JF_DEBUG_PRINTF("loadfile %s\n", filename->buf);
     JF_MPV_ASSERT(mpv_command(g_mpv_ctx, loadfile));
     jf_growing_buffer_free(filename);
 
