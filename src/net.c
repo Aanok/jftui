@@ -291,7 +291,7 @@ static void jf_net_init()
         assert((s_headers_POST = curl_slist_append(s_headers, tmp)) != NULL);
     } else {
         // main behaviour
-        tmp = jf_concat(2, "x-emby-token: ", g_options.token);
+        tmp = jf_concat(2, "x-mediabrowser-token: ", g_options.token);
         assert((s_headers = curl_slist_append(s_headers, tmp)) != NULL);
     }
     free(tmp);
