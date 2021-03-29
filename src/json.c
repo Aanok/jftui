@@ -271,7 +271,7 @@ static int jf_sax_items_string(void *ctx, const unsigned char *string, size_t st
                 context->current_item_type = JF_ITEM_TYPE_EPISODE;
             } else if (JF_SAX_STRING_IS("Season")) {
                 context->current_item_type = JF_ITEM_TYPE_SEASON;
-            } else if (JF_SAX_STRING_IS("SeriesName")) {
+            } else if (JF_SAX_STRING_IS("SeriesName") || JF_SAX_STRING_IS("Series")) {
                 context->current_item_type = JF_ITEM_TYPE_SERIES;
             } else if (JF_SAX_STRING_IS("Movie")) {
                 context->current_item_type = JF_ITEM_TYPE_MOVIE;
