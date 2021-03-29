@@ -259,8 +259,10 @@ static int jf_sax_items_string(void *ctx, const unsigned char *string, size_t st
                 // don't overwrite if we already got more specific information
                 context->current_item_type = JF_ITEM_TYPE_COLLECTION;
             } else if (JF_SAX_STRING_IS("Folder") || JF_SAX_STRING_IS("UserView")
-                    || JF_SAX_STRING_IS("Playlist") || JF_SAX_STRING_IS("PlaylistsFolder")) {
+                    || JF_SAX_STRING_IS("PlaylistsFolder")) {
                 context->current_item_type = JF_ITEM_TYPE_FOLDER;
+            } else if (JF_SAX_STRING_IS("Playlist")) {
+                context->current_item_type = JF_ITEM_TYPE_PLAYLIST;
             } else if (JF_SAX_STRING_IS("Audio")) {
                 context->current_item_type = JF_ITEM_TYPE_AUDIO;
             } else if (JF_SAX_STRING_IS("Artist") || JF_SAX_STRING_IS("MusicArtist")) {

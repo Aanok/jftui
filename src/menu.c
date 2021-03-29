@@ -366,6 +366,13 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
                         "/items?sortby=isfolder,parentindexnumber,indexnumber,productionyear,sortname&parentid=",
                         item->id,
                         s_filters_query);
+        case JF_ITEM_TYPE_PLAYLIST:
+                return jf_concat(5,
+                        "/users/",
+                        g_options.userid,
+                        "/items?parentid=",
+                        item->id,
+                        s_filters_query);
         case JF_ITEM_TYPE_COLLECTION_MUSIC:
             if ((parent = jf_menu_stack_peek(0)) != NULL && parent->type == JF_ITEM_TYPE_FOLDER) {
                 // we are inside a "by folders" view
