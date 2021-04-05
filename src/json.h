@@ -26,16 +26,6 @@ do {                                                                        \
     context->field ## _len = string_len;                                    \
 } while (false)
 
-#define JF_SAX_CONTEXT_COPY(field)                              \
-do {                                                            \
-    if (context->field ## _len > 0) {                           \
-        strncpy(buf + used, (const char *)context->field,       \
-                (size_t)context->field ## _len);                \
-        context->field = (const unsigned char *)(buf + used);   \
-        used += (size_t)context->field ## _len;                 \
-    }                                                           \
-} while (false)
-
 #define JF_SAX_CONTEXT_PTR_PARSED_DATA_LENGTH(_c) ((_c)->name_len \
         + (_c)->id_len                                            \
         + (_c)->artist_len                                        \
@@ -56,12 +46,12 @@ do {                                                            \
 #define JF_SAX_TRY_APPEND_NAME(prefix, field, suffix)                   \
 do {                                                                    \
     if (context->field ## _len > 0) {                                   \
-        jf_growing_buffer_append(context->current_item_display_name,    \
+        jf_growing_buffer_append(&context->current_item_display_name,   \
                 prefix, JF_STATIC_STRLEN(prefix));                      \
-        jf_growing_buffer_append(context->current_item_display_name,    \
+        jf_growing_buffer_append(&context->current_item_display_name,   \
                 context->parsed_content.buf + context->field ## _start, \
                 context->field ## _len);                                \
-        jf_growing_buffer_append(context->current_item_display_name,    \
+        jf_growing_buffer_append(&context->current_item_display_name,   \
                 suffix, JF_STATIC_STRLEN(suffix));                      \
     }                                                                   \
 } while (false)
@@ -121,7 +111,7 @@ typedef struct jf_sax_context {
     bool latest_array;
     jf_thread_buffer *tb;
     jf_item_type current_item_type;
-    jf_growing_buffer *current_item_display_name;
+    jf_growing_buffer current_item_display_name;
     jf_growing_buffer parsed_content;
     size_t name_start;          size_t name_len;
     size_t id_start;            size_t id_len;
