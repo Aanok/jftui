@@ -51,7 +51,6 @@ static inline bool jf_sax_current_item_is_valid(const jf_sax_context *context);
 static inline void jf_sax_current_item_make_and_print_name(jf_sax_context *context);
 static inline void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer *tb);
 static inline void jf_sax_context_current_item_clear(jf_sax_context *context);
-static inline void jf_sax_context_current_item_copy(jf_sax_context *context);
 
 // DO NOT USE THIS! Call the macro with the same name sans leading __
 static inline yajl_val __jf_yajl_tree_get_assert(const int lineno,
@@ -70,7 +69,7 @@ static int jf_sax_items_start_map(void *ctx)
     switch (context->parser_state) {
         case JF_SAX_IDLE:
             context->tb->item_count = 0;
-            jf_sax_context_current_item_clear(context);
+            jf_sax_context_current_item_clear(context); // TODO check, maybe superfluous
             jf_disk_refresh();
             context->parser_state = JF_SAX_IN_QUERYRESULT_MAP;
             break;
@@ -119,7 +118,8 @@ static int jf_sax_items_end_map(void *ctx)
 
                 jf_menu_item *item = jf_menu_item_new(context->current_item_type,
                         NULL,
-                        (const char*)context->id,
+                        (const char*)(context->parsed_content.buf
+                            + context->id_start),
                         context->current_item_display_name->buf,
                         context->runtime_ticks,
                         context->playback_ticks);
@@ -201,7 +201,7 @@ static int jf_sax_items_start_array(void *ctx)
         case JF_SAX_IDLE:
             context->parser_state = JF_SAX_IN_LATEST_ARRAY;
             context->tb->item_count = 0;
-            jf_sax_context_current_item_clear(context);
+            jf_sax_context_current_item_clear(context); // TODO maybe superfluous
             break;
         case JF_SAX_IN_ITEMS_VALUE:
             context->parser_state = JF_SAX_IN_ITEMS_ARRAY;
@@ -379,7 +379,8 @@ static inline void jf_sax_current_item_make_and_print_name(jf_sax_context *conte
             JF_SAX_TRY_APPEND_NAME("", parent_index, ".");
             JF_SAX_TRY_APPEND_NAME("", index, " - ");
             jf_growing_buffer_append(context->current_item_display_name,
-                    context->name, context->name_len);
+                    context->parsed_content.buf + context->name_start,
+                    context->name_len);
             break;
         case JF_ITEM_TYPE_ALBUM:
             JF_SAX_PRINT_LEADER("D");
@@ -387,7 +388,8 @@ static inline void jf_sax_current_item_make_and_print_name(jf_sax_context *conte
                 JF_SAX_TRY_APPEND_NAME("", artist, " - ");
             }
             jf_growing_buffer_append(context->current_item_display_name,
-                    context->name, context->name_len);
+                    context->parsed_content.buf + context->name_start,
+                    context->name_len);
             JF_SAX_TRY_APPEND_NAME(" (", year, ")");
             break;
         case JF_ITEM_TYPE_EPISODE:
@@ -398,7 +400,8 @@ static inline void jf_sax_current_item_make_and_print_name(jf_sax_context *conte
             }
             JF_SAX_TRY_APPEND_NAME("E", index, " ");
             jf_growing_buffer_append(context->current_item_display_name,
-                context->name, context->name_len);
+                    context->parsed_content.buf + context->name_start,
+                    context->name_len);
             break;
         case JF_ITEM_TYPE_SEASON:
             JF_SAX_PRINT_LEADER("D");
@@ -406,13 +409,15 @@ static inline void jf_sax_current_item_make_and_print_name(jf_sax_context *conte
                 JF_SAX_TRY_APPEND_NAME("", series, " - ");
             }
             jf_growing_buffer_append(context->current_item_display_name,
-                    context->name, context->name_len);
+                    context->parsed_content.buf + context->name_start,
+                    context->name_len);
             break;
         case JF_ITEM_TYPE_MOVIE:
         case JF_ITEM_TYPE_MUSIC_VIDEO:
             JF_SAX_PRINT_LEADER("V");
             jf_growing_buffer_append(context->current_item_display_name,
-                    context->name, context->name_len);
+                    context->parsed_content.buf + context->name_start,
+                    context->name_len);
             JF_SAX_TRY_APPEND_NAME(" (", year, ")");
             break;
         case JF_ITEM_TYPE_ARTIST:
@@ -427,7 +432,8 @@ static inline void jf_sax_current_item_make_and_print_name(jf_sax_context *conte
         case JF_ITEM_TYPE_USER_VIEW:
             JF_SAX_PRINT_LEADER("D");
             jf_growing_buffer_append(context->current_item_display_name,
-                    context->name, context->name_len);
+                    context->parsed_content.buf + context->name_start,
+                    context->name_len);
             break;
         default:
             fprintf(stderr, "Warning: jf_sax_items_end_map: unexpected jf_item_type. This is a bug.\n");
@@ -463,6 +469,7 @@ static inline void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer
 static inline void jf_sax_context_current_item_clear(jf_sax_context *context)
 {
     context->current_item_type = JF_ITEM_TYPE_NONE;
+    jf_growing_buffer_empty(&context->parsed_content);
     context->name_len = 0;
     context->id_len = 0;
     context->artist_len = 0;
@@ -473,32 +480,6 @@ static inline void jf_sax_context_current_item_clear(jf_sax_context *context)
     context->parent_index_len = 0;
     context->runtime_ticks = 0;
     context->playback_ticks = 0;
-
-    free(context->copy_buffer);
-    context->copy_buffer = NULL;
-}
-
-
-static inline void jf_sax_context_current_item_copy(jf_sax_context *context)
-{
-    // allocate a contiguous buffer containing the copied values
-    // then update the context pointers to point within it
-    size_t used = 0;
-    size_t item_size = (size_t)(JF_SAX_CONTEXT_PTR_PARSED_DATA_LENGTH(context));
-    char *buf;
-
-    assert((buf = malloc(item_size)) != NULL);
-    JF_SAX_CONTEXT_COPY(name);
-    JF_SAX_CONTEXT_COPY(id);
-    JF_SAX_CONTEXT_COPY(artist);
-    JF_SAX_CONTEXT_COPY(album);
-    JF_SAX_CONTEXT_COPY(series);
-    JF_SAX_CONTEXT_COPY(year);
-    JF_SAX_CONTEXT_COPY(index);
-    JF_SAX_CONTEXT_COPY(parent_index);
-
-    free(context->copy_buffer);
-    context->copy_buffer = buf;
 }
 
 
@@ -545,12 +526,8 @@ void *jf_json_sax_thread(void *arg)
             // JSON fully parsed
             yajl_complete_parse(parser);
             context.tb->state = JF_THREAD_BUFFER_STATE_CLEAR;
-        } else if (JF_SAX_CONTEXT_PTR_PARSED_DATA_LENGTH(&context) > 0) {
-            // we've still more to go and we've seen data we need to save
-            context.tb->state = JF_THREAD_BUFFER_STATE_AWAITING_DATA;
-            jf_sax_context_current_item_copy(&context);
         } else {
-            // we've still more to go but don't have any data we need to save
+            // we've still more to go
             context.tb->state = JF_THREAD_BUFFER_STATE_AWAITING_DATA;
         }
         

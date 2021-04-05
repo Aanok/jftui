@@ -12,17 +12,18 @@
 #define JF_SAX_BAD_STATE()                      \
 do {                                            \
     fprintf(stderr,                             \
-            "%s:%d: JF_SAX_BAD_STATE (%zu).\n", \
+            "%s:%d: JF_SAX_BAD_STATE (%u).\n",  \
             __FILE__, __LINE__,                 \
             context->parser_state);             \
     fprintf(stderr, "This is a bug.\n");        \
     return 0;                                   \
 } while (false)
 
-#define JF_SAX_ITEM_FILL(field)                     \
-do {                                                \
-    context->field = (const unsigned char *)string; \
-    context->field ## _len = string_len;            \
+#define JF_SAX_ITEM_FILL(field)                                             \
+do {                                                                        \
+    context->field ## _start = context->parsed_content.used;                \
+    jf_growing_buffer_append(&context->parsed_content, string, string_len); \
+    context->field ## _len = string_len;                                    \
 } while (false)
 
 #define JF_SAX_CONTEXT_COPY(field)                              \
@@ -58,7 +59,8 @@ do {                                                                    \
         jf_growing_buffer_append(context->current_item_display_name,    \
                 prefix, JF_STATIC_STRLEN(prefix));                      \
         jf_growing_buffer_append(context->current_item_display_name,    \
-                context->field, context->field ## _len);                \
+                context->parsed_content.buf + context->field ## _start, \
+                context->field ## _len);                                \
         jf_growing_buffer_append(context->current_item_display_name,    \
                 suffix, JF_STATIC_STRLEN(suffix));                      \
     }                                                                   \
@@ -119,16 +121,16 @@ typedef struct jf_sax_context {
     bool latest_array;
     jf_thread_buffer *tb;
     jf_item_type current_item_type;
-    char *copy_buffer;
     jf_growing_buffer *current_item_display_name;
-    const unsigned char *name;          size_t name_len;
-    const unsigned char *id;            size_t id_len;
-    const unsigned char *artist;        size_t artist_len;
-    const unsigned char *album;         size_t album_len;
-    const unsigned char *series;        size_t series_len;
-    const unsigned char *year;          size_t year_len;
-    const unsigned char *index;         size_t index_len;
-    const unsigned char *parent_index;  size_t parent_index_len;
+    jf_growing_buffer parsed_content;
+    size_t name_start;          size_t name_len;
+    size_t id_start;            size_t id_len;
+    size_t artist_start;        size_t artist_len;
+    size_t album_start;         size_t album_len;
+    size_t series_start;        size_t series_len;
+    size_t year_start;          size_t year_len;
+    size_t index_start;         size_t index_len;
+    size_t parent_index_start;  size_t parent_index_len;
     long long runtime_ticks;
     long long playback_ticks;
 } jf_sax_context;
