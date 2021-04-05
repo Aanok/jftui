@@ -397,6 +397,12 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
                     "/items?includeitemtypes=Movie&recursive=true&sortby=isfolder,sortname&parentid=",
                     item->id,
                     s_filters_query);
+        case JF_ITEM_TYPE_PLAYLIST:
+            return jf_concat(4,
+                    "/playlists/",
+                    item->id,
+                    "/items?userid=",
+                    g_options.userid);
         case JF_ITEM_TYPE_ARTIST:
             return jf_concat(5,
                     "/users/",

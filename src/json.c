@@ -258,12 +258,16 @@ static int jf_sax_items_string(void *ctx, const unsigned char *string, size_t st
                     && context->current_item_type == JF_ITEM_TYPE_NONE) {
                 // don't overwrite if we already got more specific information
                 context->current_item_type = JF_ITEM_TYPE_COLLECTION;
-            } else if (JF_SAX_STRING_IS("Folder") || JF_SAX_STRING_IS("UserView")
-                    || JF_SAX_STRING_IS("Playlist") || JF_SAX_STRING_IS("PlaylistsFolder")) {
+            } else if (JF_SAX_STRING_IS("Folder")
+                    || JF_SAX_STRING_IS("UserView")
+                    || JF_SAX_STRING_IS("PlaylistsFolder")) {
                 context->current_item_type = JF_ITEM_TYPE_FOLDER;
+            } else if (JF_SAX_STRING_IS("Playlist")) {
+                context->current_item_type = JF_ITEM_TYPE_PLAYLIST;
             } else if (JF_SAX_STRING_IS("Audio")) {
                 context->current_item_type = JF_ITEM_TYPE_AUDIO;
-            } else if (JF_SAX_STRING_IS("Artist") || JF_SAX_STRING_IS("MusicArtist")) {
+            } else if (JF_SAX_STRING_IS("Artist")
+                    || JF_SAX_STRING_IS("MusicArtist")) {
                 context->current_item_type = JF_ITEM_TYPE_ARTIST;
             } else if (JF_SAX_STRING_IS("MusicAlbum")) {
                 context->current_item_type = JF_ITEM_TYPE_ALBUM;
@@ -271,7 +275,8 @@ static int jf_sax_items_string(void *ctx, const unsigned char *string, size_t st
                 context->current_item_type = JF_ITEM_TYPE_EPISODE;
             } else if (JF_SAX_STRING_IS("Season")) {
                 context->current_item_type = JF_ITEM_TYPE_SEASON;
-            } else if (JF_SAX_STRING_IS("SeriesName") || JF_SAX_STRING_IS("Series")) {
+            } else if (JF_SAX_STRING_IS("SeriesName")
+                    || JF_SAX_STRING_IS("Series")) {
                 context->current_item_type = JF_ITEM_TYPE_SERIES;
             } else if (JF_SAX_STRING_IS("Movie")) {
                 context->current_item_type = JF_ITEM_TYPE_MOVIE;
