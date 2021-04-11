@@ -467,7 +467,8 @@ static inline void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer
     context->latest_array = false;
     context->tb = tb;
     context->current_item_type = JF_ITEM_TYPE_NONE;
-    jf_growing_buffer_empty(&context->current_item_display_name);
+    jf_growing_buffer_init(&context->current_item_display_name, 0);
+    jf_growing_buffer_init(&context->parsed_content, 0);
 }
 
 
