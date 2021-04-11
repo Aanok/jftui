@@ -90,9 +90,42 @@ void jf_menu_ui(void);
 /////////////////////////////////////////
 
 
+////////// AGNOSTIC USER PROMPTS //////////
+enum jf_ync {
+    JF_YNC_YES,
+    JF_YNC_NO,
+    JF_YNC_CANCEL 
+};
+
+
+// Prompts user for a question meant for a binary answer and reads reply from
+// stdin.
+//
+// Returns:
+//  - true if reply starts with 'y' or 'Y';
+//  - false if reply starts with 'n' or 'N'.
+// CAN'T FAIL.
+bool jf_menu_user_ask_yn(const char *question);
+
+
+// Prompts user for a question meant for a yes/no/cancel answer and reads reply
+// from stdin.
+//
+// Returns:
+//  - JF_YNC_YES if reply starts with 'y' or 'Y';
+//  - JF_YNC_NO if reply starts with 'n' or 'N'.
+//  - JF_YNC_CANCEL if reply starts with 'c' or 'C'.
+// CAN'T FAIL.
+enum jf_ync jf_menu_user_ask_ync(const char *question);
+
+
+size_t jf_menu_user_ask_selection(const size_t l, const size_t r);
+///////////////////////////////////////////
+
+
 ////////// MISCELLANEOUS //////////
 char *jf_menu_item_get_request_url(const jf_menu_item *item);
-void jf_menu_ask_resume(jf_menu_item *item);
+bool jf_menu_ask_resume(jf_menu_item *item);
 
 
 // Initializes linenoise history and the static menu stack struct.
@@ -109,18 +142,5 @@ void jf_menu_clear(void);
 // Wrapper. Takes care of Ctrl-C (SIGINT) and other IO errors.
 // CAN FATAL.
 char *jf_menu_linenoise(const char *prompt);
-
-
-// Prompts user for a question meant for a binary answer and reads reply from
-// stdin.
-//
-// Returns:
-//  - true if reply starts with 'y' or 'Y';
-//  - false if reply starts with 'n' or 'N'.
-// CAN'T FAIL.
-bool jf_menu_user_ask_yn(const char *question);
-
-
-size_t jf_menu_user_ask_selection(const size_t l, const size_t r);
 ///////////////////////////////////
 #endif

@@ -132,7 +132,7 @@ static void jf_menu_filters_apply(void);
 
 static jf_menu_item *jf_menu_child_get(size_t n);
 static bool jf_menu_print_context(void);
-static void jf_menu_ask_resume_yn(const jf_menu_item *item, const long long ticks);
+static bool jf_menu_ask_resume_yn(const jf_menu_item *item, const long long ticks);
 static void jf_menu_try_play(void);
 //////////////////////////////////////
 
@@ -551,11 +551,14 @@ static bool jf_menu_print_context()
 }
 
 
-static void jf_menu_ask_resume_yn(const jf_menu_item *item, const long long ticks)
+static bool jf_menu_ask_resume_yn(const jf_menu_item *item, const long long ticks)
 {
-    char *timestamp, *question;
+    char *timestamp;
+    char *question;
+    bool go_on = true;
 
-    if (ticks == 0) return;
+    if (ticks == 0) return go_on;
+
     timestamp = jf_make_timestamp(ticks);
     question = jf_concat(5,
                     "\nWould you like to resume ",
@@ -563,16 +566,26 @@ static void jf_menu_ask_resume_yn(const jf_menu_item *item, const long long tick
                     " at the ",
                     timestamp,
                     " mark?");
-    if (jf_menu_user_ask_yn(question)) {
-        JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "start", timestamp));
-        g_state.state = JF_STATE_PLAYBACK_START_MARK;
+    switch (jf_menu_user_ask_ync(question)) {
+        case JF_YNC_YES:
+            JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "start", timestamp));
+            g_state.state = JF_STATE_PLAYBACK_START_MARK;
+            // control flow fall-through
+        case JF_YNC_NO:
+            break;
+        case JF_YNC_CANCEL:
+            go_on = false;
+            break;
     }
+
     free(timestamp);
     free(question);
+
+    return go_on;
 }
 
 
-void jf_menu_ask_resume(jf_menu_item *item)
+bool jf_menu_ask_resume(jf_menu_item *item)
 {
     char **timestamps;
     long long ticks;
@@ -581,10 +594,8 @@ void jf_menu_ask_resume(jf_menu_item *item)
     assert(item != NULL);
 
     if (item->children_count == 0) {
-        if (item->playback_ticks != 0) {
-            jf_menu_ask_resume_yn(item, item->playback_ticks);
-        }
-        return;
+        return item->playback_ticks != 0 ?
+            jf_menu_ask_resume_yn(item, item->playback_ticks) : true;
     }
 
     markers_count = 0;
@@ -593,7 +604,7 @@ void jf_menu_ask_resume(jf_menu_item *item)
             markers_count++;
         }
     }
-    if (markers_count == 0) return;
+    if (markers_count == 0) return true;
     if (markers_count == 1) {
         i = 0;
         ticks = 0;
@@ -603,8 +614,7 @@ void jf_menu_ask_resume(jf_menu_item *item)
             i++;
         }
         ticks += item->children[i]->playback_ticks;
-        jf_menu_ask_resume_yn(item, ticks);
-        return;
+        return jf_menu_ask_resume_yn(item, ticks);
     }
     assert((timestamps = malloc(markers_count * sizeof(char *))) != NULL);
     ticks = 0;
@@ -624,15 +634,20 @@ void jf_menu_ask_resume(jf_menu_item *item)
             ticks += item->children[i]->runtime_ticks;
         }
     }
-    j = jf_menu_user_ask_selection(1, markers_count + 1);
-    if (j != 1){
+    printf("%zu. Cancel\n", markers_count + 2);
+    j = jf_menu_user_ask_selection(1, markers_count + 2);
+    if (j != 1 && j != markers_count + 2){
         JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "start", timestamps[j - 2]));
     }
-    g_state.state = JF_STATE_PLAYBACK_START_MARK;
     for (i = 0; i < markers_count; i++) {
         free(timestamps[i]);
     }
     free(timestamps);
+
+    if (j == markers_count + 2) return false;
+
+    g_state.state = JF_STATE_PLAYBACK_START_MARK;
+    return true;
 }
 
 
@@ -682,7 +697,7 @@ static void jf_menu_try_play()
     // actually try and play
     item = jf_disk_playlist_get_item(1);
     g_state.playlist_position = 1;
-    jf_playback_play_item(item);
+    if (jf_playback_play_item(item) == false) return;
 #ifdef JF_DEBUG
     jf_menu_item_print(item);
 #endif
@@ -985,6 +1000,55 @@ void jf_menu_ui()
 /////////////////////////////////////////
 
 
+////////// AGNOSTIC USER PROMPTS //////////
+bool jf_menu_user_ask_yn(const char *question)
+{
+    char *str;
+
+    printf("%s [y/n]\n", question);
+    while (true) {
+        str = jf_menu_linenoise("> ");
+        if (strcasecmp(str, "y") == 0) return true;
+        if (strcasecmp(str, "n") == 0) return false;
+        printf("Error: please answer \"y\" or \"n\".\n");
+    }
+}
+
+
+enum jf_ync jf_menu_user_ask_ync(const char *question)
+{
+    char *str;
+
+    printf("%s [y/n/c]\n", question);
+    while (true) {
+        str = jf_menu_linenoise("> ");
+        if (strcasecmp(str, "y") == 0) return JF_YNC_YES;
+        if (strcasecmp(str, "n") == 0) return JF_YNC_NO;
+        if (strcasecmp(str, "c") == 0) return JF_YNC_CANCEL;
+        printf("Error: please answer \"y\", \"n\" or \"c\".\n");
+    }
+}
+
+
+size_t jf_menu_user_ask_selection(const size_t l, const size_t r)
+{
+    char *tmp;
+    size_t i;
+
+    // read the number, kronk
+    while (true) {
+        tmp = jf_menu_linenoise("> ");
+        if (sscanf(tmp, " %zu ", &i) == 1 && l <= i && i <= r) {
+            free(tmp);
+            return i;
+        }
+        // wrong numbeeeeeer...
+        fprintf(stderr, "Error: please choose exactly one listed item.\n");
+    }
+}
+///////////////////////////////////////////
+
+
 ////////// MISCELLANEOUS //////////
 void jf_menu_init()
 {
@@ -1027,37 +1091,5 @@ char *jf_menu_linenoise(const char *prompt)
         jf_exit(JF_EXIT_FAILURE);
     }
     return str;
-}
-
-
-bool jf_menu_user_ask_yn(const char *question)
-{
-    char *str;
-
-    printf("%s [y/n]\n", question);
-    while (true) {
-        str = jf_menu_linenoise("> ");
-        if (strcasecmp(str, "y") == 0) return true;
-        if (strcasecmp(str, "n") == 0) return false;
-        printf("Error: please answer \"y\" or \"n\".\n");
-    }
-}
-
-
-size_t jf_menu_user_ask_selection(const size_t l, const size_t r)
-{
-    char *tmp;
-    size_t i;
-
-    // read the number, kronk
-    while (true) {
-        tmp = jf_menu_linenoise("> ");
-        if (sscanf(tmp, " %zu ", &i) == 1 && l <= i && i <= r) {
-            free(tmp);
-            return i;
-        }
-        // wrong numbeeeeeer...
-        fprintf(stderr, "Error: please choose exactly one listed item.\n");
-    }
 }
 ///////////////////////////////////

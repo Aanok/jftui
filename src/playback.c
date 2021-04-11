@@ -316,28 +316,32 @@ void jf_playback_play_video(const jf_menu_item *item)
 }
 
 
-void jf_playback_play_item(jf_menu_item *item)
+bool jf_playback_play_item(jf_menu_item *item)
 {
     char *request_url;
     jf_reply *replies[2];
 
     if (item == NULL) {
-        return;
+        return false;
     }
 
     if (JF_ITEM_TYPE_IS_FOLDER(item->type)) {
         fprintf(stderr, "Error: jf_menu_play_item invoked on folder item type. This is a bug.\n");
-        return;
+        return false;
     }
 
     switch (item->type) {
         case JF_ITEM_TYPE_AUDIO:
         case JF_ITEM_TYPE_AUDIOBOOK:
             if ((request_url = jf_menu_item_get_request_url(item)) == NULL) {
+                fprintf(stderr, "Error: jf_playback_play_item: jf_menu_item_get_request_url returned NULL. This is a bug.\n");
                 jf_playback_end();
-                return;
+                return false;
             }
-            jf_menu_ask_resume(item);
+            if (jf_menu_ask_resume(item) == false) {
+                jf_playback_end();
+                return false;
+            }
             JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "title", item->name));
             const char *loadfile[] = { "loadfile", request_url, NULL };
             mpv_command(g_mpv_ctx, loadfile); 
@@ -350,7 +354,10 @@ void jf_playback_play_item(jf_menu_item *item)
         case JF_ITEM_TYPE_MUSIC_VIDEO:
             // check if item was already evaded re: split file and versions
             if (item->children_count > 0) {
-                jf_menu_ask_resume(item);
+                if (jf_menu_ask_resume(item) == false) {
+                    jf_playback_end();
+                    return false;
+                }
                 jf_playback_play_video(item);
             } else {
                 request_url = jf_menu_item_get_request_url(item);
@@ -373,7 +380,7 @@ void jf_playback_play_item(jf_menu_item *item)
                     jf_reply_free(replies[1]);
                     jf_reply_free(jf_net_await(replies[0]));
                     jf_playback_end();
-                    return;
+                    return false;
                 }
                 if (JF_REPLY_PTR_HAS_ERROR(jf_net_await(replies[0]))) {
                     fprintf(stderr,
@@ -383,16 +390,16 @@ void jf_playback_play_item(jf_menu_item *item)
                     jf_reply_free(replies[0]);
                     jf_reply_free(replies[1]);
                     jf_playback_end();
-                    return;
+                    return false;
                 }
                 jf_json_parse_video(item, replies[0]->payload, replies[1]->payload);
                 jf_reply_free(replies[0]);
                 jf_reply_free(replies[1]);
-                if (jf_playback_populate_video_ticks(item) == false) {
+                if (jf_playback_populate_video_ticks(item) == false
+                        || jf_menu_ask_resume(item) == false) {
                     jf_playback_end();
-                    return;
+                    return false;
                 }
-                jf_menu_ask_resume(item);
                 jf_playback_play_video(item);
                 jf_disk_playlist_replace_item(g_state.playlist_position, item);
                 jf_menu_item_free(g_state.now_playing);
@@ -403,8 +410,10 @@ void jf_playback_play_item(jf_menu_item *item)
             fprintf(stderr,
                     "Error: jf_menu_play_item unsupported type (%s). This is a bug.\n",
                     jf_item_type_get_name(item->type));
-            break;
+            return false;
     }
+
+    return true;
 }
 
 
@@ -483,8 +492,7 @@ bool jf_playback_next()
         g_state.playlist_position++;
     }
 
-    jf_playback_play_item(jf_disk_playlist_get_item(g_state.playlist_position));
-    return true;
+    return jf_playback_play_item(jf_disk_playlist_get_item(g_state.playlist_position));
 }
 
 
@@ -500,8 +508,7 @@ bool jf_playback_previous()
         g_state.playlist_position--;
     }
 
-    jf_playback_play_item(jf_disk_playlist_get_item(g_state.playlist_position));
-    return true;
+    return jf_playback_play_item(jf_disk_playlist_get_item(g_state.playlist_position));
 }
 
 
