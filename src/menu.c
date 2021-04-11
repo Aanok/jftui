@@ -622,19 +622,19 @@ bool jf_menu_ask_resume(jf_menu_item *item)
     printf("\n%s is a split-file on the server and there is progress marked on more than one part.\n",
             item->name);
     printf("Please choose at what time you'd like to start watching:\n");
-    printf("1. 00:00:00 (beginning)\n");
+    printf("1: 00:00:00\n");
     for (i = 0; i < item->children_count; i++) {
         if (item->children[i]->playback_ticks != 0) {
             ticks += item->children[i]->playback_ticks;
             timestamps[j - 2] = jf_make_timestamp(ticks);
-            printf("%zu. %s\n", j, timestamps[j - 2]);
+            printf("%zu: %s\n", j, timestamps[j - 2]);
             ticks += item->children[i]->runtime_ticks - item->children[i]->playback_ticks;
             j++;
         } else {
             ticks += item->children[i]->runtime_ticks;
         }
     }
-    printf("%zu. Cancel\n", markers_count + 2);
+    printf("%zu: Cancel\n", markers_count + 2);
     j = jf_menu_user_ask_selection(1, markers_count + 2);
     if (j != 1 && j != markers_count + 2){
         JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "start", timestamps[j - 2]));
