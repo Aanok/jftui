@@ -207,6 +207,7 @@ typedef struct jf_growing_buffer {
 } jf_growing_buffer;
 
 
+void jf_growing_buffer_init(jf_growing_buffer *buffer, const size_t size);
 jf_growing_buffer *jf_growing_buffer_new(const size_t size);
 void jf_growing_buffer_append(jf_growing_buffer *buffer,
         const void *data,

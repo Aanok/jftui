@@ -176,13 +176,19 @@ void jf_thread_buffer_init(jf_thread_buffer *tb)
 
 
 ////////// GROWING BUFFER //////////
+void jf_growing_buffer_init(jf_growing_buffer *buffer, const size_t size)
+{
+    assert((buffer->buf = malloc(size > 0 ? size : 1024)) != NULL);
+    buffer->size = size > 0 ? size : 1024;
+    buffer->used = 0;
+}
+
+
 jf_growing_buffer *jf_growing_buffer_new(const size_t size)
 {
     jf_growing_buffer *buffer;
     assert((buffer = malloc(sizeof(jf_growing_buffer))) != NULL);
-    assert((buffer->buf = malloc(size > 0 ? size : 1024)) != NULL);
-    buffer->size = size > 0 ? size : 1024;
-    buffer->used = 0;
+    jf_growing_buffer_init(buffer, size);
     return buffer;
 }
 
