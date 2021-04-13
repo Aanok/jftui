@@ -606,7 +606,7 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
                     id,
                     "/subtitles/",
                     YAJL_GET_NUMBER(jf_yajl_tree_get_assert(stream, ((const char *[]){ "Index", NULL }), yajl_t_number)),
-                    "/stream.",
+                    "/0/stream.",
                     codec);
             assert((subs = realloc(subs, ++subs_count * sizeof(jf_menu_item *))) != NULL);
             subs[subs_count - 1] = jf_menu_item_new(JF_ITEM_TYPE_VIDEO_SUB,
