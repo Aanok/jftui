@@ -750,6 +750,37 @@ void jf_json_parse_login_response(const char *payload)
 }
 
 
+void jf_json_parse_system_info_response(const char *payload)
+{
+    yajl_val parsed;
+    char *tmp, *endptr;
+    unsigned long major, minor, patch;
+
+    JF_JSON_TREE_PARSE_ASSERT((parsed = yajl_tree_parse(payload,
+                    s_error_buffer,
+                    JF_PARSER_ERROR_BUFFER_SIZE)) != NULL);
+    assert((tmp = YAJL_GET_STRING(jf_yajl_tree_get_assert(parsed,
+                    ((const char *[]){ "ServerName", NULL }),
+                    yajl_t_string))) != NULL);
+    g_state.server_name = strdup(tmp);
+    
+    assert((tmp = YAJL_GET_STRING(jf_yajl_tree_get_assert(parsed,
+                    ((const char *[]){ "Version", NULL }),
+                    yajl_t_string))) != NULL);
+    major = strtoul(tmp, &endptr, 10);
+    assert(tmp != endptr);
+    tmp = endptr + 1;
+    minor = strtoul(tmp, &endptr, 10);
+    assert(tmp != endptr);
+    tmp = endptr + 1;
+    patch = strtoul(tmp, &endptr, 10);
+    assert(tmp != endptr);
+    g_state.server_version = JF_SERVER_VERSION_MAKE(major, minor, patch);
+    
+    yajl_tree_free(parsed);
+}
+
+
 char *jf_json_generate_login_request(const char *username, const char *password)
 {
     yajl_gen gen;
@@ -768,22 +799,6 @@ char *jf_json_generate_login_request(const char *username, const char *password)
 
     yajl_gen_free(gen);
     return json;
-}
-
-
-void jf_json_parse_server_info_response(const char *payload)
-{
-    yajl_val parsed;
-    char *server_name;
-
-    JF_JSON_TREE_PARSE_ASSERT((parsed = yajl_tree_parse(payload,
-                    s_error_buffer,
-                    JF_PARSER_ERROR_BUFFER_SIZE)) != NULL);
-    assert((server_name = YAJL_GET_STRING(jf_yajl_tree_get_assert(parsed,
-                    ((const char *[]){ "ServerName", NULL }),
-                    yajl_t_string))) != NULL);
-    g_state.server_name = strdup(server_name);
-    yajl_tree_free(parsed);
 }
 
 

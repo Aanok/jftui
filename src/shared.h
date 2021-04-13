@@ -56,6 +56,15 @@ do {                                \
 #define JF_MPV_SET_OPTPROP mpv_set_property
 #define JF_MPV_SET_OPTPROP_STRING mpv_set_property_string
 #endif
+
+
+// server version
+// lower 16 bits reserved for potential devel releases
+#define JF_SERVER_VERSION_MAKE(_major,_minor,_patch) \
+    (((uint64_t)(_major) << 48) | ((uint64_t)(_minor) << 32) | ((uint64_t)(_patch) << 16))
+#define JF_SERVER_VERSION_GET_MAJOR(_version) ((_version) >> 48)
+#define JF_SERVER_VERSION_GET_MINOR(_version) (((_version) >> 32) & 0xFF)
+#define JF_SERVER_VERSION_GET_PATCH(_version) (((_version) >> 16) & 0xFF)
 /////////////////////////////////
 
 
@@ -274,6 +283,7 @@ typedef struct jf_global_state {
     char *config_dir;
     char *session_id;
     char *server_name;
+    uint64_t server_version;
     jf_jftui_state state;
     jf_menu_item *now_playing;
     // 1-indexed

@@ -395,14 +395,14 @@ int main(int argc, char *argv[])
     /////////////////////
     
 
-    // SERVER NAME
+    // SERVER NAME AND VERSION
     // this doubles up as a check for connectivity and correct login parameters
     reply = jf_net_request("/system/info", JF_REQUEST_IN_MEMORY, JF_HTTP_GET, NULL);
     if (JF_REPLY_PTR_HAS_ERROR(reply)) {
         fprintf(stderr, "FATAL: could not reach server: %s.\n", jf_reply_error_string(reply));
         jf_exit(JF_EXIT_FAILURE);
     }
-    jf_json_parse_server_info_response(reply->payload);
+    jf_json_parse_system_info_response(reply->payload);
     jf_reply_free(reply);
     //////////////
     
