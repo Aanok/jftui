@@ -606,7 +606,9 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
                     id,
                     "/subtitles/",
                     YAJL_GET_NUMBER(jf_yajl_tree_get_assert(stream, ((const char *[]){ "Index", NULL }), yajl_t_number)),
-                    "/0/stream.",
+                    // 10.7.2 added routeStartPositionTicks
+                    g_state.server_version >= JF_SERVER_VERSION_MAKE(10,7,2) ?
+                    	"/0/stream." : "/stream",
                     codec);
             assert((subs = realloc(subs, ++subs_count * sizeof(jf_menu_item *))) != NULL);
             subs[subs_count - 1] = jf_menu_item_new(JF_ITEM_TYPE_VIDEO_SUB,
