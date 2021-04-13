@@ -139,8 +139,8 @@ void jf_json_parse_playback_ticks(jf_menu_item *item, const char *payload);
 ////////// MISCELLANEOUS GARBAGE //////////
 char *jf_json_error_string(void);
 void jf_json_parse_login_response(const char *payload);
+void jf_json_parse_system_info_response(const char *payload);
 char *jf_json_generate_login_request(const char *username, const char *password);
-void jf_json_parse_server_info_response(const char *payload);
 char *jf_json_generate_progress_post(const char *id, const long long ticks);
 ///////////////////////////////////////////
 #endif
