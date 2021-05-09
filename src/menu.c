@@ -35,6 +35,7 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
                 0,
                 "",
                 "Favorites",
+                NULL,
                 0, 0
             },
             &(jf_menu_item){
@@ -43,6 +44,7 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
                 0,
                 "",
                 "Continue Watching",
+                NULL,
                 0, 0
             },
             &(jf_menu_item){
@@ -51,6 +53,7 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
                 0,
                 "",
                 "Next Up",
+                NULL,
                 0, 0
             },
             &(jf_menu_item){
@@ -59,6 +62,7 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
                 0,
                 "",
                 "Latest Added",
+                NULL,
                 0, 0
             },
             &(jf_menu_item){
@@ -67,12 +71,14 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
                 0,
                 "",
                 "User Views",
+                NULL,
                 0, 0
             }
         },
         5,
         "",
         "",
+        NULL,
         0, 0
     };
 static jf_menu_stack s_menu_stack = (jf_menu_stack){ 0 };
@@ -915,7 +921,12 @@ void jf_menu_search(const char *s)
     char *escaped;
 
     escaped = jf_net_urlencode(s);
-    menu_item = jf_menu_item_new(JF_ITEM_TYPE_SEARCH_RESULT, NULL, NULL, escaped, 0, 0);
+    menu_item = jf_menu_item_new(JF_ITEM_TYPE_SEARCH_RESULT,
+            NULL,
+            NULL,
+            escaped,
+            NULL,
+            0, 0);
     free(escaped);
     jf_menu_stack_push(menu_item);
 }

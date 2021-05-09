@@ -161,6 +161,7 @@ typedef struct jf_menu_item {
     size_t children_count;
     char id[JF_ID_LENGTH +1];
     char *name;
+    char *path;
     long long playback_ticks;
     long long runtime_ticks;
 } jf_menu_item;
@@ -190,6 +191,7 @@ jf_menu_item *jf_menu_item_new(jf_item_type type,
         jf_menu_item **children,
         const char *id,
         const char *name,
+        const char *path,
         const long long runtime_ticks,
         const long long playback_ticks);
 
@@ -376,5 +378,18 @@ void jf_clear_stdin(void);
 //
 // CAN'T FAIL.
 void jf_term_clear_bottom(FILE *stream);
+
+
+// Computes length of string, including terminating '\0' byte.
+//
+// Parameters:
+//   - str: the string whose length to compute.
+//
+// Returns:
+//   - 0 if str == NULL;
+//   - strlen(str) + 1 if str != NULL.
+//
+// CAN'T FAIL.
+size_t jf_strlen(const char *str);
 ///////////////////////////////////////////
 #endif

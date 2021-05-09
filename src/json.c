@@ -121,6 +121,7 @@ static int jf_sax_items_end_map(void *ctx)
                         (const char*)(context->parsed_content.buf
                             + context->id_start),
                         context->current_item_display_name.buf,
+                        NULL,
                         context->runtime_ticks,
                         context->playback_ticks);
                 jf_disk_payload_add_item(item);
@@ -615,6 +616,7 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
                     NULL, // children
                     NULL, // id
                     tmp,
+                    NULL, // path
                     0, 0); // ticks
             free(tmp);
             if ((tmp = YAJL_GET_STRING(yajl_tree_get(stream, ((const char *[]){ "Language", NULL }), yajl_t_string))) == NULL) {
@@ -635,6 +637,7 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
     return jf_menu_item_new(JF_ITEM_TYPE_VIDEO_SOURCE,
             subs,
             YAJL_GET_STRING(jf_yajl_tree_get_assert(source, ((const char *[]){ "Id", NULL }), yajl_t_string)),
+            NULL,
             NULL,
             YAJL_GET_INTEGER(jf_yajl_tree_get_assert(source, ((const char *[]){ "RunTimeTicks", NULL }), yajl_t_number)), // RT ticks
             0);

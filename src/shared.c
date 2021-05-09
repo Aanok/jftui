@@ -82,15 +82,24 @@ const char *jf_item_type_get_name(const jf_item_type type)
 }
 
 
-jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children,
-        const char *id, const char *name, const long long runtime_ticks,
+jf_menu_item *jf_menu_item_new(jf_item_type type,
+        jf_menu_item **children,
+        const char *id,
+        const char *name,
+        const char *path,
+        const long long runtime_ticks,
         const long long playback_ticks)
 {
     jf_menu_item *menu_item;
+    size_t name_length = jf_strlen(name);
+    size_t path_length = jf_strlen(path);
 
-    assert((menu_item = malloc(sizeof(jf_menu_item))) != NULL);
+    assert((menu_item = malloc(sizeof(jf_menu_item)
+                    + name_length
+                    + path_length)) != NULL);
 
     menu_item->type = type;
+
     menu_item->children = children;
     menu_item->children_count = 0;
     if (children != NULL) {
@@ -100,13 +109,27 @@ jf_menu_item *jf_menu_item_new(jf_item_type type, jf_menu_item **children,
         }
         menu_item->children = children;
     }
+
     if (id == NULL) {
         menu_item->id[0] = '\0';
     } else {
-        strncpy(menu_item->id, id, JF_ID_LENGTH);
+        memcpy(menu_item->id, id, JF_ID_LENGTH);
         menu_item->id[JF_ID_LENGTH] = '\0';
     }
-    menu_item->name = name == NULL ? NULL : strdup(name);
+
+    if (name == NULL) {
+        menu_item->name = NULL;
+    } else {
+        menu_item->name = (char *)menu_item + sizeof(jf_menu_item);
+        memcpy(menu_item->name, name, name_length);
+    }
+
+    if (path == NULL) {
+        menu_item->path = NULL;
+    } else {
+        menu_item->path = (char *)menu_item + sizeof(jf_menu_item) + name_length;
+        memcpy(menu_item->path, path, path_length);
+    }
     menu_item->runtime_ticks = runtime_ticks;
     menu_item->playback_ticks = playback_ticks;
     
@@ -127,7 +150,6 @@ void jf_menu_item_free(jf_menu_item *menu_item)
             jf_menu_item_free(menu_item->children[i]);
         }
         free(menu_item->children);
-        free(menu_item->name);
         free(menu_item);
     }
 }
@@ -141,6 +163,7 @@ static void jf_menu_item_print_indented(const jf_menu_item *item, const size_t l
     if (item == NULL) return;
 
     JF_PRINTF_INDENT("Name: %s\n", item->name);
+    JF_PRINTF_INDENT("Path: %s\n", item->path);
     JF_PRINTF_INDENT("Type: %s\n", jf_item_type_get_name(item->type));
     JF_PRINTF_INDENT("Id: %s\n", item->id);
     JF_PRINTF_INDENT("PB ticks: %lld, RT ticks: %lld\n", item->playback_ticks, item->runtime_ticks);
@@ -437,5 +460,11 @@ void jf_term_clear_bottom(FILE *stream)
         putc(' ', stream);
     }
     putc('\r', stream);
+}
+
+
+size_t jf_strlen(const char *str)
+{
+    return str == NULL ? 0 : strlen(str) + 1;
 }
 ///////////////////////////////////////////
