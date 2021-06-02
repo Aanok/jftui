@@ -185,6 +185,16 @@ jf_reply *jf_net_await(jf_reply *r);
 ////////// MISCELLANEOUS GARBAGE ///////////
 char *jf_net_urlencode(const char *url);
 bool jf_net_url_is_valid(const char *url);
+
+
+// Extracts the host component out of a URL.
+// REQUIRES: url is a valid URL.
+//
+// Returns:
+//   - A malloc'd string containing the host component on success;
+//   - NULL on failure.
+// CAN FATAL.
+char *jf_net_url_get_host(const char *url);
 ////////////////////////////////////////////
 
 #endif

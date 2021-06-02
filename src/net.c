@@ -819,4 +819,94 @@ bool jf_net_url_is_valid(const char *url)
     return true;
 #endif
 }
+
+
+char *jf_net_url_get_host(const char *url)
+{
+    if (url == NULL) return NULL;
+
+    // 62
+#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 99
+// use CURL stuff if available
+// please hope it's available
+    CURLU *curlu;
+    CURLUcode res;
+    char *host;
+    char *retval;
+
+    if ((curlu = curl_url()) == NULL) {
+        fprintf(stderr, "Error: curlu curl_url returned NULL.\n");
+        curl_url_cleanup(curlu);
+        return NULL;
+    }
+
+    if ((res = curl_url_set(curlu,
+                    CURLUPART_URL,
+                    url,
+                    CURLU_DEFAULT_SCHEME)) != CURLUE_OK) {
+        fprintf(stderr, "Error: curlu curl_url_set failure.\n");
+        curl_url_cleanup(curlu);
+        return NULL;
+    }
+
+    res = curl_url_get(curlu, CURLUPART_HOST, &host, 0);
+    curl_url_cleanup(curlu);
+
+    if (res != CURLUE_OK) {
+        fprintf(stderr, "Error: curlu curl_url_get failure.\n");
+        // TODO error string
+        return NULL;
+    }
+
+    retval = strdup(host);
+    curl_free(host);
+    return retval;
+#else
+// terrible horrible no good very bad fallback implementation otherwise
+// it is based on libcurl internals
+// i.e. the parts that work are from there, what's broken's mine
+    size_t url_len = strlen(url);
+    size_t host_len;
+    char *host_start;
+    char *host_end;
+    const char *port_start;
+    const char *path_start;
+    const char *fragment_start;
+    char *retval;
+
+    if ((host_start = strstr(url, "@")) != NULL) {
+        // there's an authority
+        host_start++;
+    } else if ((host_start = strstr(url, "//")) != NULL) {
+        // there's a schema
+        host_start += 2;
+    } else {
+        host_start = (char *)url;
+    }
+
+    if ((port_start = strstr(host_start, ":")) == NULL) {
+        port_start = url + url_len;
+    }
+    if ((path_start = strstr(host_start, "/")) == NULL) {
+        path_start = url + url_len;
+    }
+    if ((fragment_start = strstr(host_start, "#")) == NULL) {
+        fragment_start = url + url_len;
+    }
+
+    host_end = (char *) (port_start < path_start ? port_start : path_start);
+    host_end = (char *) (host_end < fragment_start ? host_end : fragment_start);
+
+    host_len = (size_t)host_end - (size_t)host_start + 1;
+    assert(host_len > 0);
+
+    if ((retval = malloc(host_len)) == NULL) {
+        perror("FATAL: malloc");
+        jf_exit(JF_EXIT_FAILURE);
+    }
+    memcpy(retval, host_start, host_len);
+    retval[host_len - 1] = '\0';
+    return retval;
+#endif
+}
 ////////////////////////////////////////////
