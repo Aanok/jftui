@@ -821,23 +821,23 @@ bool jf_net_url_is_valid(const char *url)
 }
 
 
-char *jf_net_url_get_host(const char *url)
+bool jf_net_url_is_localhost(const char *url)
 {
-    if (url == NULL) return NULL;
+    char *host;
+    bool is_localhost;
 
-    // 62
-#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 99
+    if (url == NULL) return false;
+
+#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 62
 // use CURL stuff if available
 // please hope it's available
     CURLU *curlu;
     CURLUcode res;
-    char *host;
-    char *retval;
 
     if ((curlu = curl_url()) == NULL) {
         fprintf(stderr, "Error: curlu curl_url returned NULL.\n");
         curl_url_cleanup(curlu);
-        return NULL;
+        return false;
     }
 
     if ((res = curl_url_set(curlu,
@@ -846,7 +846,7 @@ char *jf_net_url_get_host(const char *url)
                     CURLU_DEFAULT_SCHEME)) != CURLUE_OK) {
         fprintf(stderr, "Error: curlu curl_url_set failure.\n");
         curl_url_cleanup(curlu);
-        return NULL;
+        return false;
     }
 
     res = curl_url_get(curlu, CURLUPART_HOST, &host, 0);
@@ -855,58 +855,29 @@ char *jf_net_url_get_host(const char *url)
     if (res != CURLUE_OK) {
         fprintf(stderr, "Error: curlu curl_url_get failure.\n");
         // TODO error string
-        return NULL;
+        return false;
     }
-
-    retval = strdup(host);
-    curl_free(host);
-    return retval;
 #else
 // terrible horrible no good very bad fallback implementation otherwise
-// it is based on libcurl internals
-// i.e. the parts that work are from there, what's broken's mine
-    size_t url_len = strlen(url);
-    size_t host_len;
-    char *host_start;
-    char *host_end;
-    const char *port_start;
-    const char *path_start;
-    const char *fragment_start;
-    char *retval;
-
-    if ((host_start = strstr(url, "@")) != NULL) {
+    if ((host = strstr(url, "@")) != NULL) {
         // there's an authority
-        host_start++;
-    } else if ((host_start = strstr(url, "//")) != NULL) {
+        host++;
+    } else if ((host = strstr(url, "//")) != NULL) {
         // there's a schema
-        host_start += 2;
+        host += 2;
     } else {
-        host_start = (char *)url;
+        host = (char *)url;
     }
-
-    if ((port_start = strstr(host_start, ":")) == NULL) {
-        port_start = url + url_len;
-    }
-    if ((path_start = strstr(host_start, "/")) == NULL) {
-        path_start = url + url_len;
-    }
-    if ((fragment_start = strstr(host_start, "#")) == NULL) {
-        fragment_start = url + url_len;
-    }
-
-    host_end = (char *) (port_start < path_start ? port_start : path_start);
-    host_end = (char *) (host_end < fragment_start ? host_end : fragment_start);
-
-    host_len = (size_t)host_end - (size_t)host_start + 1;
-    assert(host_len > 0);
-
-    if ((retval = malloc(host_len)) == NULL) {
-        perror("FATAL: malloc");
-        jf_exit(JF_EXIT_FAILURE);
-    }
-    memcpy(retval, host_start, host_len);
-    retval[host_len - 1] = '\0';
-    return retval;
 #endif
+
+    is_localhost = strncmp(host, "127.0.0.1", JF_STATIC_STRLEN("127.0.0.1")) == 0
+                || strncasecmp(host, "localhost", JF_STATIC_STRLEN("localhost")) == 0
+                || strncmp(host, "[::1]", JF_STATIC_STRLEN("[::1]")) == 0;
+
+#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 62
+    curl_free(host);
+#endif
+
+    return is_localhost;
 }
 ////////////////////////////////////////////
