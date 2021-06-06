@@ -60,6 +60,7 @@ typedef struct jf_options {
     char *version;
     char *mpv_profile;
     bool check_updates;
+    bool try_local_files;
 } jf_options;
 
 

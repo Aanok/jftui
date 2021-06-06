@@ -325,6 +325,27 @@ void *jf_synced_queue_dequeue(jf_synced_queue *q);
 
 
 ////////// MISCELLANEOUS GARBAGE //////////
+typedef enum jf_strong_bool {
+    JF_STRONG_BOOL_NO = 0,
+    JF_STRONG_BOOL_YES = 1,
+    JF_STRONG_BOOL_FORCE = 2
+} jf_strong_bool;
+
+
+// Parses a string into a jf_strong_bool.
+// The mappings are case insensitive, as follows:
+//  - "no" to JF_STRONG_BOOL_NO;
+//  - "yes" to JF_STRONG_BOOL_YES;
+//  - "force" to JF_STRONG_BOOL_FORCE.
+//
+// Returns:
+//  - true on successful parsing;
+//  - false on NULL or unrecognized input string.
+bool jf_strong_bool_parse(const char *str,
+        const size_t len,
+        jf_strong_bool *out);
+
+
 // Concatenates any amount of NULL-terminated strings. The result will be
 // dynamically allocated and will need to be free'd.
 //
