@@ -13,10 +13,15 @@
 #include <stdio.h>
 #include <assert.h>
 
-////////// GLOBALS //////////
+////////// GLOBAL VARIABLES //////////
 extern jf_options g_options;
 extern jf_global_state g_state;
-/////////////////////////////
+//////////////////////////////////////
+
+
+////////// STATIC VARIABLES //////////
+jf_strong_bool s_try_local_files_config;
+//////////////////////////////////////
 
 
 ////////// STATIC FUNCTIONS //////////
@@ -139,6 +144,14 @@ void jf_config_read(const char *config_path)
             JF_CONFIG_FILL_VALUE(mpv_profile);
         } else if (JF_CONFIG_KEY_IS("check_updates")) {
             JF_CONFIG_FILL_VALUE_BOOL(check_updates);
+        } else if (JF_CONFIG_KEY_IS("try_local_files")) {
+            if (jf_strong_bool_parse(value,
+                        value_len,
+                        &s_try_local_files_config) == false) {
+                fprintf(stderr,
+                        "Warning: unrecognized value for config option \"try_local_files\": %s",
+                        value);
+            }
         } else {
             // option key was not recognized; print a warning and go on
             fprintf(stderr,
@@ -152,6 +165,19 @@ void jf_config_read(const char *config_path)
 
     free(line);
     fclose(config_file);
+
+    // figure out if we should try local files
+    switch (s_try_local_files_config) {
+        case JF_STRONG_BOOL_NO:
+            g_options.try_local_files = false;
+            break;
+        case JF_STRONG_BOOL_YES:
+            g_options.try_local_files = jf_net_url_is_localhost(g_options.server);
+            break;
+        case JF_STRONG_BOOL_FORCE:
+            g_options.try_local_files = true;
+            break;
+    }
 }
 
 

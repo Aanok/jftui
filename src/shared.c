@@ -354,6 +354,37 @@ void *jf_synced_queue_dequeue(jf_synced_queue *q)
 
 
 ////////// MISCELLANEOUS GARBAGE //////////
+bool jf_strong_bool_parse(const char *str,
+        const size_t len,
+        jf_strong_bool *out)
+{
+    size_t l;
+
+    if (str == NULL) return false;
+
+    if (len == 0) {
+        l = strlen(str);
+    } else {
+        l = len;
+    }
+
+    if (strncasecmp(str, "no", l) == 0) {
+        *out = JF_STRONG_BOOL_NO;
+        return true;
+    }
+    if (strncasecmp(str, "yes", l) == 0) {
+        *out = JF_STRONG_BOOL_YES;
+        return true;
+    }
+    if (strncasecmp(str, "force", l) == 0) {
+        *out = JF_STRONG_BOOL_FORCE;
+        return true;
+    }
+
+    return false;
+}
+
+
 char *jf_concat(size_t n, ...)
 {
     char *buf;
