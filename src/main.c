@@ -257,9 +257,9 @@ int main(int argc, char *argv[])
             jf_exit(JF_EXIT_FAILURE);
         }
         // future proofing
-        if (mpv_version >= MPV_MAKE_VERSION(2,0)) {
+        if (mpv_version >= MPV_MAKE_VERSION(3,0)) {
             fprintf(stderr,
-                    "Warning: found libmpv version %lu.%lu, but jftui expects 1.xx. mpv will probably not work.\n",
+                    "Warning: found libmpv version %lu.%lu, but jftui expects 1.xx or 2.xx. mpv will probably not work.\n",
                     mpv_version >> 16, mpv_version & 0xFFFF);
         }
     }
