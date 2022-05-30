@@ -352,6 +352,7 @@ void *jf_synced_queue_dequeue(jf_synced_queue *q)
 }
 //////////////////////////////////
 
+#define STRNCASECMP_LITERAL(_str, _lit, _len) strncasecmp(_str, _lit, _len > JF_STATIC_STRLEN(_lit) ? JF_STATIC_STRLEN(_lit) : _len)
 
 ////////// MISCELLANEOUS GARBAGE //////////
 bool jf_strong_bool_parse(const char *str,
@@ -362,21 +363,17 @@ bool jf_strong_bool_parse(const char *str,
 
     if (str == NULL) return false;
 
-    if (len == 0) {
-        l = strlen(str);
-    } else {
-        l = len;
-    }
+    l = len > 0 ? len : strlen(str);
 
-    if (strncasecmp(str, "no", l) == 0) {
+    if (STRNCASECMP_LITERAL(str, "no", l) == 0) {
         *out = JF_STRONG_BOOL_NO;
         return true;
     }
-    if (strncasecmp(str, "yes", l) == 0) {
+    if (STRNCASECMP_LITERAL(str, "yes", l) == 0) {
         *out = JF_STRONG_BOOL_YES;
         return true;
     }
-    if (strncasecmp(str, "force", l) == 0) {
+    if (STRNCASECMP_LITERAL(str, "force", l) == 0) {
         *out = JF_STRONG_BOOL_FORCE;
         return true;
     }
@@ -449,8 +446,8 @@ char *jf_make_timestamp(const long long ticks)
 {
     char *str;
     unsigned char seconds, minutes, hours;
-    seconds = (ticks / 10000000) % 60;
-    minutes = (ticks / 10000000 / 60) % 60;
+    seconds = (unsigned char)((ticks / 10000000) % 60);
+    minutes = (unsigned char)((ticks / 10000000 / 60) % 60);
     hours = (unsigned char)(ticks / 10000000 / 60 / 60);
 
     // allocate with overestimate. we shan't cry

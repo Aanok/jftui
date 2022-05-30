@@ -121,7 +121,7 @@ static int jf_sax_items_end_map(void *ctx)
                         (const char*)(context->parsed_content.buf
                             + context->id_start),
                         context->current_item_display_name.buf,
-                        NULL,
+                        context->current_item_path.used > 0 ? context->current_item_path.buf : 0,
                         context->runtime_ticks,
                         context->playback_ticks);
                 jf_disk_payload_add_item(item);
@@ -183,6 +183,8 @@ static int jf_sax_items_map_key(void *ctx, const unsigned char *key, size_t key_
                 context->parser_state = JF_SAX_IN_ITEM_RUNTIME_TICKS_VALUE;
             } else if (JF_SAX_KEY_IS("UserData")) {
                 context->parser_state = JF_SAX_IN_USERDATA_VALUE;
+            } else if (JF_SAX_KEY_IS("Path") && g_options.try_local_files) {
+                context->parser_state = JF_SAX_IN_ITEM_PATH_VALUE;
             }
             break;
         case JF_SAX_IN_USERDATA_MAP:
@@ -316,6 +318,11 @@ static int jf_sax_items_string(void *ctx, const unsigned char *string, size_t st
             break;
         case JF_SAX_IN_ITEM_SERIES_VALUE:
             JF_SAX_ITEM_FILL(series);
+            context->parser_state = JF_SAX_IN_ITEM_MAP;
+            break;
+        case JF_SAX_IN_ITEM_PATH_VALUE:
+            jf_growing_buffer_append(&context->current_item_path, string, string_len);
+            jf_growing_buffer_append(&context->current_item_path, "", 1);
             context->parser_state = JF_SAX_IN_ITEM_MAP;
             break;
         default:
@@ -469,6 +476,7 @@ static inline void jf_sax_context_init(jf_sax_context *context, jf_thread_buffer
     context->tb = tb;
     context->current_item_type = JF_ITEM_TYPE_NONE;
     jf_growing_buffer_init(&context->current_item_display_name, 0);
+    jf_growing_buffer_init(&context->current_item_path, 0);
     jf_growing_buffer_init(&context->parsed_content, 0);
 }
 
@@ -477,6 +485,7 @@ static inline void jf_sax_context_current_item_clear(jf_sax_context *context)
 {
     context->current_item_type = JF_ITEM_TYPE_NONE;
     jf_growing_buffer_empty(&context->parsed_content);
+    jf_growing_buffer_empty(&context->current_item_path);
     context->name_len = 0;
     context->id_len = 0;
     context->artist_len = 0;

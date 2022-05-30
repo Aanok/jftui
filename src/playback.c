@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <unistd.h>
 
 ////////// GLOBAL VARIABLES //////////
 extern jf_global_state g_state;

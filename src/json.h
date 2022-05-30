@@ -93,9 +93,10 @@ typedef enum jf_sax_parser_state {
     JF_SAX_IN_ITEM_INDEX_VALUE = 15,
     JF_SAX_IN_ITEM_PARENT_INDEX_VALUE = 16,
     JF_SAX_IN_ITEM_RUNTIME_TICKS_VALUE = 17,
-    JF_SAX_IN_USERDATA_MAP = 18,
-    JF_SAX_IN_USERDATA_VALUE = 19,
-    JF_SAX_IN_USERDATA_TICKS_VALUE = 20,
+    JF_SAX_IN_ITEM_PATH_VALUE = 18,
+    JF_SAX_IN_USERDATA_MAP = 19,
+    JF_SAX_IN_USERDATA_VALUE = 20,
+    JF_SAX_IN_USERDATA_TICKS_VALUE = 21,
     JF_SAX_IGNORE = 127
 } jf_sax_parser_state;
 
@@ -112,6 +113,7 @@ typedef struct jf_sax_context {
     jf_thread_buffer *tb;
     jf_item_type current_item_type;
     jf_growing_buffer current_item_display_name;
+    jf_growing_buffer current_item_path;
     jf_growing_buffer parsed_content;
     size_t name_start;          size_t name_len;
     size_t id_start;            size_t id_len;

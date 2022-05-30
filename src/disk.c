@@ -166,7 +166,7 @@ void jf_disk_init()
         tmp_dir = "/tmp";
 #endif
     }
-    assert(access(tmp_dir, F_OK) == 0);
+    assert(jf_disk_is_file_accessible(tmp_dir) == 0);
     assert((s_file_prefix = malloc((size_t)snprintf(NULL, 0,
             "%s/jftui_%d_XXXXXX",
             tmp_dir, getpid()) + 1)) != NULL);
@@ -311,3 +311,11 @@ size_t jf_disk_playlist_item_count()
     return s_playlist.count;
 }
 ///////////////////////////////
+
+
+////////// MISC BULLSHIT //////////
+bool jf_disk_is_file_accessible(const char *path)
+{
+    return access(path, F_OK);
+}
+//////////////////////////////////

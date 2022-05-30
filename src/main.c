@@ -328,7 +328,7 @@ int main(int argc, char *argv[])
     config_path = jf_concat(2, g_state.config_dir, "/settings");
 
     // check config file exists
-    if (access(config_path, F_OK) == 0) {
+    if (jf_disk_is_file_accessible(config_path) == 0) {
         // it's there: read it
         jf_config_read(config_path);
         if (strcmp(g_options.version, JF_VERSION) < 0) {

@@ -140,6 +140,9 @@ static jf_menu_item *jf_menu_child_get(size_t n);
 static bool jf_menu_print_context(void);
 static bool jf_menu_ask_resume_yn(const jf_menu_item *item, const long long ticks);
 static void jf_menu_try_play(void);
+
+static char *jf_menu_item_get_local_url(const jf_menu_item *item);
+static char *jf_menu_item_get_remote_url(const jf_menu_item *item);
 //////////////////////////////////////
 
 
@@ -335,11 +338,21 @@ static void jf_menu_filters_apply(void)
 
 
 ////////// USER INTERFACE LOOP //////////
-char *jf_menu_item_get_request_url(const jf_menu_item *item)
+static char *jf_menu_item_get_local_url(const jf_menu_item *item)
+{
+    if (JF_ITEM_TYPE_IS_FOLDER(item->type)) {
+        // TODO print error
+        ;
+    }
+
+    // FIXME placeholder horribly naive will surely break spectacularly
+    return strdup(item->path);
+}
+
+
+static char *jf_menu_item_get_remote_url(const jf_menu_item *item)
 {
     const jf_menu_item *parent;
-
-    if (item == NULL) return NULL;
 
     switch (item->type) {
         // Atoms
@@ -428,7 +441,7 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
             return jf_concat(4,
                     "/users/",
                     g_options.userid,
-                    "/items?recursive=true&sortby=sortname&filters=isfavorite",
+                    "/items?recursive=true&sortby=sortname&filters=isfavorite&fields=path", // FIXME proof of concept
                     s_filters_query);
         case JF_ITEM_TYPE_MENU_CONTINUE:
             return jf_concat(3,
@@ -456,12 +469,37 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
                     "/items?recursive=true&includeitemtypes=audiobook,episode,movie,musicalbum&excludelocationtypes=virtual&sortby=datecreated,sortname&sortorder=descending&limit=20");
         case JF_ITEM_TYPE_MENU_LIBRARIES:
             return jf_concat(3, "/users/", g_options.userid, "/views");
-        default:
-            fprintf(stderr,
-                    "Error: get_request_url was called on an unsupported item_type (%d). This is a bug.\n",
-                    item->type);
-            return NULL;
     }
+
+    fprintf(stderr,
+        "Error: get_remote_url was called on an unsupported item_type (%d). This is a bug.\n",
+        item->type);
+    return NULL;
+}
+
+
+char *jf_menu_item_get_request_url(const jf_menu_item *item)
+{
+    char *url = NULL;
+
+    if (item == NULL) return NULL;
+
+    if (JF_ITEM_TYPE_IS_FOLDER(item->type)) {
+        url = jf_menu_item_get_remote_url(item);
+    } else {
+        if (g_options.try_local_files 
+                && item->path
+                && jf_disk_is_file_accessible(item->path) == 0) {
+            url = jf_menu_item_get_local_url(item);
+        }
+
+        if (url == NULL) {
+            // TODO print warning
+            url = jf_menu_item_get_remote_url(item);
+        }
+    }
+
+    return url;
 }
 
 

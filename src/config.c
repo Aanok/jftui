@@ -3,6 +3,7 @@
 #include "net.h"
 #include "menu.h"
 #include "json.h"
+#include "disk.h"
 
 #include <errno.h>
 #include <sys/stat.h>
@@ -16,11 +17,6 @@
 ////////// GLOBAL VARIABLES //////////
 extern jf_options g_options;
 extern jf_global_state g_state;
-//////////////////////////////////////
-
-
-////////// STATIC VARIABLES //////////
-jf_strong_bool s_try_local_files_config;
 //////////////////////////////////////
 
 
@@ -103,6 +99,7 @@ void jf_config_read(const char *config_path)
     size_t line_size = 1024;
     char *value;
     size_t value_len;
+    jf_strong_bool try_local_files_config;
 
     assert(config_path != NULL);
 
@@ -145,9 +142,7 @@ void jf_config_read(const char *config_path)
         } else if (JF_CONFIG_KEY_IS("check_updates")) {
             JF_CONFIG_FILL_VALUE_BOOL(check_updates);
         } else if (JF_CONFIG_KEY_IS("try_local_files")) {
-            if (jf_strong_bool_parse(value,
-                        value_len,
-                        &s_try_local_files_config) == false) {
+            if (jf_strong_bool_parse(value, 0, &try_local_files_config) == false) {
                 fprintf(stderr,
                         "Warning: unrecognized value for config option \"try_local_files\": %s",
                         value);
@@ -167,7 +162,7 @@ void jf_config_read(const char *config_path)
     fclose(config_file);
 
     // figure out if we should try local files
-    switch (s_try_local_files_config) {
+    switch (try_local_files_config) {
         case JF_STRONG_BOOL_NO:
             g_options.try_local_files = false;
             break;
@@ -186,7 +181,7 @@ bool jf_config_write(const char *config_path)
     FILE *tmp_file;
     char *tmp_path;
 
-    if (access(g_state.config_dir, F_OK) != 0) {
+    if (jf_disk_is_file_accessible(g_state.config_dir) != 0) {
         assert(mkdir(g_state.config_dir, S_IRWXU) != -1);
     }
 
