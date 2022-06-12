@@ -264,7 +264,7 @@ void jf_config_ask_user_login()
         free(username);
         memset(password->buf, 0, password->used);
         jf_growing_buffer_empty(password);
-        login_reply = jf_net_request("/emby/Users/authenticatebyname",
+        login_reply = jf_net_request("/Users/authenticatebyname",
                 JF_REQUEST_IN_MEMORY,
                 JF_HTTP_POST,
                 login_post);
@@ -278,7 +278,7 @@ void jf_config_ask_user_login()
             }
         } else {
             fprintf(stderr,
-                    "FATAL: could not login: %s.\n",
+                    "FATAL: could not login: %s\n",
                     jf_reply_error_string(login_reply));
             jf_reply_free(login_reply);
             jf_exit(JF_EXIT_FAILURE);

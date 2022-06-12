@@ -283,10 +283,10 @@ static void jf_net_init()
             || g_state.state == JF_STATE_STARTING_FULL_CONFIG) {
         // the only thing we will do is a POST for login
         tmp = jf_concat(9,
-                "x-emby-authorization: mediabrowser client=\"", g_options.client,
-                "\", device=\"", g_options.device, 
-                "\", deviceid=\"", g_options.deviceid,
-                "\", version=\"", g_options.version,
+                "x-emby-authorization: Mediabrowser Client=\"", g_options.client,
+                "\", Device=\"", g_options.device, 
+                "\", DeviceId=\"", g_options.deviceid,
+                "\", Version=\"", g_options.version,
                 "\"");
         assert((s_headers_POST = curl_slist_append(s_headers, tmp)) != NULL);
     } else {
