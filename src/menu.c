@@ -141,7 +141,6 @@ static bool jf_menu_print_context(void);
 static bool jf_menu_ask_resume_yn(const jf_menu_item *item, const long long ticks);
 static void jf_menu_try_play(void);
 
-static char *jf_menu_item_get_local_url(const jf_menu_item *item);
 static char *jf_menu_item_get_remote_url(const jf_menu_item *item);
 //////////////////////////////////////
 
@@ -338,18 +337,6 @@ static void jf_menu_filters_apply(void)
 
 
 ////////// USER INTERFACE LOOP //////////
-static char *jf_menu_item_get_local_url(const jf_menu_item *item)
-{
-    if (JF_ITEM_TYPE_IS_FOLDER(item->type)) {
-        // TODO print error
-        ;
-    }
-
-    // FIXME placeholder horribly naive will surely break spectacularly
-    return strdup(item->path);
-}
-
-
 static char *jf_menu_item_get_remote_url(const jf_menu_item *item)
 {
     const jf_menu_item *parent;
@@ -379,12 +366,13 @@ static char *jf_menu_item_get_remote_url(const jf_menu_item *item)
         case JF_ITEM_TYPE_SEASON:
         case JF_ITEM_TYPE_SERIES:
         case JF_ITEM_TYPE_COLLECTION_MUSIC_VIDEOS:
-                return jf_concat(5,
+                return jf_concat(6,
                         "/users/",
                         g_options.userid,
                         "/items?sortby=isfolder,parentindexnumber,indexnumber,productionyear,sortname&parentid=",
                         item->id,
-                        s_filters_query);
+                        s_filters_query,
+                        g_options.try_local_files ? "&fields=path" : "");
         case JF_ITEM_TYPE_COLLECTION_MUSIC:
             if ((parent = jf_menu_stack_peek(0)) != NULL && parent->type == JF_ITEM_TYPE_FOLDER) {
                 // we are inside a "by folders" view
@@ -417,11 +405,12 @@ static char *jf_menu_item_get_remote_url(const jf_menu_item *item)
                     item->id,
                     s_filters_query);
         case JF_ITEM_TYPE_PLAYLIST:
-            return jf_concat(4,
+            return jf_concat(5,
                     "/playlists/",
                     item->id,
                     "/items?userid=",
-                    g_options.userid);
+                    g_options.userid,
+                    g_options.try_local_files ? "&fields=path" : "");
         case JF_ITEM_TYPE_ARTIST:
             return jf_concat(5,
                     "/users/",
@@ -430,19 +419,21 @@ static char *jf_menu_item_get_remote_url(const jf_menu_item *item)
                     item->id,
                     s_filters_query);
         case JF_ITEM_TYPE_SEARCH_RESULT:
-            return jf_concat(5,
+            return jf_concat(6,
                     "/users/",
                     g_options.userid,
                     "/items?recursive=true&searchterm=",
                     item->name,
-                    s_filters_query);
+                    s_filters_query,
+                    g_options.try_local_files ? "&fields=path" : "");
         // Persistent folders
         case JF_ITEM_TYPE_MENU_FAVORITES:
-            return jf_concat(4,
+            return jf_concat(5,
                     "/users/",
                     g_options.userid,
-                    "/items?recursive=true&sortby=sortname&filters=isfavorite&fields=path", // FIXME proof of concept
-                    s_filters_query);
+                    "/items?recursive=true&sortby=sortname&filters=isfavorite",
+                    s_filters_query,
+                    g_options.try_local_files ? "&fields=path" : "");
         case JF_ITEM_TYPE_MENU_CONTINUE:
             return jf_concat(3,
                     "/users/",
@@ -469,37 +460,63 @@ static char *jf_menu_item_get_remote_url(const jf_menu_item *item)
                     "/items?recursive=true&includeitemtypes=audiobook,episode,movie,musicalbum&excludelocationtypes=virtual&sortby=datecreated,sortname&sortorder=descending&limit=20");
         case JF_ITEM_TYPE_MENU_LIBRARIES:
             return jf_concat(3, "/users/", g_options.userid, "/views");
-    }
+        case JF_ITEM_TYPE_NONE:
+        case JF_ITEM_TYPE_USER_VIEW:
+        case JF_ITEM_TYPE_MENU_ROOT:
+          break;
+        }
 
     fprintf(stderr,
-        "Error: get_remote_url was called on an unsupported item_type (%d). This is a bug.\n",
-        item->type);
+        "Error: get_remote_url was called on an unsupported item_type (%s). This is a bug.\n",
+        jf_item_type_get_name(item->type));
     return NULL;
 }
 
 
 char *jf_menu_item_get_request_url(const jf_menu_item *item)
 {
-    char *url = NULL;
-
     if (item == NULL) return NULL;
 
-    if (JF_ITEM_TYPE_IS_FOLDER(item->type)) {
-        url = jf_menu_item_get_remote_url(item);
-    } else {
-        if (g_options.try_local_files 
-                && item->path
-                && jf_disk_is_file_accessible(item->path) == 0) {
-            url = jf_menu_item_get_local_url(item);
-        }
-
-        if (url == NULL) {
-            // TODO print warning
-            url = jf_menu_item_get_remote_url(item);
-        }
+    switch (item->type) {
+        case JF_ITEM_TYPE_AUDIO:
+        case JF_ITEM_TYPE_AUDIOBOOK:
+        case JF_ITEM_TYPE_VIDEO_SOURCE:
+        case JF_ITEM_TYPE_VIDEO_SUB:
+            if (g_options.try_local_files 
+                    && item->path
+                    && jf_disk_is_file_accessible(item->path)) {
+                char *url = strdup(item->path);
+                assert(url != NULL);
+                return url;
+            }
+            break;
+        case JF_ITEM_TYPE_NONE:
+        case JF_ITEM_TYPE_EPISODE:
+        case JF_ITEM_TYPE_MOVIE:
+        case JF_ITEM_TYPE_MUSIC_VIDEO:
+        case JF_ITEM_TYPE_COLLECTION:
+        case JF_ITEM_TYPE_COLLECTION_MUSIC:
+        case JF_ITEM_TYPE_COLLECTION_SERIES:
+        case JF_ITEM_TYPE_COLLECTION_MOVIES:
+        case JF_ITEM_TYPE_COLLECTION_MUSIC_VIDEOS:
+        case JF_ITEM_TYPE_USER_VIEW:
+        case JF_ITEM_TYPE_FOLDER:
+        case JF_ITEM_TYPE_PLAYLIST:
+        case JF_ITEM_TYPE_ARTIST:
+        case JF_ITEM_TYPE_ALBUM:
+        case JF_ITEM_TYPE_SEASON:
+        case JF_ITEM_TYPE_SERIES:
+        case JF_ITEM_TYPE_SEARCH_RESULT:
+        case JF_ITEM_TYPE_MENU_ROOT:
+        case JF_ITEM_TYPE_MENU_FAVORITES:
+        case JF_ITEM_TYPE_MENU_CONTINUE:
+        case JF_ITEM_TYPE_MENU_NEXT_UP:
+        case JF_ITEM_TYPE_MENU_LATEST_ADDED:
+        case JF_ITEM_TYPE_MENU_LIBRARIES:
+            break;
     }
 
-    return url;
+    return jf_menu_item_get_remote_url(item);
 }
 
 

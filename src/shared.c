@@ -352,9 +352,11 @@ void *jf_synced_queue_dequeue(jf_synced_queue *q)
 }
 //////////////////////////////////
 
-#define STRNCASECMP_LITERAL(_str, _lit, _len) strncasecmp(_str, _lit, _len > JF_STATIC_STRLEN(_lit) ? JF_STATIC_STRLEN(_lit) : _len)
 
 ////////// MISCELLANEOUS GARBAGE //////////
+#define STRNCASECMP_LITERAL(_str, _lit, _len) strncasecmp(_str, _lit, _len > JF_STATIC_STRLEN(_lit) ? JF_STATIC_STRLEN(_lit) : _len)
+
+
 bool jf_strong_bool_parse(const char *str,
         const size_t len,
         jf_strong_bool *out)
@@ -382,33 +384,47 @@ bool jf_strong_bool_parse(const char *str,
 }
 
 
+const char *jf_strong_bool_to_str(jf_strong_bool strong_bool)
+{
+    switch (strong_bool) {
+        case JF_STRONG_BOOL_NO:
+            return "no";
+        case JF_STRONG_BOOL_YES:
+            return "yes";
+        case JF_STRONG_BOOL_FORCE:
+            return "force";
+    }
+
+    return NULL;
+}
+
+
 char *jf_concat(size_t n, ...)
 {
     char *buf;
-    size_t *argv_len;
+    char *tmp;
     size_t len = 0;
     size_t i;
     va_list ap;
 
-    assert((argv_len = malloc(sizeof(size_t) * n)) != NULL);
     va_start(ap, n);
     for (i = 0; i < n; i++) {
-        argv_len[i] = strlen(va_arg(ap, const char*));
-        len += argv_len[i];
+        len += strlen(va_arg(ap, const char*));
     }
     va_end(ap);
 
     assert((buf = malloc(len + 1)) != NULL);
-    len = 0;
+    tmp = buf;
     va_start(ap, n);
     for (i = 0; i < n; i++) {
-        memcpy(buf + len, va_arg(ap, const char*), argv_len[i]);
-        len += argv_len[i];
+        tmp = memccpy(tmp, va_arg(ap, const char*), '\0', (size_t)(buf + len - tmp + 1));
+        // you should check tmp != NULL here but that happens only if there's no \0 in src
+        // and we've already run strlen's on the input (#YOLO)
+        tmp--;
     }
     buf[len] = '\0';
     va_end(ap);
-    
-    free(argv_len);
+
     return buf;
 }
 

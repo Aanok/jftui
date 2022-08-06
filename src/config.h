@@ -1,6 +1,7 @@
 #ifndef _JF_CONFIG
 #define _JF_CONFIG
 
+#include "shared.h"
 #include <stddef.h>
 #include <stdbool.h>
 
@@ -61,6 +62,7 @@ typedef struct jf_options {
     char *mpv_profile;
     bool check_updates;
     bool try_local_files;
+    jf_strong_bool try_local_files_config;
 } jf_options;
 
 

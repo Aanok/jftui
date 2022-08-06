@@ -69,7 +69,7 @@ do {                                \
 
 
 ////////// CONSTANTS //////////
-#define JF_VERSION "0.5.1"
+#define JF_VERSION "0.6.0"
 #define JF_THREAD_BUFFER_DATA_SIZE (CURL_MAX_WRITE_SIZE +1)
 #define JF_ID_LENGTH 32
 ///////////////////////////////
@@ -344,6 +344,10 @@ typedef enum jf_strong_bool {
 bool jf_strong_bool_parse(const char *str,
         const size_t len,
         jf_strong_bool *out);
+
+// Returns the obvious string representing a jf_strong_bool.
+// The mapping is as per the jf_strong_bool_parse function.
+const char *jf_strong_bool_to_str(jf_strong_bool strong_bool);
 
 
 // Concatenates any amount of NULL-terminated strings. The result will be

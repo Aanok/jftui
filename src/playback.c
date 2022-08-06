@@ -160,7 +160,8 @@ void jf_playback_load_external_subtitles()
                         j);
                 continue;
             }
-            tmp = jf_concat(2, g_options.server, child->name);
+
+            tmp = jf_menu_item_get_request_url(child);
             strncpy(subs_language, child->id, 3);
             const char *command[] = { "sub-add",
                 tmp,

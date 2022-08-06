@@ -591,6 +591,7 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
         i = 0;
     }
 
+    // external subtitles
     assert((source = YAJL_GET_ARRAY(media_sources)->values[i]) != NULL);
     media_streams = jf_yajl_tree_get_assert(source,
             ((const char *[]){ "MediaStreams", NULL }),
@@ -625,7 +626,7 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
                     NULL, // children
                     NULL, // id
                     tmp,
-                    NULL, // path
+                    YAJL_GET_STRING(jf_yajl_tree_get_assert(stream, ((const char *[]){ "Path", NULL }), yajl_t_string)),
                     0, 0); // ticks
             free(tmp);
             if ((tmp = YAJL_GET_STRING(yajl_tree_get(stream, ((const char *[]){ "Language", NULL }), yajl_t_string))) == NULL) {
@@ -647,7 +648,7 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
             subs,
             YAJL_GET_STRING(jf_yajl_tree_get_assert(source, ((const char *[]){ "Id", NULL }), yajl_t_string)),
             NULL,
-            NULL,
+            YAJL_GET_STRING(jf_yajl_tree_get_assert(source, ((const char *[]){ "Path", NULL }), yajl_t_string)),
             YAJL_GET_INTEGER(jf_yajl_tree_get_assert(source, ((const char *[]){ "RunTimeTicks", NULL }), yajl_t_number)), // RT ticks
             0);
 }
@@ -658,7 +659,11 @@ void jf_json_parse_video(jf_menu_item *item, const char *video, const char *addi
     yajl_val parsed, part_count, part_item;
     size_t i;
 
-    JF_JSON_TREE_PARSE_ASSERT((parsed = yajl_tree_parse(video, s_error_buffer, JF_PARSER_ERROR_BUFFER_SIZE)) != NULL);
+    JF_JSON_TREE_PARSE_ASSERT(
+        (parsed = yajl_tree_parse(video,
+            s_error_buffer,
+            JF_PARSER_ERROR_BUFFER_SIZE)) != NULL
+    );
     // PartCount is not defined when it is == 1
     if ((part_count =  yajl_tree_get(parsed, (const char *[]){ "PartCount", NULL }, yajl_t_number)) == NULL) {
         item->children_count = 1;

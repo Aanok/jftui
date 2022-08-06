@@ -99,7 +99,6 @@ void jf_config_read(const char *config_path)
     size_t line_size = 1024;
     char *value;
     size_t value_len;
-    jf_strong_bool try_local_files_config;
 
     assert(config_path != NULL);
 
@@ -142,7 +141,7 @@ void jf_config_read(const char *config_path)
         } else if (JF_CONFIG_KEY_IS("check_updates")) {
             JF_CONFIG_FILL_VALUE_BOOL(check_updates);
         } else if (JF_CONFIG_KEY_IS("try_local_files")) {
-            if (jf_strong_bool_parse(value, 0, &try_local_files_config) == false) {
+            if (jf_strong_bool_parse(value, 0, &g_options.try_local_files_config) == false) {
                 fprintf(stderr,
                         "Warning: unrecognized value for config option \"try_local_files\": %s",
                         value);
@@ -162,7 +161,7 @@ void jf_config_read(const char *config_path)
     fclose(config_file);
 
     // figure out if we should try local files
-    switch (try_local_files_config) {
+    switch (g_options.try_local_files_config) {
         case JF_STRONG_BOOL_NO:
             g_options.try_local_files = false;
             break;
@@ -181,7 +180,7 @@ bool jf_config_write(const char *config_path)
     FILE *tmp_file;
     char *tmp_path;
 
-    if (jf_disk_is_file_accessible(g_state.config_dir) != 0) {
+    if (jf_disk_is_file_accessible(g_state.config_dir) == false) {
         assert(mkdir(g_state.config_dir, S_IRWXU) != -1);
     }
 
@@ -206,6 +205,8 @@ bool jf_config_write(const char *config_path)
     if (g_options.mpv_profile != NULL) {
         JF_CONFIG_WRITE_VALUE(mpv_profile);
     }
+    fprintf(tmp_file, "try_local_files=%s\n",
+        jf_strong_bool_to_str(g_options.try_local_files_config));
     // NB don't write check_updates, we want it set manually
 
     if (fclose(tmp_file) != 0) {
