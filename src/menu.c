@@ -841,6 +841,23 @@ size_t jf_menu_child_count()
     }
 }
 
+void jf_menu_help(void) {
+    printf("S ::= \"q\" (quits)\n"
+           "    | \"h\" (go to \"home\" root menu)\n"
+           "    | \"..\" (go to previous menu)\n"
+           "    | \"?\" (Print this help message)\n"
+           "    | \"f\" ( \"c\" | [pufrld]+ ) (filters: clear or played, unplayed, favourite, resumable, liked, disliked)\n"
+           "    | \"m\" (\"p\" | \"u\") Selector (marks items played or unplayed)\n"
+           "    | Selector (opens a single directory entry or sends a sequence of items to playback)\n"
+           "    Selector :: = '*' (everything in the current menu)\n"
+           "    | Items\n"
+           "    Items ::= Atom \",\" Items (list)\n"
+           "    | Atom\n"
+           "    Atom ::= n1 \"-\" n2 (range)\n"
+           "    | n (single item)\n"
+  );
+}
+
 
 void jf_menu_dotdot()
 {

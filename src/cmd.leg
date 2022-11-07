@@ -76,6 +76,7 @@ static void yy_cmd_finalize(yycontext *ctx, const bool parse_ok);
 Start = ( ws*
     ( ".."                      { yy->state = JF_CMD_SPECIAL; jf_menu_dotdot(); }
     | "h"                       { yy->state = JF_CMD_SPECIAL; jf_menu_clear(); }
+    | "?"                       { yy->state = JF_CMD_SPECIAL; jf_menu_help(); }
 #   | "r" ws+                   { yy->state = JF_CMD_RECURSIVE; }
 #       Selector ws*
     | "s" ws+ < .+ >            { yy->state = JF_CMD_SPECIAL; jf_menu_search(yytext); }
