@@ -231,7 +231,8 @@ inline static void jf_growing_buffer_make_space(jf_growing_buffer *buffer,
 }
 
 
-void jf_growing_buffer_append(jf_growing_buffer *buffer, const void *data,
+void jf_growing_buffer_append(jf_growing_buffer *buffer,
+        const void *data,
         size_t length)
 {
     if (buffer == NULL) return;
