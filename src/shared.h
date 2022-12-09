@@ -211,23 +211,22 @@ void jf_menu_item_print(const jf_menu_item *item);
 
 
 ////////// GROWING BUFFER //////////
-typedef struct jf_growing_buffer {
+typedef struct _jf_growing_buffer {
     char *buf;
     size_t size;
     size_t used;
-} jf_growing_buffer;
+} *jf_growing_buffer;
 
 
-void jf_growing_buffer_init(jf_growing_buffer *buffer, const size_t size);
-jf_growing_buffer *jf_growing_buffer_new(const size_t size);
-void jf_growing_buffer_append(jf_growing_buffer *buffer,
+jf_growing_buffer jf_growing_buffer_new(const size_t size);
+void jf_growing_buffer_append(jf_growing_buffer buffer,
         const void *data,
         const size_t length);
-void jf_growing_buffer_sprintf(jf_growing_buffer *buffer,
+void jf_growing_buffer_sprintf(jf_growing_buffer buffer,
         size_t offset,
         const char *format, ...);
-void jf_growing_buffer_empty(jf_growing_buffer *buffer);
-void jf_growing_buffer_free(jf_growing_buffer *buffer);
+void jf_growing_buffer_empty(jf_growing_buffer buffer);
+void jf_growing_buffer_free(jf_growing_buffer buffer);
 ////////////////////////////////////
 
 

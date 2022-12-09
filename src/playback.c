@@ -283,7 +283,7 @@ void jf_playback_align_subtitle(const int64_t sid)
 ////////// ITEM PLAYBACK //////////
 void jf_playback_play_video(const jf_menu_item *item)
 {
-    jf_growing_buffer *filename;
+    jf_growing_buffer filename;
     char *part_url;
     size_t i;
     jf_menu_item *child;
@@ -417,7 +417,7 @@ bool jf_playback_play_item(jf_menu_item *item)
 static inline bool jf_playback_populate_video_ticks(jf_menu_item *item)
 {
     jf_reply **replies;
-    jf_growing_buffer *part_url = jf_growing_buffer_new(0);
+    jf_growing_buffer part_url = jf_growing_buffer_new(0);
     size_t i;
 
     if (item == NULL) return true;
@@ -574,7 +574,7 @@ void jf_playback_print_playlist(size_t window_size)
     int64_t osd_h;
     int64_t osd_font_size;
     size_t osd[2]; 
-    jf_growing_buffer *osd_msg;
+    jf_growing_buffer osd_msg;
     const char *osd_cmd[3] = { "show-text", NULL, NULL };
 
 

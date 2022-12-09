@@ -19,11 +19,11 @@ do {                                            \
     return 0;                                   \
 } while (false)
 
-#define JF_SAX_ITEM_FILL(field)                                             \
-do {                                                                        \
-    context->field ## _start = context->parsed_content.used;                \
-    jf_growing_buffer_append(&context->parsed_content, string, string_len); \
-    context->field ## _len = string_len;                                    \
+#define JF_SAX_ITEM_FILL(field)                                            \
+do {                                                                       \
+    context->field ## _start = context->parsed_content->used;              \
+    jf_growing_buffer_append(context->parsed_content, string, string_len); \
+    context->field ## _len = string_len;                                   \
 } while (false)
 
 #define JF_SAX_CONTEXT_PTR_PARSED_DATA_LENGTH(_c) ((_c)->name_len \
@@ -43,17 +43,17 @@ do {                                                                        \
 
 
 // NB THIS WILL NOT BE NULL-TERMINATED ON ITS OWN!!!
-#define JF_SAX_TRY_APPEND_NAME(prefix, field, suffix)                   \
-do {                                                                    \
-    if (context->field ## _len > 0) {                                   \
-        jf_growing_buffer_append(&context->current_item_display_name,   \
-                prefix, JF_STATIC_STRLEN(prefix));                      \
-        jf_growing_buffer_append(&context->current_item_display_name,   \
-                context->parsed_content.buf + context->field ## _start, \
-                context->field ## _len);                                \
-        jf_growing_buffer_append(&context->current_item_display_name,   \
-                suffix, JF_STATIC_STRLEN(suffix));                      \
-    }                                                                   \
+#define JF_SAX_TRY_APPEND_NAME(prefix, field, suffix)                    \
+do {                                                                     \
+    if (context->field ## _len > 0) {                                    \
+        jf_growing_buffer_append(context->current_item_display_name,     \
+                prefix, JF_STATIC_STRLEN(prefix));                       \
+        jf_growing_buffer_append(context->current_item_display_name,     \
+                context->parsed_content->buf + context->field ## _start, \
+                context->field ## _len);                                 \
+        jf_growing_buffer_append(context->current_item_display_name,     \
+                suffix, JF_STATIC_STRLEN(suffix));                       \
+    }                                                                    \
 } while (false)
 
 

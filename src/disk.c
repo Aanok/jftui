@@ -30,7 +30,7 @@ static void jf_disk_add_next(jf_file_cache *cache, const jf_menu_item *item);
 static void jf_disk_add_item(jf_file_cache *cache, const jf_menu_item *item);
 static jf_menu_item *jf_disk_get_next(jf_file_cache *cache);
 static jf_menu_item *jf_disk_get_item(jf_file_cache *cache, const size_t n);
-static void jf_disk_read_to_null_to_buffer(jf_growing_buffer *buffer,
+static void jf_disk_read_to_null_to_buffer(jf_growing_buffer buffer,
         jf_file_cache *cache);
 ///////////////////////////////////////
 
@@ -105,12 +105,12 @@ static jf_menu_item *jf_disk_get_next(jf_file_cache *cache)
 
     assert(fread(&(item.type), sizeof(jf_item_type), 1, cache->body) == 1);
     assert(fread(item.id, 1, sizeof(item.id), cache->body) == sizeof(item.id));
-    jf_growing_buffer_empty(&s_buffer);
-    jf_disk_read_to_null_to_buffer(&s_buffer, cache);
-    item.name = *s_buffer.buf == '\0' ? NULL : s_buffer.buf;
-    path_offset = s_buffer.used;
-    jf_disk_read_to_null_to_buffer(&s_buffer, cache);
-    item.path = s_buffer.buf[path_offset] == '\0' ? NULL : (s_buffer.buf + path_offset);
+    jf_growing_buffer_empty(s_buffer);
+    jf_disk_read_to_null_to_buffer(s_buffer, cache);
+    item.name = s_buffer->buf[0] == '\0' ? NULL : s_buffer->buf;
+    path_offset = s_buffer->used;
+    jf_disk_read_to_null_to_buffer(s_buffer, cache);
+    item.path = s_buffer->buf[path_offset] == '\0' ? NULL : (s_buffer->buf + path_offset);
     assert(fread(&(item.runtime_ticks), sizeof(long long), 1, cache->body) == 1);
     assert(fread(&(item.playback_ticks), sizeof(long long), 1, cache->body) == 1);
     assert(fread(&(item.children_count), sizeof(size_t), 1, cache->body) == 1);
@@ -142,7 +142,7 @@ static jf_menu_item *jf_disk_get_item(jf_file_cache *cache, const size_t n)
 }
 
 
-static void jf_disk_read_to_null_to_buffer(jf_growing_buffer *buffer,
+static void jf_disk_read_to_null_to_buffer(jf_growing_buffer buffer,
         jf_file_cache *cache)
 {
     char tmp;
@@ -172,7 +172,7 @@ void jf_disk_init()
             tmp_dir, getpid()) + 1)) != NULL);
     sprintf(s_file_prefix, "%s/jftui_%d_XXXXXX", tmp_dir, getpid());
 
-    jf_growing_buffer_init(&s_buffer, 512);
+    s_buffer = jf_growing_buffer_new(512);
 
     assert((s_payload.header_path = jf_concat(2, s_file_prefix, "_s_payload_header")) != NULL);
     assert((s_payload.body_path = jf_concat(2, s_file_prefix, "_s_payload_body")) != NULL);
@@ -260,10 +260,10 @@ const char *jf_disk_playlist_get_item_name(const size_t n)
         sizeof(jf_item_type) + sizeof(((jf_menu_item *)666)->id),
         SEEK_CUR) == 0);
 
-    jf_growing_buffer_empty(&s_buffer);
-    jf_disk_read_to_null_to_buffer(&s_buffer, &s_playlist);
+    jf_growing_buffer_empty(s_buffer);
+    jf_disk_read_to_null_to_buffer(s_buffer, &s_playlist);
 
-    return (const char *)s_buffer.buf;
+    return (const char *)s_buffer->buf;
 }
 
 

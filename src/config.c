@@ -239,7 +239,7 @@ void jf_config_ask_user_login()
 {
     struct termios old, new;
     char *username, *login_post;
-    jf_growing_buffer *password;
+    jf_growing_buffer password;
     jf_reply *login_reply;
     int c;
 

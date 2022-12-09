@@ -339,7 +339,7 @@ static void jf_menu_filters_apply(void)
 ////////// USER INTERFACE LOOP //////////
 static char *jf_menu_item_get_remote_url(const jf_menu_item *item)
 {
-    static jf_growing_buffer *url_buffer = NULL;
+    static jf_growing_buffer url_buffer = NULL;
     const jf_menu_item *parent;
 
     if (url_buffer == NULL) {

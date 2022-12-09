@@ -20,7 +20,7 @@ extern mpv_handle *g_mpv_ctx;
 #ifdef JF_DEBUG
 static void jf_menu_item_print_indented(const jf_menu_item *item, const size_t level);
 #endif
-inline static void jf_growing_buffer_make_space(jf_growing_buffer *buffer,
+inline static void jf_growing_buffer_make_space(jf_growing_buffer buffer,
         size_t to_add);
 //////////////////////////////////////
 
@@ -199,24 +199,18 @@ void jf_thread_buffer_init(jf_thread_buffer *tb)
 
 
 ////////// GROWING BUFFER //////////
-void jf_growing_buffer_init(jf_growing_buffer *buffer, const size_t size)
+jf_growing_buffer jf_growing_buffer_new(const size_t size)
 {
+    jf_growing_buffer buffer;
+    assert((buffer = malloc(sizeof(struct _jf_growing_buffer))) != NULL);
     assert((buffer->buf = malloc(size > 0 ? size : 1024)) != NULL);
     buffer->size = size > 0 ? size : 1024;
     buffer->used = 0;
-}
-
-
-jf_growing_buffer *jf_growing_buffer_new(const size_t size)
-{
-    jf_growing_buffer *buffer;
-    assert((buffer = malloc(sizeof(jf_growing_buffer))) != NULL);
-    jf_growing_buffer_init(buffer, size);
     return buffer;
 }
 
 
-inline static void jf_growing_buffer_make_space(jf_growing_buffer *buffer,
+inline static void jf_growing_buffer_make_space(jf_growing_buffer buffer,
         const size_t required)
 {
     size_t estimate;
@@ -231,7 +225,7 @@ inline static void jf_growing_buffer_make_space(jf_growing_buffer *buffer,
 }
 
 
-void jf_growing_buffer_append(jf_growing_buffer *buffer,
+void jf_growing_buffer_append(jf_growing_buffer buffer,
         const void *data,
         size_t length)
 {
@@ -247,7 +241,7 @@ void jf_growing_buffer_append(jf_growing_buffer *buffer,
 }
 
 
-void jf_growing_buffer_sprintf(jf_growing_buffer *buffer,
+void jf_growing_buffer_sprintf(jf_growing_buffer buffer,
         size_t offset,
         const char *format,
         ...)
@@ -279,7 +273,7 @@ void jf_growing_buffer_sprintf(jf_growing_buffer *buffer,
 }
 
 
-void jf_growing_buffer_empty(jf_growing_buffer *buffer)
+void jf_growing_buffer_empty(jf_growing_buffer buffer)
 {
     if (buffer == NULL) return;
     
@@ -287,7 +281,7 @@ void jf_growing_buffer_empty(jf_growing_buffer *buffer)
 }
 
 
-void jf_growing_buffer_free(jf_growing_buffer *buffer)
+void jf_growing_buffer_free(jf_growing_buffer buffer)
 {
     if (buffer == NULL) return;
 
