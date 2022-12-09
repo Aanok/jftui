@@ -339,26 +339,36 @@ static void jf_menu_filters_apply(void)
 ////////// USER INTERFACE LOOP //////////
 static char *jf_menu_item_get_remote_url(const jf_menu_item *item)
 {
+    static jf_growing_buffer *url_buffer = NULL;
     const jf_menu_item *parent;
+
+    if (url_buffer == NULL) {
+        url_buffer = jf_growing_buffer_new(0);
+    } else {
+        jf_growing_buffer_empty(url_buffer);
+    }
 
     switch (item->type) {
         // Atoms
         case JF_ITEM_TYPE_AUDIO:
         case JF_ITEM_TYPE_AUDIOBOOK:
-            return jf_concat(4, g_options.server, "/items/", item->id, "/file");
+            jf_growing_buffer_sprintf(url_buffer, 0, "%s/items/%s/file", g_options.server, item->id);
+            break;
         case JF_ITEM_TYPE_VIDEO_SOURCE:
-            return jf_concat(5,
-                    g_options.server,
-                    "/videos/",
-                    item->id,
-                    "/stream?static=true&mediasourceid=",
-                    item->id);
+            jf_growing_buffer_sprintf(url_buffer, 0,
+                "%s/videos/%s/stream?static=true&mediasourceid=%s",
+                g_options.server,
+                item->id,
+                item->id);
+            break;
         case JF_ITEM_TYPE_EPISODE:
         case JF_ITEM_TYPE_MOVIE:
         case JF_ITEM_TYPE_MUSIC_VIDEO:
-            return jf_concat(4, "/users/", g_options.userid, "/items/", item->id);
+            jf_growing_buffer_sprintf(url_buffer, 0, "/users/%s/items/%s", g_options.userid, item->id);
+            break;
         case JF_ITEM_TYPE_VIDEO_SUB:
-            return strdup(item->name);
+            jf_growing_buffer_sprintf(url_buffer, 0, "%s%s", g_options.server, item->name);
+            break;
         // Folders
         case JF_ITEM_TYPE_COLLECTION:
         case JF_ITEM_TYPE_FOLDER:
@@ -366,110 +376,112 @@ static char *jf_menu_item_get_remote_url(const jf_menu_item *item)
         case JF_ITEM_TYPE_SEASON:
         case JF_ITEM_TYPE_SERIES:
         case JF_ITEM_TYPE_COLLECTION_MUSIC_VIDEOS:
-                return jf_concat(6,
-                        "/users/",
-                        g_options.userid,
-                        "/items?sortby=isfolder,parentindexnumber,indexnumber,productionyear,sortname&parentid=",
-                        item->id,
-                        s_filters_query,
-                        g_options.try_local_files ? "&fields=path" : "");
+            jf_growing_buffer_sprintf(url_buffer, 0,
+                "/users/%s/items?sortby=isfolder,parentindexnumber,indexnumber,productionyear,sortname&parentid=%s%s%s",
+                g_options.userid,
+                item->id,
+                s_filters_query,
+                g_options.try_local_files ? "&fields=path" : "");
+            break;
         case JF_ITEM_TYPE_COLLECTION_MUSIC:
             if ((parent = jf_menu_stack_peek(0)) != NULL && parent->type == JF_ITEM_TYPE_FOLDER) {
                 // we are inside a "by folders" view
-                return jf_concat(5,
-                        "/users/",
-                        g_options.userid,
-                        "/items?sortby=isfolder,sortname&parentid=",
-                        item->id,
-                        s_filters_query);
+                jf_growing_buffer_sprintf(url_buffer, 0,
+                    "users/%s/items?sortby=isfolder,sortname&parentid=%s%s",
+                    g_options.userid,
+                    item->id,
+                    s_filters_query);
             } else {
-                return jf_concat(5,
-                        "/artists/albumartists?parentid=",
-                        item->id,
-                        "&userid=",
-                        g_options.userid,
-                        s_filters_query);
+                jf_growing_buffer_sprintf(url_buffer, 0,
+                    "/artists/albumartists?parentid=%s&userid=%s%s",
+                    item->id,
+                    g_options.userid,
+                    s_filters_query);
             }
+            break;
         case JF_ITEM_TYPE_COLLECTION_SERIES:
-            return jf_concat(5,
-                    "/users/",
-                    g_options.userid,
-                    "/items?includeitemtypes=series&recursive=true&sortby=isfolder,sortname&parentid=",
-                    item->id,
-                    s_filters_query);
+            jf_growing_buffer_sprintf(url_buffer, 0,
+                "/users/%s/items?includeitemtypes=series&recursive=true&sortby=isfolder,sortname&parentid=%s%s",
+                g_options.userid,
+                item->id,
+                s_filters_query);
+            break;
         case JF_ITEM_TYPE_COLLECTION_MOVIES:
-            return jf_concat(5,
-                    "/users/",
+            jf_growing_buffer_sprintf(url_buffer, 0,
+                    "/users/%s/items?includeitemtypes=Movie&recursive=true&sortby=isfolder,sortname&parentid=%s%s",
                     g_options.userid,
-                    "/items?includeitemtypes=Movie&recursive=true&sortby=isfolder,sortname&parentid=",
                     item->id,
                     s_filters_query);
+            break;
         case JF_ITEM_TYPE_PLAYLIST:
-            return jf_concat(5,
-                    "/playlists/",
-                    item->id,
-                    "/items?userid=",
-                    g_options.userid,
-                    g_options.try_local_files ? "&fields=path" : "");
+            jf_growing_buffer_sprintf(url_buffer, 0,
+                "/playlists/%s/items?userid=%s%s",
+                item->id,
+                g_options.userid,
+                g_options.try_local_files ? "&fields=path" : "");
+            break;
         case JF_ITEM_TYPE_ARTIST:
-            return jf_concat(5,
-                    "/users/",
-                    g_options.userid,
-                    "/items?recursive=true&includeitemtypes=musicalbum&sortby=isfolder,productionyear,sortname&sortorder=ascending&albumartistids=",
-                    item->id,
-                    s_filters_query);
+            jf_growing_buffer_sprintf(url_buffer, 0,
+                "/users/%s/items?recursive=true&includeitemtypes=musicalbum&sortby=isfolder,productionyear,sortname&sortorder=ascending&albumartistids=%s%s",
+                g_options.userid,
+                item->id,
+                s_filters_query);
+            break;
         case JF_ITEM_TYPE_SEARCH_RESULT:
-            return jf_concat(6,
-                    "/users/",
-                    g_options.userid,
-                    "/items?recursive=true&searchterm=",
-                    item->name,
-                    s_filters_query,
-                    g_options.try_local_files ? "&fields=path" : "");
+            jf_growing_buffer_sprintf(url_buffer, 0,
+                "/users/%s/items?recursive=true&searchterm=%s%s%s",
+                g_options.userid,
+                item->name,
+                s_filters_query,
+                g_options.try_local_files ? "&fields=path" : "");
+            break;
         // Persistent folders
         case JF_ITEM_TYPE_MENU_FAVORITES:
-            return jf_concat(5,
-                    "/users/",
-                    g_options.userid,
-                    "/items?recursive=true&sortby=sortname&filters=isfavorite",
-                    s_filters_query,
-                    g_options.try_local_files ? "&fields=path" : "");
+            jf_growing_buffer_sprintf(url_buffer, 0,
+                "/users/%s/items?recursive=true&sortby=sortname&filters=isfavorite%s%s",
+                g_options.userid,
+                s_filters_query,
+                g_options.try_local_files ? "&fields=path" : "");
+            break;
         case JF_ITEM_TYPE_MENU_CONTINUE:
-            return jf_concat(3,
-                    "/users/",
-                    g_options.userid,
-                    "/items/resume?recursive=true");
+            jf_growing_buffer_sprintf(url_buffer, 0,
+                "/users/%s/items/resume?recursive=true",
+                g_options.userid);
+            break;
         case JF_ITEM_TYPE_MENU_NEXT_UP:
-            return jf_concat(3, "/shows/nextup?userid=", g_options.userid, "&limit=15");
+            jf_growing_buffer_sprintf(url_buffer, 0, 
+                "/shows/nextup?userid=%s&limit=15",
+                g_options.userid);
+            break;
         case JF_ITEM_TYPE_MENU_LATEST_ADDED:
             if (s_filters & JF_FILTER_IS_PLAYED) {
-                return jf_concat(3,
-                        "/users/",
-                        g_options.userid,
-                        "/items/latest?recurisve=true&groupitems=true&includeitemtypes=audiobook,episode,movie,audio&limit=20&isplayed=true");
+                jf_growing_buffer_sprintf(url_buffer, 0,
+                    "/users/%s/items/latest?recurisve=true&groupitems=true&includeitemtypes=audiobook,episode,movie,audio&limit=20&isplayed=true",
+                    g_options.userid);
+            } else if (s_filters & JF_FILTER_IS_UNPLAYED) {
+                jf_growing_buffer_sprintf(url_buffer, 0,
+                    "/users/%s/items/latest?recurisve=true&groupitems=true&includeitemtypes=audiobook,episode,movie,audio&limit=20&isplayed=false",
+                    g_options.userid);
+            } else {
+                jf_growing_buffer_sprintf(url_buffer, 0,
+                    "/users/%s/items?recursive=true&includeitemtypes=audiobook,episode,movie,musicalbum&excludelocationtypes=virtual&sortby=datecreated,sortname&sortorder=descending&limit=20",
+                    g_options.userid);
             }
-            if (s_filters & JF_FILTER_IS_UNPLAYED) {
-                return jf_concat(3,
-                        "/users/",
-                        g_options.userid,
-                        "/items/latest?recurisve=true&groupitems=true&includeitemtypes=audiobook,episode,movie,audio&limit=20&isplayed=false");
-            }
-            return jf_concat(3,
-                    "/users/",
-                    g_options.userid,
-                    "/items?recursive=true&includeitemtypes=audiobook,episode,movie,musicalbum&excludelocationtypes=virtual&sortby=datecreated,sortname&sortorder=descending&limit=20");
+            break;
         case JF_ITEM_TYPE_MENU_LIBRARIES:
-            return jf_concat(3, "/users/", g_options.userid, "/views");
+            jf_growing_buffer_sprintf(url_buffer, 0, "/users/%s/views", g_options.userid);
+            break;
         case JF_ITEM_TYPE_NONE:
         case JF_ITEM_TYPE_USER_VIEW:
         case JF_ITEM_TYPE_MENU_ROOT:
-          break;
+            fprintf(stderr,
+                "Error: get_remote_url was called on an unsupported item_type (%s). This is a bug.\n",
+                jf_item_type_get_name(item->type));
+            return NULL;
+            break;
         }
 
-    fprintf(stderr,
-        "Error: get_remote_url was called on an unsupported item_type (%s). This is a bug.\n",
-        jf_item_type_get_name(item->type));
-    return NULL;
+    return url_buffer->buf;
 }
 
 
@@ -578,7 +590,6 @@ static bool jf_menu_print_context()
                     jf_item_type_get_name(s_context->type),
                     request_url);
             reply = jf_net_request(request_url, request_type, JF_HTTP_GET, NULL);
-            free(request_url);
             if (JF_REPLY_PTR_HAS_ERROR(reply)) {
                 jf_menu_item_free(s_context);
                 fprintf(stderr, "Error: %s.\n", jf_reply_error_string(reply));

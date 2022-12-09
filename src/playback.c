@@ -4,6 +4,7 @@
 #include "json.h"
 #include "net.h"
 #include "menu.h"
+#include "shared.h"
 
 
 #include <stdlib.h>
@@ -143,7 +144,6 @@ void jf_playback_load_external_subtitles()
     char subs_language[4];
     size_t i, j;
     jf_menu_item *child;
-    char *tmp;
 
     // external subtitles
     // note: they unfortunately require loadfile to already have been issued
@@ -161,10 +161,10 @@ void jf_playback_load_external_subtitles()
                 continue;
             }
 
-            tmp = jf_menu_item_get_request_url(child);
+            // tmp = jf_menu_item_get_request_url(child);
             strncpy(subs_language, child->id, 3);
             const char *command[] = { "sub-add",
-                tmp,
+                jf_menu_item_get_request_url(child),
                 "auto",
                 child->id + 3,
                 subs_language,
@@ -182,7 +182,6 @@ void jf_playback_load_external_subtitles()
                 }
                 jf_reply_free(r);
             }
-            free(tmp);
         }
     }
 
@@ -304,7 +303,6 @@ void jf_playback_play_video(const jf_menu_item *item)
         }
         part_url = jf_menu_item_get_request_url(child);
         jf_growing_buffer_sprintf(filename, 0, "%%%zu%%%s", strlen(part_url), part_url);
-        free(part_url);
         jf_growing_buffer_append(filename, ";", 1);
     }
     jf_growing_buffer_append(filename, "", 1);
@@ -349,7 +347,6 @@ bool jf_playback_play_item(jf_menu_item *item)
             mpv_command(g_mpv_ctx, loadfile); 
             jf_menu_item_free(g_state.now_playing);
             g_state.now_playing = item;
-            free(request_url);
             break;
         case JF_ITEM_TYPE_EPISODE:
         case JF_ITEM_TYPE_MOVIE:
@@ -367,13 +364,11 @@ bool jf_playback_play_item(jf_menu_item *item)
                         JF_REQUEST_ASYNC_IN_MEMORY,
                         JF_HTTP_GET,
                         NULL);
-                free(request_url);
                 request_url = jf_concat(3, "/videos/", item->id, "/additionalparts");
                 replies[1] = jf_net_request(request_url,
                         JF_REQUEST_IN_MEMORY,
                         JF_HTTP_GET,
                         NULL);
-                free(request_url);
                 if (JF_REPLY_PTR_HAS_ERROR(replies[1])) {
                     fprintf(stderr,
                             "Error: network request for /additionalparts of item %s failed: %s.\n",
@@ -422,7 +417,7 @@ bool jf_playback_play_item(jf_menu_item *item)
 static inline bool jf_playback_populate_video_ticks(jf_menu_item *item)
 {
     jf_reply **replies;
-    char *tmp;
+    jf_growing_buffer *part_url = jf_growing_buffer_new(0);
     size_t i;
 
     if (item == NULL) return true;
@@ -443,17 +438,18 @@ static inline bool jf_playback_populate_video_ticks(jf_menu_item *item)
     // now go and get all markers for all parts
     assert((replies = malloc((item->children_count - 1) * sizeof(jf_reply *))) != NULL);
     for (i = 1; i < item->children_count; i++) {
-        tmp = jf_concat(4,
-                "/users/",
+        jf_growing_buffer_empty(part_url);
+        jf_growing_buffer_sprintf(part_url, 0,
+                "/users/%s/items/%s",
                 g_options.userid,
-                "/items/",
                 item->children[i]->id);
-        replies[i - 1] = jf_net_request(tmp,
+        replies[i - 1] = jf_net_request(part_url->buf,
                 JF_REQUEST_ASYNC_IN_MEMORY,
                 JF_HTTP_GET,
                 NULL);
-        free(tmp);
     }
+    jf_growing_buffer_free(part_url);
+
     for (i = 1; i < item->children_count; i++) {
         jf_net_await(replies[i - 1]);
         if (JF_REPLY_PTR_HAS_ERROR(replies[i - 1])) {
