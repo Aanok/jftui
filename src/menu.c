@@ -445,7 +445,7 @@ static char *jf_menu_item_get_remote_url(const jf_menu_item *item)
             break;
         case JF_ITEM_TYPE_MENU_CONTINUE:
             jf_growing_buffer_sprintf(url_buffer, 0,
-                "/users/%s/items/resume?recursive=true",
+                "/users/%s/items/resume?recursive=true&excludeItemTypes=Book",
                 g_options.userid);
             break;
         case JF_ITEM_TYPE_MENU_NEXT_UP:
