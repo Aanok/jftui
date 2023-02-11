@@ -84,8 +84,8 @@ static jf_menu_item *s_root_menu = &(jf_menu_item){
 static jf_menu_stack s_menu_stack = (jf_menu_stack){ 0 };
 static jf_menu_item *s_context = NULL;
 
-// PLAYED STATUS REQUESTS TRACKING
-static jf_reply *s_played_status_requests[JF_PLAYED_STATUS_REQUESTS_LEN];
+// ITEM FLAG SET REQUESTS TRACKING
+static jf_reply *s_played_status_requests[JF_FLAG_CHANGE_REQUESTS_LEN];
 static struct timespec s_25msec = (struct timespec){ 0, 25 * 1000000 };
 
 // FILTERS STUFF
@@ -127,7 +127,8 @@ static inline jf_menu_item *jf_menu_stack_pop(void);
 // CAN'T FAIL.
 static inline const jf_menu_item *jf_menu_stack_peek(const size_t pos);
 
-static inline void jf_menu_played_status_request_resolve(jf_reply *r);
+static inline void jf_menu_set_flag_request_resolve(jf_reply *r);
+static inline char *jf_menu_set_flag_request_get_url(const jf_menu_item *item, const jf_flag_type flag_type);
 
 static const char *jf_menu_filter_string(const jf_filter filter);
 static bool jf_menu_item_type_allows_filter(const jf_item_type type, const jf_filter filter);
@@ -162,7 +163,7 @@ static inline void jf_menu_stack_push(jf_menu_item *menu_item)
 }
 
 
-static inline jf_menu_item *jf_menu_stack_pop()
+static inline jf_menu_item *jf_menu_stack_pop(void)
 {
     jf_menu_item *retval;
 
@@ -545,7 +546,7 @@ static jf_menu_item *jf_menu_child_get(size_t n)
 }
 
 
-static bool jf_menu_print_context()
+static bool jf_menu_print_context(void)
 {
     size_t i;
     jf_request_type request_type = JF_REQUEST_SAX;
@@ -723,7 +724,7 @@ bool jf_menu_ask_resume(jf_menu_item *item)
 }
 
 
-static void jf_menu_try_play()
+static void jf_menu_try_play(void)
 {
     jf_menu_item *item;
     int mpv_flag_yes = 1;
@@ -841,7 +842,7 @@ bool jf_menu_child_dispatch(size_t n)
 }
 
 
-size_t jf_menu_child_count()
+size_t jf_menu_child_count(void)
 {
     if (s_context == NULL) return 0;
 
@@ -855,23 +856,24 @@ size_t jf_menu_child_count()
 
 void jf_menu_help(void) {
     printf("S ::= \"q\" (quits)\n"
-           "    | ( \"?\" | \"help\" )           (print this help message)\n"
-           "    | \"h\"                        (go to \"home\" root menu)\n"
-           "    | \"..\"                       (go to previous menu)\n"
-           "    | \"f\" ( \"c\" | [pufrld]+ )    (filters: clear or played, unplayed, favourite, resumable, liked, disliked)\n"
-           "    | \"m\" ( \"p\" | \"u\" ) Selector (marks items played or unplayed)\n"
-           "    | Selector                   (opens a single directory entry or sends a sequence of items to playback)\n"
-           "Selector :: = '*'                (everything in the current menu)\n"
+           "    | ( \"?\" | \"help\" )            (print this help message)\n"
+           "    | \"h\"                         (go to \"home\" root menu)\n"
+           "    | \"..\"                        (go to previous menu)\n"
+           "    | \"f\" ( \"c\" | [pufrld]+ )     (filters: clear or played, unplayed, favorite, resumable, liked, disliked)\n"
+           "    | \"m\" ( \"p\" | \"u\" ) Selector  (marks items played or unplayed)\n"
+           "    | \"m\" ( \"f\" | \"uf\" ) Selector (marks items favorite or unfavorite)\n"
+           "    | Selector                    (opens a single directory entry or sends a sequence of items to playback)\n"
+           "Selector :: = '*'                 (everything in the current menu)\n"
            "    | Items\n"
-           "Items ::= Atom \",\" Items         (list)\n"
+           "Items ::= Atom \",\" Items          (list)\n"
            "    | Atom\n"
-           "Atom ::= n1 \"-\" n2               (range)\n"
-           "    | n                          (single item)\n"
+           "Atom ::= n1 \"-\" n2                (range)\n"
+           "    | n                           (single item)\n"
   );
 }
 
 
-void jf_menu_dotdot()
+void jf_menu_dotdot(void)
 {
     jf_menu_item *menu_item = jf_menu_stack_pop();
 
@@ -886,14 +888,14 @@ void jf_menu_dotdot()
 }
 
 
-void jf_menu_quit()
+void jf_menu_quit(void)
 {
     g_state.state = JF_STATE_USER_QUIT;
 }
 
 
 ////////// PLAYED STATUS //////////
-static inline void jf_menu_played_status_request_resolve(jf_reply *r)
+static inline void jf_menu_set_flag_request_resolve(jf_reply *r)
 // TODO save the menu index contextually with the request so we can fetch item name
 {
     jf_net_await(r);
@@ -906,7 +908,20 @@ static inline void jf_menu_played_status_request_resolve(jf_reply *r)
 }
 
 
-void jf_menu_child_mark_played(const size_t n, const jf_played_status status)
+static inline char *jf_menu_set_flag_request_get_url(const jf_menu_item *item, const jf_flag_type flag_type)
+{
+    switch (flag_type) {
+        case JF_FLAG_TYPE_PLAYED:
+            return jf_concat(4, "/users/", g_options.userid, "/playeditems/", item->id);
+        case JF_FLAG_TYPE_FAVORITE:
+            return jf_concat(4, "/users/", g_options.userid, "/favoriteitems/", item->id);
+    }
+
+    return NULL;
+}
+
+
+void jf_menu_child_set_flag(const size_t n, const jf_flag_type flag_type, const bool flag_status)
 {
     jf_menu_item *child;
     char *url;
@@ -914,7 +929,7 @@ void jf_menu_child_mark_played(const size_t n, const jf_played_status status)
 
     if ((child = jf_menu_child_get(n)) == NULL) return;
 
-    url = jf_concat(4, "/users/", g_options.userid, "/playeditems/", child->id);
+    url = jf_menu_set_flag_request_get_url(child, flag_type);
 
     // look for next clear spot
     for (i = 0; i < sizeof(s_played_status_requests) / sizeof(*s_played_status_requests); i++) {
@@ -926,7 +941,7 @@ void jf_menu_child_mark_played(const size_t n, const jf_played_status status)
         // the buffer is full
         for (i = 0; i < sizeof(s_played_status_requests) / sizeof(*s_played_status_requests); i++) {
             if (! JF_REPLY_PTR_IS_PENDING(s_played_status_requests[i])) {
-                jf_menu_played_status_request_resolve(s_played_status_requests[i]);
+                jf_menu_set_flag_request_resolve(s_played_status_requests[i]);
                 s_played_status_requests[i] = NULL;
                 break;
             }
@@ -940,7 +955,7 @@ void jf_menu_child_mark_played(const size_t n, const jf_played_status status)
             
     s_played_status_requests[i] = jf_net_request(url,
             JF_REQUEST_ASYNC_IN_MEMORY,
-            status == JF_PLAYED_STATUS_YES ? JF_HTTP_POST : JF_HTTP_DELETE,
+            flag_status == true ? JF_HTTP_POST : JF_HTTP_DELETE,
             NULL);
 
     free(url);
@@ -948,30 +963,31 @@ void jf_menu_child_mark_played(const size_t n, const jf_played_status status)
 }
 
 
-void jf_menu_item_mark_played_detach(const jf_menu_item *item, const jf_played_status status)
+void jf_menu_item_set_flag_detach(const jf_menu_item *item, const jf_flag_type flag_type, const bool flag_status)
 {
-    char *url = jf_concat(4, "/users/", g_options.userid, "/playeditems/", item->id);
+    char *url = jf_menu_set_flag_request_get_url(item, flag_type);
+    
     jf_net_request(url,
             JF_REQUEST_ASYNC_DETACH,
-            status == JF_PLAYED_STATUS_YES ? JF_HTTP_POST : JF_HTTP_DELETE,
+            flag_status == true ? JF_HTTP_POST : JF_HTTP_DELETE,
             NULL);
 }
 
 
-void jf_menu_item_mark_played_await_all(void)
+void jf_menu_item_set_flag_await_all(void)
 {
     size_t i;
 
     for (i = 0; i < sizeof(s_played_status_requests) / sizeof (*s_played_status_requests); i++) {
         if (s_played_status_requests[i] == NULL) continue;
-        jf_menu_played_status_request_resolve(s_played_status_requests[i]);
+        jf_menu_set_flag_request_resolve(s_played_status_requests[i]);
         s_played_status_requests[i] = NULL;
     }
 }
 ///////////////////////////////////
 
 
-void jf_menu_filters_clear()
+void jf_menu_filters_clear(void)
 {
     s_filters_cmd = JF_FILTER_NONE;
 }
@@ -1016,7 +1032,7 @@ void jf_menu_search(const char *s)
 }
 
 
-void jf_menu_ui()
+void jf_menu_ui(void)
 {
     yycontext yy;
     char *line = NULL;
@@ -1145,7 +1161,7 @@ size_t jf_menu_user_ask_selection(const size_t l, const size_t r)
 
 
 ////////// MISCELLANEOUS //////////
-void jf_menu_init()
+void jf_menu_init(void)
 {
     size_t i;
 
@@ -1161,13 +1177,13 @@ void jf_menu_init()
     s_menu_stack.used = 0;
 
     // init played status tracker
-    for (i = 0; i < JF_PLAYED_STATUS_REQUESTS_LEN; i++) {
+    for (i = 0; i < JF_FLAG_CHANGE_REQUESTS_LEN; i++) {
         s_played_status_requests[i] = NULL;
     }
 }
 
 
-void jf_menu_clear()
+void jf_menu_clear(void)
 {
     // clear menu stack
     while (s_menu_stack.used > 0) {

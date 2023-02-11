@@ -51,20 +51,17 @@ bool jf_menu_filters_add(const enum jf_filter filter);
 ///////////////////////////////////
 
 
-////////// PLAYED STATUS //////////
-#define JF_PLAYED_STATUS_REQUESTS_LEN (JF_NET_ASYNC_THREADS * 4)
+////////// PLAYED STATUS & favoriteS //////////
+#define JF_FLAG_CHANGE_REQUESTS_LEN (JF_NET_ASYNC_THREADS * 4)
 
-typedef enum jf_played_status {
-    JF_PLAYED_STATUS_YES = 0,
-    JF_PLAYED_STATUS_NO = 1
-    // there should technically be a third entry for a partially played file
-    // but we don't need it
-} jf_played_status;
+typedef enum jf_flag_type {
+    JF_FLAG_TYPE_PLAYED = 0,
+    JF_FLAG_TYPE_FAVORITE = 1
+} jf_flag_type;
 
-
-void jf_menu_child_mark_played(const size_t n, const jf_played_status status);
-void jf_menu_item_mark_played_detach(const jf_menu_item *item, const jf_played_status status);
-void jf_menu_item_mark_played_await_all(void);
+void jf_menu_child_set_flag(const size_t n, const jf_flag_type flag_type, const bool flag_status);
+void jf_menu_item_set_flag_detach(const jf_menu_item *item, const jf_flag_type flag_type, const bool flag_status);
+void jf_menu_item_set_flag_await_all(void);
 ///////////////////////////////////
 
 

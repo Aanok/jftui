@@ -37,18 +37,19 @@ It is recommended to consult the [wiki page](https://github.com/Aanok/jftui/wiki
 The grammar defining jftui commands is as follows:
 ```
 S ::= "q" (quits)
-  | ( "help" | "?" )         (print a help menu)
-  | "h"                      (go to "home" root menu)
-  | ".."                     (go to previous menu)
-  | "f" ( "c" | [pufrld]+ )  (filters: clear or played, unplayed, favourite, resumable, liked, disliked)
-  | "m" ("p" | "u") Selector (marks items played or unplayed)
-  | Selector                 (opens a single directory entry or sends a sequence of items to playback)
-Selector :: = '*'            (everything in the current menu)
+  | ( "help" | "?" )          (print a help menu)
+  | "h"                       (go to "home" root menu)
+  | ".."                      (go to previous menu)
+  | "f" ( "c" | [pufrld]+ )   (filters: clear or played, unplayed, favorite, resumable, liked, disliked)
+  | "m" ("p" | "u") Selector  (marks items played or unplayed)
+  | "m" ("f" | "uf") Selector (marks items favorite or unfavorite)
+  | Selector                  (opens a single directory entry or sends a sequence of items to playback)
+Selector :: = '*'             (everything in the current menu)
   | Items
-Items ::= Atom "," Items     (list)
+Items ::= Atom "," Items      (list)
   | Atom
-Atom ::= n1 "-" n2           (range)
-  | n                        (single item)
+Atom ::= n1 "-" n2            (range)
+  | n                         (single item)
 ```
 
 Whitespace may be scattered between tokens at will. Inexisting items are silently ignored. Both `quit` and `stop` mpv commands will drop you back to menu navigation.

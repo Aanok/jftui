@@ -18,7 +18,9 @@ typedef enum jf_cmd_parser_state {
     JF_CMD_SPECIAL = 5,
     JF_CMD_MARK_PLAYED = 6,
     JF_CMD_MARK_UNPLAYED = 7,
-    JF_CMD_SUCCESS = 8,
+    JF_CMD_MARK_FAVORITE = 8,
+    JF_CMD_MARK_UNFAVORITE = 9,
+    JF_CMD_SUCCESS = 10,
 
     JF_CMD_FAIL_FOLDER = -1,
     JF_CMD_FAIL_SYNTAX = -2,
@@ -84,10 +86,11 @@ Start = ( ws*
     | "f"                       { yy_cmd_filters_start(yy); }
         ws+ ( "c"               { yy_cmd_digest_filter(yy, JF_FILTER_NONE); }
         | Filters )
-    | "m" ws+ "p"               { yy->state = JF_CMD_MARK_PLAYED; }
-        ws+ Selector
-    | "m" ws+ "u"               { yy->state = JF_CMD_MARK_UNPLAYED; }
-        ws+ Selector
+    | "m" ws+ ("f"               { yy->state = JF_CMD_MARK_FAVORITE; }
+               | "uf"            { yy->state = JF_CMD_MARK_UNFAVORITE; }
+               | "p"             { yy->state = JF_CMD_MARK_PLAYED; }
+               | "u"             { yy->state = JF_CMD_MARK_UNPLAYED; }
+       ) ws+ Selector
     | Selector
     ) ws* !.) ~ { yy_cmd_finalize(yy, false); } { yy_cmd_finalize(yy, true); }
 
@@ -187,10 +190,16 @@ static void yy_cmd_digest(yycontext *ctx, size_t n)
             }
             break;
         case JF_CMD_MARK_PLAYED:
-            jf_menu_child_mark_played(n, JF_PLAYED_STATUS_YES);
+            jf_menu_child_set_flag(n, JF_FLAG_TYPE_PLAYED, true);
             break;
         case JF_CMD_MARK_UNPLAYED:
-            jf_menu_child_mark_played(n, JF_PLAYED_STATUS_NO);
+            jf_menu_child_set_flag(n, JF_FLAG_TYPE_PLAYED, false);
+            break;
+        case JF_CMD_MARK_FAVORITE:
+            jf_menu_child_set_flag(n, JF_FLAG_TYPE_FAVORITE, true);
+            break;
+        case JF_CMD_MARK_UNFAVORITE:
+            jf_menu_child_set_flag(n, JF_FLAG_TYPE_FAVORITE, false);
             break;
         default:
             fprintf(stderr, "Error: yy_cmd_digest: unexpected state transition. This is a bug.\n"); 
@@ -227,7 +236,9 @@ static void yy_cmd_finalize(yycontext *ctx, const bool parse_ok)
                 break;
             case JF_CMD_MARK_PLAYED:
             case JF_CMD_MARK_UNPLAYED:
-                jf_menu_item_mark_played_await_all();
+            case JF_CMD_MARK_FAVORITE:
+            case JF_CMD_MARK_UNFAVORITE:
+                jf_menu_item_set_flag_await_all();
                 // no break
             case JF_CMD_VALIDATE_OK:
             case JF_CMD_SPECIAL:
