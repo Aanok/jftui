@@ -19,6 +19,13 @@ extern mpv_handle *g_mpv_ctx;
 //////////////////////////////////////
 
 
+////////// STATIC VARIABLES //////////
+// element of the current playlist that was playing when we last printed the
+// playlist to terminal
+size_t s_last_playlist_print = 0;
+//////////////////////////////////////
+
+
 ////////// STATIC FUNCTIONS ///////////////
 // playback_ticks refers to segment referred by id
 static void jf_post_session_update(const char *id,
@@ -521,6 +528,7 @@ void jf_playback_end()
     jf_menu_item_free(g_state.now_playing);
     g_state.now_playing = NULL;
     g_state.playlist_position = 0;
+    s_last_playlist_print = 0;
     // signal to enter UI mode
     g_state.state = JF_STATE_MENU_UI;
 }
@@ -573,25 +581,37 @@ void jf_playback_print_playlist(size_t window_size)
     size_t pos = g_state.playlist_position;
     size_t terminal[2];
     int is_video;
+    int mpv_flag_yes = 1, mpv_flag_no = 0;
     int64_t osd_h;
     int64_t osd_font_size;
     size_t osd[2]; 
     jf_growing_buffer osd_msg;
     const char *osd_cmd[3] = { "show-text", NULL, NULL };
 
+    // print to terminal, but only if we didn't already do it for this item and 
+    // this playlist. we must print manually because `show-text` doesn't print
+    // to terminal during video playback. but we don't want to flood the term
+    // with repeat prints
+    if (g_state.playlist_position != s_last_playlist_print) {
+        JF_MPV_ASSERT(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_no));
+        
+        jf_term_clear_bottom(NULL);
 
-    // print to terminal
-    jf_playback_playlist_window(window_size, terminal);
-    fprintf(stdout, "\n===== jftui playlist (%zu items) =====\n", jf_disk_playlist_item_count());
-    for (i = terminal[0]; i < pos; i++) {
-        fprintf(stdout, "%zu: %s\n", i, jf_disk_playlist_get_item_name(i)); 
-    }
-    fprintf(stdout, "\t>>> %zu: %s <<<\n", i, g_state.now_playing->name);
-    for (i = pos + 1; i <= terminal[1]; i++) {
-        fprintf(stdout, "%zu: %s\n", i, jf_disk_playlist_get_item_name(i));
-    }
-    fprintf(stdout, "\n");
+        jf_playback_playlist_window(window_size, terminal);
+        fprintf(stdout, "\n===== jftui playlist (%zu items) =====\n", jf_disk_playlist_item_count());
+        for (i = terminal[0]; i < pos; i++) {
+            fprintf(stdout, "%zu: %s\n", i, jf_disk_playlist_get_item_name(i)); 
+        }
+        fprintf(stdout, "\t>>> %zu: %s <<<\n", i, g_state.now_playing->name);
+        for (i = pos + 1; i <= terminal[1]; i++) {
+            fprintf(stdout, "%zu: %s\n", i, jf_disk_playlist_get_item_name(i));
+        }
+        fprintf(stdout, "\n");
 
+        JF_MPV_ASSERT(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+
+        s_last_playlist_print = g_state.playlist_position;
+    }
 
     // if there is a video output, print to OSD there too
     JF_MPV_ASSERT(mpv_get_property(g_mpv_ctx, "vo-configured", MPV_FORMAT_FLAG, &is_video));

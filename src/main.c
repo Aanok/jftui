@@ -71,8 +71,6 @@ static inline void jf_missing_arg(const char *arg)
 
 
 ////////// MISCELLANEOUS GARBAGE //////////
-
-
 static inline void jf_mpv_event_dispatch(const mpv_event *event)
 {
     int64_t playback_ticks;
@@ -92,10 +90,7 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
                     jf_playback_previous();
                 } else if (strcmp(((mpv_event_client_message *)event->data)->args[0],
                             "jftui-playlist-print") == 0) {
-                    JF_MPV_ASSERT(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_no));
-                    jf_term_clear_bottom(NULL);
                     jf_playback_print_playlist(0);
-                    JF_MPV_ASSERT(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
                 } else if (strcmp(((mpv_event_client_message *)event->data)->args[0],
                             "jftui-playlist-shuffle") == 0) {
                     jf_playback_shuffle_playlist();
