@@ -75,7 +75,6 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
 {
     int64_t playback_ticks;
     mpv_node *node;
-    int mpv_flag_yes = 1, mpv_flag_no = 0;
 
     JF_DEBUG_PRINTF("event: %s\n", mpv_event_name(event->event_id));
     switch (event->event_id) {
@@ -249,6 +248,13 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "FATAL: found libmpv version %lu.%lu, but 1.24 or greater is required.\n",
                     mpv_version >> 16, mpv_version & 0xFFFF);
+            jf_exit(JF_EXIT_FAILURE);
+        }
+        if (mpv_version != MPV_CLIENT_API_VERSION) {
+            fprintf(stderr,
+                    "FATAL: found libmpv version %lu.%lu, but jftui was compiled against %lu.%lu. Please recompile the program.\n",
+                    mpv_version >> 16, mpv_version & 0xFFFF,
+                    MPV_CLIENT_API_VERSION >> 16, MPV_CLIENT_API_VERSION & 0xFFFF);
             jf_exit(JF_EXIT_FAILURE);
         }
         // future proofing
