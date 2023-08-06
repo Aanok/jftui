@@ -5,6 +5,7 @@
 #include "disk.h"
 #include "playback.h"
 #include "linenoise.h"
+#include "mpv.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -451,7 +452,7 @@ static char *jf_menu_item_get_remote_url(const jf_menu_item *item)
             break;
         case JF_ITEM_TYPE_MENU_NEXT_UP:
             jf_growing_buffer_sprintf(url_buffer, 0, 
-                "/shows/nextup?userid=%s",
+                "/shows/nextup?userid=%s&limit=15",
                 g_options.userid);
             break;
         case JF_ITEM_TYPE_MENU_LATEST_ADDED:
@@ -727,38 +728,10 @@ bool jf_menu_ask_resume(jf_menu_item *item)
 static void jf_menu_try_play(void)
 {
     jf_menu_item *item;
-    int mpv_flag_yes = 1;
-    char *x_emby_token;
+
+    g_mpv_ctx = jf_mpv_create();
 
     if (jf_disk_playlist_item_count() == 0) return;
-
-    // init mpv core
-    assert((g_mpv_ctx = mpv_create()) != NULL);
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(g_mpv_ctx, "config-dir", MPV_FORMAT_STRING, &g_state.config_dir));
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(g_mpv_ctx, "config", MPV_FORMAT_FLAG, &mpv_flag_yes));
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(g_mpv_ctx, "osc", MPV_FORMAT_FLAG, &mpv_flag_yes));
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(g_mpv_ctx, "input-default-bindings", MPV_FORMAT_FLAG, &mpv_flag_yes));
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(g_mpv_ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &mpv_flag_yes));
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(g_mpv_ctx, "input-terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
-    assert((x_emby_token = jf_concat(2, "x-emby-token: ", g_options.token)) != NULL);
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP_STRING(g_mpv_ctx, "http-header-fields", x_emby_token));
-    free(x_emby_token);
-    JF_MPV_ASSERT(mpv_observe_property(g_mpv_ctx, 0, "time-pos", MPV_FORMAT_INT64));
-    JF_MPV_ASSERT(mpv_observe_property(g_mpv_ctx, 0, "sid", MPV_FORMAT_INT64));
-    JF_MPV_ASSERT(mpv_observe_property(g_mpv_ctx, 0, "options/loop-playlist", MPV_FORMAT_NODE));
-
-    JF_MPV_ASSERT(mpv_initialize(g_mpv_ctx));
-
-    // profile must be applied as a command
-    if (g_options.mpv_profile != NULL) {
-        const char *apply_profile[] = { "apply-profile", g_options.mpv_profile, NULL };
-        if (mpv_command(g_mpv_ctx, apply_profile) < 0) {
-            fprintf(stderr,
-                    "FATAL: could not apply mpv profile \"%s\". Are you sure it exists in mpv.conf?\n",
-                    g_options.mpv_profile);
-            jf_exit(JF_EXIT_FAILURE);
-        }
-    }
 
     // set global application state
     g_state.state = JF_STATE_PLAYBACK_INIT;
@@ -775,7 +748,7 @@ static void jf_menu_try_play(void)
     jf_menu_item_print(item);
 #endif
     if (g_mpv_ctx != NULL) {
-        JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+        jf_mpv_terminal(g_mpv_ctx, true);
     }
 }
 

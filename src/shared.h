@@ -48,16 +48,6 @@ do {                                \
 #endif
 
 
-// workaround for mpv bug #3988
-#if MPV_CLIENT_API_VERSION <= MPV_MAKE_VERSION(1,24)
-#define JF_MPV_SET_OPTPROP mpv_set_option
-#define JF_MPV_SET_OPTPROP_STRING mpv_set_option_string
-#else
-#define JF_MPV_SET_OPTPROP mpv_set_property
-#define JF_MPV_SET_OPTPROP_STRING mpv_set_property_string
-#endif
-
-
 // server version
 // lower 16 bits reserved for potential devel releases
 #define JF_SERVER_VERSION_MAKE(_major,_minor,_patch) \
@@ -297,6 +287,9 @@ typedef struct jf_global_state {
     // -1 for infinite loops
     int64_t playlist_loops;
     jf_loop_state loop_state;
+#if MPV_CLIENT_API_VERSION >= MPV_MAKE_VERSION(2,1)
+    char *mpv_cache_dir;
+#endif
 } jf_global_state;
 //////////////////////////////////////////////
 

@@ -5,6 +5,7 @@
 #include "net.h"
 #include "menu.h"
 #include "shared.h"
+#include "mpv.h"
 
 
 #include <stdlib.h>
@@ -581,7 +582,6 @@ void jf_playback_print_playlist(size_t window_size)
     size_t pos = g_state.playlist_position;
     size_t terminal[2];
     int is_video;
-    int mpv_flag_yes = 1, mpv_flag_no = 0;
     int64_t osd_h;
     int64_t osd_font_size;
     size_t osd[2]; 
@@ -593,7 +593,7 @@ void jf_playback_print_playlist(size_t window_size)
     // to terminal during video playback. but we don't want to flood the term
     // with repeat prints
     if (g_state.playlist_position != s_last_playlist_print) {
-        JF_MPV_ASSERT(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_no));
+        jf_mpv_terminal(g_mpv_ctx, false);
         
         jf_term_clear_bottom(NULL);
 
@@ -608,7 +608,7 @@ void jf_playback_print_playlist(size_t window_size)
         }
         fprintf(stdout, "\n");
 
-        JF_MPV_ASSERT(mpv_set_property(g_mpv_ctx, "terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
+        jf_mpv_terminal(g_mpv_ctx, true);
 
         s_last_playlist_print = g_state.playlist_position;
     }
