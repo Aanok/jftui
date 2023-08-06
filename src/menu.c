@@ -451,7 +451,7 @@ static char *jf_menu_item_get_remote_url(const jf_menu_item *item)
             break;
         case JF_ITEM_TYPE_MENU_NEXT_UP:
             jf_growing_buffer_sprintf(url_buffer, 0, 
-                "/shows/nextup?userid=%s&limit=15",
+                "/shows/nextup?userid=%s",
                 g_options.userid);
             break;
         case JF_ITEM_TYPE_MENU_LATEST_ADDED:

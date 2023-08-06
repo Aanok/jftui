@@ -31,7 +31,7 @@ static pthread_rwlock_t s_share_cookie_rw;
 static pthread_rwlock_t s_share_dns_rw;
 static pthread_rwlock_t s_share_connect_rw;
 static pthread_rwlock_t s_share_ssl_rw;
-#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 61
+#if JF_CURL_VERSION_GE(7,61)
 static pthread_rwlock_t s_share_psl_rw;
 #endif
 pthread_t s_async_threads[JF_NET_ASYNC_THREADS];
@@ -223,8 +223,9 @@ size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, void 
             return 0;   
         }
         // send data
-        chunk_size = real_size - written_data < JF_THREAD_BUFFER_DATA_SIZE - 1 ?
-            real_size - written_data : JF_THREAD_BUFFER_DATA_SIZE - 2;
+        chunk_size = real_size - written_data < JF_THREAD_BUFFER_DATA_SIZE - 1 
+            ? real_size - written_data 
+            : JF_THREAD_BUFFER_DATA_SIZE - 2;
         memcpy(s_tb.data, payload + written_data, chunk_size);
         written_data += chunk_size;
         s_tb.data[chunk_size + 1] = '\0';
@@ -309,7 +310,7 @@ static void jf_net_init()
     JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION));
     assert(pthread_rwlock_init(&s_share_connect_rw, NULL) == 0);
     JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_CONNECT));
-#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 61
+#if JF_CURL_VERSION_GE(7,61)
     if (curl_version_info(CURLVERSION_NOW)->features & CURL_VERSION_PSL) {
         assert(pthread_rwlock_init(&s_share_psl_rw, NULL) == 0);
         JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_PSL));
@@ -687,7 +688,7 @@ jf_net_get_lock_for_data(curl_lock_data data)
             return &s_share_ssl_rw;
         case CURL_LOCK_DATA_CONNECT:
             return &s_share_connect_rw;
-#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 61
+#if JF_CURL_VERSION_GE(7,61)
         case CURL_LOCK_DATA_PSL:
             return &s_share_psl_rw;
 #endif
@@ -797,7 +798,7 @@ char *jf_net_urlencode(const char *url)
     
 bool jf_net_url_is_valid(const char *url)
 {
-#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 62
+#if JF_CURL_VERSION_GE(7,62)
     CURLU *curlu;
 
     if ((curlu = curl_url()) == NULL) {
@@ -828,7 +829,7 @@ bool jf_net_url_is_localhost(const char *url)
 
     if (url == NULL) return false;
 
-#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 62
+#if JF_CURL_VERSION_GE(7,61)
 // use CURL stuff if available
 // please hope it's available
     CURLU *curlu;
@@ -874,7 +875,7 @@ bool jf_net_url_is_localhost(const char *url)
                 || strncasecmp(host, "localhost", JF_STATIC_STRLEN("localhost")) == 0
                 || strncmp(host, "[::1]", JF_STATIC_STRLEN("[::1]")) == 0;
 
-#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 62
+#if JF_CURL_VERSION_GE(7,62)
     curl_free(host);
 #endif
 

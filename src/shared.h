@@ -65,6 +65,10 @@ do {                                \
 #define JF_SERVER_VERSION_GET_MAJOR(_version) ((_version) >> 48)
 #define JF_SERVER_VERSION_GET_MINOR(_version) (((_version) >> 32) & 0xFF)
 #define JF_SERVER_VERSION_GET_PATCH(_version) (((_version) >> 16) & 0xFF)
+
+
+#define JF_CURL_VERSION_GE(_major,_minor) \
+    (LIBCURL_VERSION_MAJOR == _major && LIBCURL_VERSION_MINOR >= _minor) || LIBCURL_VERSION_MAJOR >= _major
 /////////////////////////////////
 
 
