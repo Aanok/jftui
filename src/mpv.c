@@ -20,12 +20,17 @@ static int mpv_flag_no = 0;
 //////////////////////////////////////
 
 
+////////// STATIC FUNCTIONS //////////
+static void jf_mpv_init_cache_dirs(mpv_handle *mpv_ctx);
+//////////////////////////////////////
+
+
 // acrobatically guess the default mpv cache dir and point as many cache
 // dir properties there as possible (except for the demux cache)
 // (this code is possibly in breach of GPL. sue me)
 // CAN FATAL.
 #if MPV_CLIENT_API_VERSION >= MPV_MAKE_VERSION(2,1)
-void jf_mpv_init_cache_dirs(mpv_handle *mpv_ctx)
+static void jf_mpv_init_cache_dirs(mpv_handle *mpv_ctx)
 {
     char *icc_cache_dir;
     char *gpu_shader_cache_dir;
