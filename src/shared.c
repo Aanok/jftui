@@ -475,7 +475,7 @@ inline size_t jf_clamp_zu(const size_t zu, const size_t min,
 }
 
 
-inline void jf_clear_stdin()
+inline void jf_clear_stdin(void)
 {
     fcntl(0, F_SETFL, fcntl(0, F_GETFL)|O_NONBLOCK);
     while (getchar() != EOF) ;

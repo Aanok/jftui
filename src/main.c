@@ -52,7 +52,7 @@ void jf_exit(int sig)
 
 
 ////////// STARTUP STUFF //////////
-static void jf_print_usage() {
+static void jf_print_usage(void) {
     printf("Usage:\n");
     printf("\t--help\n");
     printf("\t--version\n");

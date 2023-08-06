@@ -720,7 +720,7 @@ void jf_json_parse_playback_ticks(jf_menu_item *item, const char *payload)
 
 
 ////////// MISCELLANEOUS GARBAGE //////////
-char *jf_json_error_string()
+char *jf_json_error_string(void)
 {
     return s_error_buffer;
 }

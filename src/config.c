@@ -28,7 +28,7 @@ static void jf_options_complete_with_defaults(void);
 
 
 ////////// JF_OPTIONS //////////
-static void jf_options_complete_with_defaults()
+static void jf_options_complete_with_defaults(void)
 {
     if (g_options.client == NULL) {
         assert((g_options.client = strdup(JF_CONFIG_CLIENT_DEFAULT)) != NULL);
@@ -62,7 +62,7 @@ void jf_options_init(void)
 }
 
 
-void jf_options_clear()
+void jf_options_clear(void)
 {
     free(g_options.server);
     free(g_options.token);
@@ -235,7 +235,7 @@ bad_exit:
 
 
 ////////// INTERACTIVE USER CONFIG //////////
-void jf_config_ask_user_login()
+void jf_config_ask_user_login(void)
 {
     struct termios old, new;
     char *username, *login_post;
@@ -292,7 +292,7 @@ void jf_config_ask_user_login()
 }
 
 
-void jf_config_ask_user()
+void jf_config_ask_user(void)
 {
     // login user input
     printf("Please enter the encoded URL of your Jellyfin server. Example: http://foo%%20bar.baz:8096/jf\n");

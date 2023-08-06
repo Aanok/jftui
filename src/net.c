@@ -105,7 +105,7 @@ static void jf_net_share_unlock(CURL *handle,
 
 
 ////////// JF_REPLY //////////
-jf_reply *jf_reply_new()
+jf_reply *jf_reply_new(void)
 {
     jf_reply *r;
     assert((r = malloc(sizeof(jf_reply))) != NULL);
@@ -182,7 +182,7 @@ static size_t jf_reply_callback(char *payload, size_t size, size_t nmemb, void *
 
 
 ////////// PARSER THREAD COMMUNICATION //////////
-static void jf_thread_buffer_wait_parsing_done()
+static void jf_thread_buffer_wait_parsing_done(void)
 {
     pthread_mutex_lock(&s_tb.mut);
     while (true) {
@@ -239,13 +239,13 @@ size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, void 
 }
 
 
-size_t jf_thread_buffer_item_count()
+size_t jf_thread_buffer_item_count(void)
 {
     return s_tb.item_count;
 }
 
 
-void jf_thread_buffer_clear_error()
+void jf_thread_buffer_clear_error(void)
 {
     pthread_mutex_lock(&s_tb.mut);
     s_tb.data[0] = '\0';
@@ -257,7 +257,7 @@ void jf_thread_buffer_clear_error()
 
 
 ////////// NETWORK UNIT //////////
-static void jf_net_init()
+static void jf_net_init(void)
 {
     char *tmp;
     pthread_t sax_parser_thread;
@@ -339,7 +339,7 @@ static void jf_net_init()
 }
 
 
-void jf_net_clear()
+void jf_net_clear(void)
 {
     int i;
 

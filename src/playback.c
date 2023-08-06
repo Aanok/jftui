@@ -148,7 +148,7 @@ void jf_playback_update_stopped(const int64_t playback_ticks)
 
 
 ////////// SUBTITLES //////////
-void jf_playback_load_external_subtitles()
+void jf_playback_load_external_subtitles(void)
 {
     char subs_language[4];
     size_t i, j;
@@ -486,7 +486,7 @@ static inline bool jf_playback_populate_video_ticks(jf_menu_item *item)
 
 
 ////////// PLAYLIST CONTROLS //////////
-bool jf_playback_next()
+bool jf_playback_next(void)
 {
     if (g_state.playlist_position == jf_disk_playlist_item_count()) {
         if (g_state.playlist_loops == 1 || g_state.playlist_loops == 0) return false;
@@ -503,7 +503,7 @@ bool jf_playback_next()
 }
 
 
-bool jf_playback_previous()
+bool jf_playback_previous(void)
 {
     if (g_state.playlist_position == 1) {
         if (g_state.playlist_loops == 1 || g_state.playlist_loops == 0) return false;
@@ -519,7 +519,7 @@ bool jf_playback_previous()
 }
 
 
-void jf_playback_end()
+void jf_playback_end(void)
 {
     // kill playback core
     mpv_terminate_destroy(g_mpv_ctx);
@@ -534,7 +534,7 @@ void jf_playback_end()
 }
 
 
-void jf_playback_shuffle_playlist()
+void jf_playback_shuffle_playlist(void)
 {
     size_t pos = g_state.playlist_position - 1;
     size_t item_count_no_curr = jf_disk_playlist_item_count() - 1;

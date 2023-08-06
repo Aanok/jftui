@@ -155,7 +155,7 @@ static void jf_disk_read_to_null_to_buffer(jf_growing_buffer buffer,
 }
 
 
-void jf_disk_init()
+void jf_disk_init(void)
 {
     char *tmp_dir;
 
@@ -184,7 +184,7 @@ void jf_disk_init()
 }
 
 
-void jf_disk_refresh()
+void jf_disk_refresh(void)
 {
     assert(fclose(s_payload.header) == 0);
     assert(fclose(s_payload.body) == 0);
@@ -226,7 +226,7 @@ jf_item_type jf_disk_payload_get_type(const size_t n)
 }
 
 
-size_t jf_disk_payload_item_count()
+size_t jf_disk_payload_item_count(void)
 {
     return s_payload.count;
 }
@@ -306,7 +306,7 @@ void jf_disk_playlist_replace_item(const size_t n, const jf_menu_item *item)
 }
 
 
-size_t jf_disk_playlist_item_count()
+size_t jf_disk_playlist_item_count(void)
 {
     return s_playlist.count;
 }
