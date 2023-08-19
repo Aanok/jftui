@@ -729,9 +729,9 @@ static void jf_menu_try_play(void)
 {
     jf_menu_item *item;
 
-    g_mpv_ctx = jf_mpv_create();
-
     if (jf_disk_playlist_item_count() == 0) return;
+
+    g_mpv_ctx = jf_mpv_create();
 
     // set global application state
     g_state.state = JF_STATE_PLAYBACK_INIT;
