@@ -376,7 +376,20 @@ static char *jf_menu_item_get_remote_url(const jf_menu_item *item)
         case JF_ITEM_TYPE_FOLDER:
         case JF_ITEM_TYPE_ALBUM:
         case JF_ITEM_TYPE_SEASON:
+            jf_growing_buffer_sprintf(url_buffer, 0,
+                "/users/%s/items?sortby=isfolder,parentindexnumber,indexnumber,productionyear,sortname&parentid=%s%s%s",
+                g_options.userid,
+                item->id,
+                s_filters_query,
+                g_options.try_local_files ? "&fields=path" : "");
+            break;
         case JF_ITEM_TYPE_SERIES:
+            jf_growing_buffer_sprintf(url_buffer, 0,
+                "/shows/%s/seasons?sortby=sortname&userid=%s%s",
+                item->id,
+                g_options.userid,
+                s_filters_query);
+            break;
         case JF_ITEM_TYPE_COLLECTION_MUSIC_VIDEOS:
             jf_growing_buffer_sprintf(url_buffer, 0,
                 "/users/%s/items?sortby=isfolder,parentindexnumber,indexnumber,productionyear,sortname&parentid=%s%s%s",
