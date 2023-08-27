@@ -63,7 +63,7 @@ do {                                \
 
 
 ////////// CONSTANTS //////////
-#define JF_VERSION "0.7.1"
+#define JF_VERSION "0.7.2"
 #define JF_THREAD_BUFFER_DATA_SIZE (CURL_MAX_WRITE_SIZE +1)
 #define JF_ID_LENGTH 32
 ///////////////////////////////
