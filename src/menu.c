@@ -372,17 +372,6 @@ static char *jf_menu_item_get_remote_url(const jf_menu_item *item)
             jf_growing_buffer_sprintf(url_buffer, 0, "%s%s", g_options.server, item->name);
             break;
         // Folders
-        case JF_ITEM_TYPE_COLLECTION:
-        case JF_ITEM_TYPE_FOLDER:
-        case JF_ITEM_TYPE_ALBUM:
-        case JF_ITEM_TYPE_SEASON:
-            jf_growing_buffer_sprintf(url_buffer, 0,
-                "/users/%s/items?sortby=isfolder,parentindexnumber,indexnumber,productionyear,sortname&parentid=%s%s%s",
-                g_options.userid,
-                item->id,
-                s_filters_query,
-                g_options.try_local_files ? "&fields=path" : "");
-            break;
         case JF_ITEM_TYPE_SERIES:
             jf_growing_buffer_sprintf(url_buffer, 0,
                 "/shows/%s/seasons?sortby=sortname&userid=%s%s",
@@ -390,6 +379,10 @@ static char *jf_menu_item_get_remote_url(const jf_menu_item *item)
                 g_options.userid,
                 s_filters_query);
             break;
+        case JF_ITEM_TYPE_COLLECTION:
+        case JF_ITEM_TYPE_FOLDER:
+        case JF_ITEM_TYPE_ALBUM:
+        case JF_ITEM_TYPE_SEASON:
         case JF_ITEM_TYPE_COLLECTION_MUSIC_VIDEOS:
             jf_growing_buffer_sprintf(url_buffer, 0,
                 "/users/%s/items?sortby=isfolder,parentindexnumber,indexnumber,productionyear,sortname&parentid=%s%s%s",
@@ -423,7 +416,7 @@ static char *jf_menu_item_get_remote_url(const jf_menu_item *item)
             break;
         case JF_ITEM_TYPE_COLLECTION_MOVIES:
             jf_growing_buffer_sprintf(url_buffer, 0,
-                    "/users/%s/items?includeitemtypes=Movie&recursive=true&sortby=isfolder,sortname&parentid=%s%s",
+                    "/users/%s/items?includeitemtypes=movie&recursive=true&sortby=isfolder,sortname&parentid=%s%s",
                     g_options.userid,
                     item->id,
                     s_filters_query);
@@ -465,8 +458,9 @@ static char *jf_menu_item_get_remote_url(const jf_menu_item *item)
             break;
         case JF_ITEM_TYPE_MENU_NEXT_UP:
             jf_growing_buffer_sprintf(url_buffer, 0, 
-                "/shows/nextup?userid=%s&limit=15",
-                g_options.userid);
+                "/shows/nextup?userid=%s&nextupdatecutoff=%s",
+                g_options.userid,
+                jf_make_date_one_year_ago());
             break;
         case JF_ITEM_TYPE_MENU_LATEST_ADDED:
             if (s_filters & JF_FILTER_IS_PLAYED) {

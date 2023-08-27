@@ -412,5 +412,16 @@ void jf_term_clear_bottom(FILE *stream);
 //
 // CAN'T FAIL.
 size_t jf_strlen(const char *str);
+
+
+// Returns a YYYY-mm-dd representation of today's date, shifted to exactly one
+// year ago.
+//
+// Returns:
+//  - A pointer to a statically allocated buffer containing the null-terminated
+//      string with the date.
+//
+// CAN'T FAIL.
+char *jf_make_date_one_year_ago(void);
 ///////////////////////////////////////////
 #endif

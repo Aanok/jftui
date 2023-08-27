@@ -506,4 +506,18 @@ size_t jf_strlen(const char *str)
 {
     return str == NULL ? 0 : strlen(str) + 1;
 }
+
+
+char *jf_make_date_one_year_ago(void)
+{
+  static char date[32];
+  time_t now = time(NULL);
+  struct tm my_date;
+
+  gmtime_r(&now, &my_date);
+  my_date.tm_year--;
+  strftime(date, sizeof(date), "%F", &my_date);
+
+  return date;
+}
 ///////////////////////////////////////////
