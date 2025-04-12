@@ -172,6 +172,11 @@ static void jf_menu_item_print_indented(const jf_menu_item *item, const size_t l
 
 void jf_menu_item_print(const jf_menu_item *item)
 {
+    if (item == NULL) {
+        printf("Null item\n");
+        return;
+    }
+
     jf_menu_item_print_indented(item, 0);
 }
 #endif

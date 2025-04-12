@@ -495,6 +495,9 @@ static inline bool jf_playback_populate_video_ticks(jf_menu_item *item)
 ////////// PLAYLIST CONTROLS //////////
 bool jf_playback_next(void)
 {
+    jf_menu_item *item;
+    bool more_playback;
+    
     if (g_state.playlist_position == jf_disk_playlist_item_count()) {
         if (g_state.playlist_loops == 1 || g_state.playlist_loops == 0) return false;
         g_state.playlist_position = 1;
@@ -506,12 +509,22 @@ bool jf_playback_next(void)
         g_state.playlist_position++;
     }
 
-    return jf_playback_play_item(jf_disk_playlist_get_item(g_state.playlist_position));
+    item = jf_disk_playlist_get_item(g_state.playlist_position);
+    more_playback = jf_playback_play_item(item);
+
+#ifdef JF_DEBUG
+    jf_menu_item_print(item);
+#endif
+
+    return more_playback;
 }
 
 
 bool jf_playback_previous(void)
 {
+    jf_menu_item *item;
+    bool more_playback;
+    
     if (g_state.playlist_position == 1) {
         if (g_state.playlist_loops == 1 || g_state.playlist_loops == 0) return false;
         g_state.playlist_position = jf_disk_playlist_item_count();
@@ -522,7 +535,14 @@ bool jf_playback_previous(void)
         g_state.playlist_position--;
     }
 
-    return jf_playback_play_item(jf_disk_playlist_get_item(g_state.playlist_position));
+    item = jf_disk_playlist_get_item(g_state.playlist_position);
+    more_playback = jf_playback_play_item(item);
+
+#ifdef JF_DEBUG
+    jf_menu_item_print(item);
+#endif
+
+    return more_playback;
 }
 
 
