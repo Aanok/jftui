@@ -13,7 +13,6 @@
 #include <yajl/yajl_tree.h>
 #include <yajl/yajl_gen.h>
 
-// TODO use yajl_gen_status_ok
 
 ////////// GLOBALS //////////
 extern jf_options g_options;
@@ -565,6 +564,7 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
     yajl_val media_streams, source, stream;
 
     if (YAJL_GET_ARRAY(media_sources)->len > 1) {
+        // FIXME: if this happens during a playback skip we have to halt input before prompting the user
         printf("\nThere are multiple versions available of %s.\n", item->name);
         printf("Please choose one:\n");
         for (i = 0; i < YAJL_GET_ARRAY(media_sources)->len; i++) {

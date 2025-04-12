@@ -100,37 +100,41 @@ static void jf_disk_add_item(jf_file_cache *cache, const jf_menu_item *item)
 
 static jf_menu_item *jf_disk_get_next(jf_file_cache *cache)
 {
-    jf_menu_item item;
+    jf_menu_item tmp_item, *item;
     size_t path_offset, i;
+    jf_growing_buffer buffer = jf_growing_buffer_new(256);
 
-    assert(fread(&(item.type), sizeof(jf_item_type), 1, cache->body) == 1);
-    assert(fread(item.id, 1, sizeof(item.id), cache->body) == sizeof(item.id));
-    jf_growing_buffer_empty(s_buffer);
-    jf_disk_read_to_null_to_buffer(s_buffer, cache);
-    item.name = s_buffer->buf[0] == '\0' ? NULL : s_buffer->buf;
-    path_offset = s_buffer->used;
-    jf_disk_read_to_null_to_buffer(s_buffer, cache);
-    item.path = s_buffer->buf[path_offset] == '\0' ? NULL : (s_buffer->buf + path_offset);
-    assert(fread(&(item.runtime_ticks), sizeof(long long), 1, cache->body) == 1);
-    assert(fread(&(item.playback_ticks), sizeof(long long), 1, cache->body) == 1);
-    assert(fread(&(item.children_count), sizeof(size_t), 1, cache->body) == 1);
-    if (item.children_count > 0) {
-        assert((item.children = malloc(item.children_count * sizeof(jf_menu_item *))) != NULL);
-        for (i = 0; i < item.children_count; i++) {
-            item.children[i] = jf_disk_get_next(cache);
+    assert(fread(&(tmp_item.type), sizeof(jf_item_type), 1, cache->body) == 1);
+    assert(fread(tmp_item.id, 1, sizeof(tmp_item.id), cache->body) == sizeof(tmp_item.id));
+    jf_disk_read_to_null_to_buffer(buffer, cache);
+    tmp_item.name = buffer->buf[0] == '\0' ? NULL : buffer->buf;
+    path_offset = buffer->used;
+    jf_disk_read_to_null_to_buffer(buffer, cache);
+    tmp_item.path = buffer->buf[path_offset] == '\0' ? NULL : (buffer->buf + path_offset);
+    assert(fread(&(tmp_item.runtime_ticks), sizeof(long long), 1, cache->body) == 1);
+    assert(fread(&(tmp_item.playback_ticks), sizeof(long long), 1, cache->body) == 1);
+    assert(fread(&(tmp_item.children_count), sizeof(size_t), 1, cache->body) == 1);
+    if (tmp_item.children_count > 0) {
+        assert((tmp_item.children = malloc(tmp_item.children_count * sizeof(jf_menu_item *))) != NULL);
+        for (i = 0; i < tmp_item.children_count; i++) {
+            tmp_item.children[i] = jf_disk_get_next(cache);
         }
     } else {
-        item.children = NULL;
+        tmp_item.children = NULL;
     }
 
-    return jf_menu_item_new(item.type,
-            item.children,
-            item.children_count,
-            item.id,
-            item.name,
-            item.path,
-            item.runtime_ticks,
-            item.playback_ticks);
+    item = jf_menu_item_new(tmp_item.type,
+            tmp_item.children,
+            tmp_item.children_count,
+            tmp_item.id,
+            tmp_item.name,
+            tmp_item.path,
+            tmp_item.runtime_ticks,
+            tmp_item.playback_ticks);
+    
+    jf_growing_buffer_free(buffer);
+
+    return item;
 }
 
 
@@ -253,7 +257,6 @@ jf_menu_item *jf_disk_playlist_get_item(const size_t n)
 
 const char *jf_disk_playlist_get_item_name(const size_t n)
 {
-
     if (n == 0 || n > s_playlist.count) {
         return "Warning: requesting item out of bounds. This is a bug.";
     }
