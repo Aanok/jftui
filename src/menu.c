@@ -636,9 +636,23 @@ static bool jf_menu_ask_resume_yn(const jf_menu_item *item, const long long tick
 {
     char *timestamp;
     char *question;
+    enum jf_ync answer;
     bool go_on = true;
 
     if (ticks == 0) return go_on;
+
+    // if we're in the middle of playback and a playlist next/previous has been issued,
+    // there is no way to fully hide the mpv window or to make it stop processing input
+    // and we obviously can't let the user resume playback or whatever
+    // when we're in the middle of asking them a question
+    // thus, with all the grace of an oil tanker, we kill and restart the whole mpv engine
+    if (g_state.state == JF_STATE_PLAYBACK) {
+        mpv_terminate_destroy(g_mpv_ctx);
+        g_mpv_ctx = NULL;
+
+        // let's also draw attention
+        printf("\a");
+    }
 
     timestamp = jf_make_timestamp(ticks);
     question = jf_concat(5,
@@ -647,11 +661,19 @@ static bool jf_menu_ask_resume_yn(const jf_menu_item *item, const long long tick
                     " at the ",
                     timestamp,
                     " mark?");
-    switch (jf_menu_user_ask_ync(question)) {
+
+    answer = jf_menu_user_ask_ync(question);
+
+    if (g_state.state == JF_STATE_PLAYBACK) {
+        g_mpv_ctx = jf_mpv_create();
+        jf_mpv_terminal(g_mpv_ctx, true);
+    }
+    
+    switch (answer) {
         case JF_YNC_YES:
             JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "start", timestamp));
             g_state.state = JF_STATE_PLAYBACK_START_MARK;
-            // control flow fall-through
+            break;
         case JF_YNC_NO:
             break;
         case JF_YNC_CANCEL:
@@ -673,10 +695,13 @@ bool jf_menu_ask_resume(jf_menu_item *item)
     size_t i, j, markers_count;
 
     assert(item != NULL);
+    
+    JF_DEBUG_PRINTF("jf_menu_ask_resume: state=%d\n", g_state.state);
 
     if (item->children_count == 0) {
-        return item->playback_ticks != 0 ?
-            jf_menu_ask_resume_yn(item, item->playback_ticks) : true;
+        if (item->playback_ticks == 0) return true;
+
+        return jf_menu_ask_resume_yn(item, item->playback_ticks);
     }
 
     markers_count = 0;
@@ -695,11 +720,22 @@ bool jf_menu_ask_resume(jf_menu_item *item)
             i++;
         }
         ticks += item->children[i]->playback_ticks;
+        
         return jf_menu_ask_resume_yn(item, ticks);
     }
     assert((timestamps = malloc(markers_count * sizeof(char *))) != NULL);
     ticks = 0;
     j = 2;
+    
+    // see comment in jf_menu_ask_resume_yn
+    if (g_state.state == JF_STATE_PLAYBACK) {
+        mpv_terminate_destroy(g_mpv_ctx);
+        g_mpv_ctx = NULL;
+
+        // let's also draw attention
+        printf("\a");
+    }
+
     printf("\n%s is a split-file on the server and there is progress marked on more than one part.\n",
             item->name);
     printf("Please choose at what time you'd like to start watching:\n");
@@ -717,6 +753,12 @@ bool jf_menu_ask_resume(jf_menu_item *item)
     }
     printf("%zu: Cancel\n", markers_count + 2);
     j = jf_menu_user_ask_selection(1, markers_count + 2);
+
+    if (g_state.state == JF_STATE_PLAYBACK) {
+        g_mpv_ctx = jf_mpv_create();
+        jf_mpv_terminal(g_mpv_ctx, true);
+    }
+
     if (j != 1 && j != markers_count + 2){
         JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "start", timestamps[j - 2]));
     }
