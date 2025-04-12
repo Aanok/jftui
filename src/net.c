@@ -402,6 +402,12 @@ static void jf_net_handle_before_perform(CURL *handle,
 {
     char *url;
 
+    JF_DEBUG_PRINTF("jf_net_handle_before_perform: resource=%s request_type=%d method=%u payload=%s\n",
+        resource,
+        request_type,
+        method,
+        payload);
+
     // url
     if (request_type == JF_REQUEST_CHECK_UPDATE) {
         JF_CURL_ASSERT(curl_easy_setopt(handle,
