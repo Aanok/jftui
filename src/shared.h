@@ -165,9 +165,10 @@ typedef struct jf_menu_item {
 //
 // Parameters:
 //  - type: the jf_item_type of the menu item being represented.
-//  - children: a NULL-terminated array of pointers to jf_menu_item's that
+//  - children: an array of pointers to jf_menu_item's that
 //      descend from the current one in the UI/library hierarchy.
 //      IT IS NOT COPIED BUT ASSIGNED (MOVE).
+//  - children_count: the lenght of the `children` array
 //  - id: the string marking the id of the item. It will be copied to an
 //      internal buffer and must have JF_ID_LENGTH size but does not need to be
 //      \0-terminated. May be NULL for persistent menu items, in which case the
@@ -183,6 +184,7 @@ typedef struct jf_menu_item {
 // CAN FATAL.
 jf_menu_item *jf_menu_item_new(jf_item_type type,
         jf_menu_item **children,
+        const size_t children_count,
         const char *id,
         const char *name,
         const char *path,

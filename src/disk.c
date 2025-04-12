@@ -125,6 +125,7 @@ static jf_menu_item *jf_disk_get_next(jf_file_cache *cache)
 
     return jf_menu_item_new(item.type,
             item.children,
+            item.children_count,
             item.id,
             item.name,
             item.path,

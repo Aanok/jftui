@@ -1002,7 +1002,7 @@ void jf_menu_search(const char *s)
 
     escaped = jf_net_urlencode(s);
     menu_item = jf_menu_item_new(JF_ITEM_TYPE_SEARCH_RESULT,
-            NULL,
+            NULL, 0,
             NULL,
             escaped,
             NULL,

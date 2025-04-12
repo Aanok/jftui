@@ -118,7 +118,7 @@ static int jf_sax_items_end_map(void *ctx)
                 jf_sax_current_item_make_and_print_name(context);
 
                 jf_menu_item *item = jf_menu_item_new(context->current_item_type,
-                        NULL,
+                        NULL, 0,
                         (const char*)(context->parsed_content->buf
                             + context->id_start),
                         context->current_item_display_name->buf,
@@ -624,7 +624,7 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
                     codec);
             assert((subs = realloc(subs, ++subs_count * sizeof(jf_menu_item *))) != NULL);
             subs[subs_count - 1] = jf_menu_item_new(JF_ITEM_TYPE_VIDEO_SUB,
-                    NULL, // children
+                    NULL, 0, // children, children_count
                     NULL, // id
                     tmp,
                     YAJL_GET_STRING(jf_yajl_tree_get_assert(stream, ((const char *[]){ "Path", NULL }), yajl_t_string)),
@@ -641,12 +641,9 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
             subs[subs_count - 1]->id[JF_ID_LENGTH] = '\0';
         }
     }
-    // NULL-terminate children
-    assert((subs = realloc(subs, (subs_count + 1) * sizeof(jf_menu_item *))) != NULL);
-    subs[subs_count] = NULL;
 
     return jf_menu_item_new(JF_ITEM_TYPE_VIDEO_SOURCE,
-            subs,
+            subs, subs_count,
             YAJL_GET_STRING(jf_yajl_tree_get_assert(source, ((const char *[]){ "Id", NULL }), yajl_t_string)),
             NULL,
             YAJL_GET_STRING(jf_yajl_tree_get_assert(source, ((const char *[]){ "Path", NULL }), yajl_t_string)),

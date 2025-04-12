@@ -84,6 +84,7 @@ const char *jf_item_type_get_name(const jf_item_type type)
 
 jf_menu_item *jf_menu_item_new(jf_item_type type,
         jf_menu_item **children,
+        const size_t children_count,
         const char *id,
         const char *name,
         const char *path,
@@ -101,14 +102,7 @@ jf_menu_item *jf_menu_item_new(jf_item_type type,
     menu_item->type = type;
 
     menu_item->children = children;
-    menu_item->children_count = 0;
-    if (children != NULL) {
-        while (*(menu_item->children) != NULL) {
-            menu_item->children_count++;
-            menu_item->children++;
-        }
-        menu_item->children = children;
-    }
+    menu_item->children_count = children_count;
 
     if (id == NULL) {
         menu_item->id[0] = '\0';
