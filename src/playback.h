@@ -20,11 +20,15 @@
 //  - playback_ticks: current position in Jellyfin ticks, referring to the
 //    whole merged file in case of split-part.
 //
+// jf_playback_update_playing will POST to /sessions/playing/played
+// and should thus be called for playback that is starting.
+//
 // jf_playback_update_progress will POST to /sessions/playing/progress
 // and should thus be called for ongoing playback.
 //
 // jf_playback_update_stopped will POST to /sessions/playing/stopped
 // and should thus be called for playback that just ended.
+void jf_playback_update_playing(const int64_t playback_ticks);
 void jf_playback_update_progress(const int64_t playback_ticks);
 void jf_playback_update_stopped(const int64_t playback_ticks);
 

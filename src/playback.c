@@ -135,6 +135,12 @@ static void jf_post_session(const int64_t playback_ticks,
 }
 
 
+void jf_playback_update_playing(const int64_t playback_ticks)
+{
+    jf_post_session(playback_ticks, "/sessions/playing/playing");
+}
+
+
 void jf_playback_update_progress(const int64_t playback_ticks)
 {
     jf_post_session(playback_ticks, "/sessions/playing/progress");

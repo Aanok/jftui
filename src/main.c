@@ -102,6 +102,8 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
             // go into idle mode at all
             // in those cases, we digest the INIT state here
             if (g_state.state == JF_STATE_PLAYBACK_INIT) {
+                // also open the playback session
+                jf_playback_update_playing(g_state.now_playing->playback_ticks);
                 g_state.state = JF_STATE_PLAYBACK;
             }
             break;
@@ -126,6 +128,8 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
                     mpv_get_property(g_mpv_ctx, "time-pos", MPV_FORMAT_INT64, &playback_ticks) == 0 ?
                     JF_SECS_TO_TICKS(playback_ticks) : 0;
                 g_state.now_playing->playback_ticks = playback_ticks;
+                // open playback session
+                jf_playback_update_playing(g_state.now_playing->playback_ticks);
                 g_state.state = JF_STATE_PLAYBACK;
                 break;
             }
@@ -138,7 +142,7 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
                 // event valid, check if need to update the server
                 playback_ticks = JF_SECS_TO_TICKS(*(int64_t *)((mpv_event_property *)event->data)->data);
                 if (llabs(playback_ticks - g_state.now_playing->playback_ticks) < JF_SECS_TO_TICKS(10)) break;
-                // good for update; note this will also start a playback session if none are there
+                // good for update; from jf 10.10.7 this no longer automatically starts a playback session
                 jf_playback_update_progress(playback_ticks);
             } else if (strcmp("sid", ((mpv_event_property *)event->data)->name) == 0) {
                 // subtitle track change, go and see if we need to align for split-part
@@ -186,7 +190,8 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
                     // going too quick: do nothing but wait for the SEEK
                     break;
                 case JF_STATE_PLAYBACK_INIT:
-                    // normal: digest it
+                    // normal: open playback session and digest state transition
+                    jf_playback_update_playing(g_state.now_playing->playback_ticks);
                     g_state.state = JF_STATE_PLAYBACK;
                     break;
                 case JF_STATE_PLAYBACK:
