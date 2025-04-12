@@ -649,9 +649,6 @@ static bool jf_menu_ask_resume_yn(const jf_menu_item *item, const long long tick
     if (g_state.state == JF_STATE_PLAYBACK) {
         mpv_terminate_destroy(g_mpv_ctx);
         g_mpv_ctx = NULL;
-
-        // let's also draw attention
-        printf("\a");
     }
 
     timestamp = jf_make_timestamp(ticks);
@@ -731,9 +728,6 @@ bool jf_menu_ask_resume(jf_menu_item *item)
     if (g_state.state == JF_STATE_PLAYBACK) {
         mpv_terminate_destroy(g_mpv_ctx);
         g_mpv_ctx = NULL;
-
-        // let's also draw attention
-        printf("\a");
     }
 
     printf("\n%s is a split-file on the server and there is progress marked on more than one part.\n",
