@@ -159,6 +159,7 @@ static void jf_disk_read_to_null_to_buffer(jf_growing_buffer buffer,
 void jf_disk_init(void)
 {
     char *tmp_dir;
+    char *rand_id;
 
     if ((tmp_dir = getenv("TMPDIR")) == NULL) {
 #ifdef P_tmpdir
@@ -171,7 +172,9 @@ void jf_disk_init(void)
     assert((s_file_prefix = malloc((size_t)snprintf(NULL, 0,
             "%s/jftui_%d_XXXXXX",
             tmp_dir, getpid()) + 1)) != NULL);
-    sprintf(s_file_prefix, "%s/jftui_%d_XXXXXX", tmp_dir, getpid());
+    rand_id = jf_generate_random_id(6);
+    sprintf(s_file_prefix, "%s/jftui_%d_%s", tmp_dir, getpid(), rand_id);
+    free(rand_id);
 
     s_buffer = jf_growing_buffer_new(512);
 
