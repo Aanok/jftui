@@ -159,7 +159,11 @@ static void jf_menu_item_print_indented(const jf_menu_item *item, const size_t l
     JF_PRINTF_INDENT("Name: %s\n", item->name);
     JF_PRINTF_INDENT("Path: %s\n", item->path);
     JF_PRINTF_INDENT("Type: %s\n", jf_item_type_get_name(item->type));
-    JF_PRINTF_INDENT("Id: %s\n", item->id);
+    if (item->type == JF_ITEM_TYPE_VIDEO_SUB) {
+        JF_PRINTF_INDENT("Id: %s|%s\n", item->id, item->id + 3);
+    } else {
+        JF_PRINTF_INDENT("Id: %s\n", item->id);
+    }
     JF_PRINTF_INDENT("PB ticks: %lld, RT ticks: %lld\n", item->playback_ticks, item->runtime_ticks);
     if (item->children_count > 0) {
         JF_PRINTF_INDENT("Children:\n");
