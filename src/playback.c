@@ -524,7 +524,7 @@ bool jf_playback_previous(void)
 {
     jf_menu_item *item;
     bool more_playback;
-    
+
     if (g_state.playlist_position == 1) {
         if (g_state.playlist_loops == 1 || g_state.playlist_loops == 0) return false;
         g_state.playlist_position = jf_disk_playlist_item_count();
@@ -536,6 +536,9 @@ bool jf_playback_previous(void)
     }
 
     item = jf_disk_playlist_get_item(g_state.playlist_position);
+#ifdef JF_DEBUG
+    jf_menu_item_print(item);
+#endif
     more_playback = jf_playback_play_item(item);
 
 #ifdef JF_DEBUG
