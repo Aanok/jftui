@@ -13,6 +13,7 @@
 #include <yajl/yajl_tree.h>
 #include <yajl/yajl_gen.h>
 
+// TODO use yajl_gen_status_ok
 
 ////////// GLOBALS //////////
 extern jf_options g_options;
@@ -807,13 +808,13 @@ char *jf_json_generate_login_request(const char *username, const char *password)
     size_t json_len;
 
     assert((gen = yajl_gen_alloc(NULL)) != NULL);
-    assert(yajl_gen_map_open(gen) == yajl_status_ok);
-    assert(yajl_gen_string(gen, (const unsigned char *)"Username", JF_STATIC_STRLEN("Username")) == yajl_status_ok);
-    assert(yajl_gen_string(gen, (const unsigned char *)username, strlen(username)) == yajl_status_ok);
-    assert(yajl_gen_string(gen, (const unsigned char *)"Pw", JF_STATIC_STRLEN("Pw")) == yajl_status_ok);
-    assert(yajl_gen_string(gen, (const unsigned char *)password, strlen(password)) == yajl_status_ok);
-    assert(yajl_gen_map_close(gen) == yajl_status_ok);
-    assert(yajl_gen_get_buf(gen, (const unsigned char **)&json, &json_len) == yajl_status_ok);
+    assert(yajl_gen_map_open(gen) == yajl_gen_status_ok);
+    assert(yajl_gen_string(gen, (const unsigned char *)"Username", JF_STATIC_STRLEN("Username")) == yajl_gen_status_ok);
+    assert(yajl_gen_string(gen, (const unsigned char *)username, strlen(username)) == yajl_gen_status_ok);
+    assert(yajl_gen_string(gen, (const unsigned char *)"Pw", JF_STATIC_STRLEN("Pw")) == yajl_gen_status_ok);
+    assert(yajl_gen_string(gen, (const unsigned char *)password, strlen(password)) == yajl_gen_status_ok);
+    assert(yajl_gen_map_close(gen) == yajl_gen_status_ok);
+    assert(yajl_gen_get_buf(gen, (const unsigned char **)&json, &json_len) == yajl_gen_status_ok);
     assert((json = strndup(json, json_len)) != NULL);
 
     yajl_gen_free(gen);
@@ -828,21 +829,21 @@ char *jf_json_generate_progress_post(const char *id, const long long ticks)
     size_t json_len;
 
     assert((gen = yajl_gen_alloc(NULL)) != NULL);
-    assert(yajl_gen_map_open(gen) == yajl_status_ok);
+    assert(yajl_gen_map_open(gen) == yajl_gen_status_ok);
     assert(yajl_gen_string(gen,
                 (const unsigned char *)"ItemId",
-                JF_STATIC_STRLEN("ItemId")) == yajl_status_ok);
+                JF_STATIC_STRLEN("ItemId")) == yajl_gen_status_ok);
     assert(yajl_gen_string(gen,
                 (const unsigned char *)id,
-                JF_ID_LENGTH) == yajl_status_ok);
+                JF_ID_LENGTH) == yajl_gen_status_ok);
     assert(yajl_gen_string(gen,
                 (const unsigned char *)"PositionTicks",
-                JF_STATIC_STRLEN("PositionTicks")) == yajl_status_ok);
-    assert(yajl_gen_integer(gen, ticks) == yajl_status_ok);
-    assert(yajl_gen_map_close(gen) == yajl_status_ok);
+                JF_STATIC_STRLEN("PositionTicks")) == yajl_gen_status_ok);
+    assert(yajl_gen_integer(gen, ticks) == yajl_gen_status_ok);
+    assert(yajl_gen_map_close(gen) == yajl_gen_status_ok);
     assert(yajl_gen_get_buf(gen,
                 (const unsigned char **)&json,
-                &json_len) == yajl_status_ok);
+                &json_len) == yajl_gen_status_ok);
     assert((json = strndup(json, json_len)) != NULL);
 
     yajl_gen_free(gen);
