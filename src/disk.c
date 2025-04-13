@@ -164,6 +164,7 @@ void jf_disk_init(void)
 {
     char *tmp_dir;
     char *rand_id;
+    size_t s_file_prefix_sz;
 
     if ((tmp_dir = getenv("TMPDIR")) == NULL) {
 #ifdef P_tmpdir
@@ -172,12 +173,11 @@ void jf_disk_init(void)
         tmp_dir = "/tmp";
 #endif
     }
+    s_file_prefix_sz = (size_t)snprintf(NULL, 0, "%s/jftui_%d_XXXXXX", tmp_dir, getpid()) + 1;
     assert(jf_disk_is_file_accessible(tmp_dir));
-    assert((s_file_prefix = malloc((size_t)snprintf(NULL, 0,
-            "%s/jftui_%d_XXXXXX",
-            tmp_dir, getpid()) + 1)) != NULL);
+    assert((s_file_prefix = malloc(s_file_prefix_sz)) != NULL);
     rand_id = jf_generate_random_id(6);
-    sprintf(s_file_prefix, "%s/jftui_%d_%s", tmp_dir, getpid(), rand_id);
+    snprintf(s_file_prefix, s_file_prefix_sz, "%s/jftui_%d_%s", tmp_dir, getpid(), rand_id);
     free(rand_id);
 
     s_buffer = jf_growing_buffer_new(512);

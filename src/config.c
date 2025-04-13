@@ -35,13 +35,13 @@ static void jf_options_complete_with_defaults(void)
     }
     if (g_options.device[0] == '\0') {
         if (gethostname(g_options.device, JF_CONFIG_DEVICE_SIZE) != 0) {
-            strcpy(g_options.device, JF_CONFIG_DEVICE_DEFAULT);
+            strlcpy(g_options.device, JF_CONFIG_DEVICE_DEFAULT, sizeof(g_options.device));
         }
         g_options.device[JF_CONFIG_DEVICE_SIZE - 1] = '\0';
     }
     if (g_options.deviceid[0] == '\0') {
         char *tmp = jf_generate_random_id(JF_CONFIG_DEVICEID_SIZE - 1);
-        strcpy(g_options.deviceid, tmp);
+        strlcpy(g_options.deviceid, tmp, sizeof(g_options.deviceid));
         g_options.deviceid[JF_CONFIG_DEVICEID_SIZE - 1] = '\0';
         free(tmp);
     }
