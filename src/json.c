@@ -562,14 +562,16 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
     size_t i, j;
     char *tmp;
     yajl_val media_streams, source, stream;
+    jf_growing_buffer buf;
 
     if (YAJL_GET_ARRAY(media_sources)->len > 1) {
-        // FIXME: if this happens during a playback skip we have to halt input before prompting the user
-        printf("\nThere are multiple versions available of %s.\n", item->name);
-        printf("Please choose one:\n");
+        buf = jf_growing_buffer_new(512);
+        
+        jf_growing_buffer_sprintf(buf, 0, "\nThere are multiple versions available of %s.\n", item->name);
+        jf_growing_buffer_sprintf(buf, 0, "Please choose one:\n");
         for (i = 0; i < YAJL_GET_ARRAY(media_sources)->len; i++) {
             assert((source = YAJL_GET_ARRAY(media_sources)->values[i]) != NULL);
-            printf("%zu: %s (",
+            jf_growing_buffer_sprintf(buf, 0, "%zu: %s (",
                     i + 1,
                     YAJL_GET_STRING(jf_yajl_tree_get_assert(source,
                             ((const char *[]){ "Name", NULL }),
@@ -579,15 +581,17 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
                     yajl_t_array);
             for (j = 0; j < YAJL_GET_ARRAY(media_streams)->len; j++) {
                 assert((stream = YAJL_GET_ARRAY(media_streams)->values[j]) != NULL);
-                printf(" %s",
+                jf_growing_buffer_sprintf(buf, 0, " %s",
                         YAJL_GET_STRING(jf_yajl_tree_get_assert(stream,
                                 ((const char *[]){ "DisplayTitle", NULL }),
                                 yajl_t_string)));
             }
-            printf(")\n");
+            jf_growing_buffer_sprintf(buf, 0, ")\n");
         }
-        i = jf_menu_user_ask_selection(1, YAJL_GET_ARRAY(media_sources)->len);
+        i = jf_menu_user_ask_selection(buf->buf, 1, YAJL_GET_ARRAY(media_sources)->len);
         i--;
+
+        jf_growing_buffer_free(buf);
     } else {
         i = 0;
     }

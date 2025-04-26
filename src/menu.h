@@ -118,7 +118,7 @@ bool jf_menu_user_ask_yn(const char *question);
 enum jf_ync jf_menu_user_ask_ync(const char *question);
 
 
-size_t jf_menu_user_ask_selection(const size_t l, const size_t r);
+size_t jf_menu_user_ask_selection(const char *prompt_preamble, const size_t l, const size_t r);
 ///////////////////////////////////////////
 
 

@@ -690,6 +690,7 @@ bool jf_menu_ask_resume(jf_menu_item *item)
     char **timestamps;
     long long ticks;
     size_t i, j, markers_count;
+    jf_growing_buffer buf;
 
     assert(item != NULL);
     
@@ -723,35 +724,29 @@ bool jf_menu_ask_resume(jf_menu_item *item)
     assert((timestamps = malloc(markers_count * sizeof(char *))) != NULL);
     ticks = 0;
     j = 2;
-    
-    // see comment in jf_menu_ask_resume_yn
-    if (g_state.state == JF_STATE_PLAYBACK || g_state.state == JF_STATE_PLAYLIST_SEEKING) {
-        mpv_terminate_destroy(g_mpv_ctx);
-        g_mpv_ctx = NULL;
-    }
 
-    printf("\n%s is a split-file on the server and there is progress marked on more than one part.\n",
+    buf = jf_growing_buffer_new(512);
+
+    jf_growing_buffer_sprintf(buf,
+            0,
+            "\n%s is a split-file on the server and there is progress marked on more than one part.\n",
             item->name);
-    printf("Please choose at what time you'd like to start watching:\n");
-    printf("1: 00:00:00\n");
+    jf_growing_buffer_sprintf(buf, 0, "Please choose at what time you'd like to start watching:\n");
+    jf_growing_buffer_sprintf(buf, 0, "1: 00:00:00\n");
     for (i = 0; i < item->children_count; i++) {
         if (item->children[i]->playback_ticks != 0) {
             ticks += item->children[i]->playback_ticks;
             timestamps[j - 2] = jf_make_timestamp(ticks);
-            printf("%zu: %s\n", j, timestamps[j - 2]);
+            jf_growing_buffer_sprintf(buf, 0, "%zu: %s\n", j, timestamps[j - 2]);
             ticks += item->children[i]->runtime_ticks - item->children[i]->playback_ticks;
             j++;
         } else {
             ticks += item->children[i]->runtime_ticks;
         }
     }
-    printf("%zu: Cancel\n", markers_count + 2);
-    j = jf_menu_user_ask_selection(1, markers_count + 2);
-
-    if (g_state.state == JF_STATE_PLAYBACK || g_state.state == JF_STATE_PLAYLIST_SEEKING) {
-        g_mpv_ctx = jf_mpv_create();
-        jf_mpv_terminal(g_mpv_ctx, true);
-    }
+    jf_growing_buffer_sprintf(buf, 0, "%zu: Cancel\n", markers_count + 2);
+    j = jf_menu_user_ask_selection(buf->buf, 1, markers_count + 2);
+    jf_growing_buffer_free(buf);
 
     if (j != 1 && j != markers_count + 2){
         JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "start", timestamps[j - 2]));
@@ -937,6 +932,8 @@ static inline char *jf_menu_set_flag_request_get_url(const jf_menu_item *item, c
 }
 
 
+// FIXME: of course this doesn't work fine on split files :))))))
+// we need to manually set each sub-child like we do in jf_playback_progress_update
 void jf_menu_child_set_flag(const size_t n, const jf_flag_type flag_type, const bool flag_status)
 {
     jf_menu_item *child;
@@ -1161,10 +1158,20 @@ enum jf_ync jf_menu_user_ask_ync(const char *question)
 }
 
 
-size_t jf_menu_user_ask_selection(const size_t l, const size_t r)
+size_t jf_menu_user_ask_selection(const char *prompt_preamble, const size_t l, const size_t r)
 {
     char *tmp;
     size_t i;
+
+    // see comment in jf_menu_ask_resume_yn
+    if (g_state.state == JF_STATE_PLAYBACK || g_state.state == JF_STATE_PLAYLIST_SEEKING) {
+        mpv_terminate_destroy(g_mpv_ctx);
+        g_mpv_ctx = NULL;
+    }
+
+    if (prompt_preamble) {
+        printf("%s", prompt_preamble);
+    }
 
     // read the number, kronk
     while (true) {
@@ -1175,6 +1182,11 @@ size_t jf_menu_user_ask_selection(const size_t l, const size_t r)
         }
         // wrong numbeeeeeer...
         fprintf(stderr, "Error: please choose exactly one listed item.\n");
+    }
+
+    if (g_state.state == JF_STATE_PLAYBACK || g_state.state == JF_STATE_PLAYLIST_SEEKING) {
+        g_mpv_ctx = jf_mpv_create();
+        jf_mpv_terminal(g_mpv_ctx, true);
     }
 }
 ///////////////////////////////////////////
