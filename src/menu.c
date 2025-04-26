@@ -947,23 +947,26 @@ void jf_menu_child_set_flag(const size_t n, const jf_flag_type flag_type, const 
 
     url = jf_menu_set_flag_request_get_url(child, flag_type);
 
-    // look for next clear spot
-    for (i = 0; i < sizeof(s_played_status_requests) / sizeof(*s_played_status_requests); i++) {
+    // look for next free spot
+    for (i = 0; i < JF_FLAG_CHANGE_REQUESTS_LEN; i++) {
         if (s_played_status_requests[i] == NULL) break;
     }
 
-    while (i >= sizeof(s_played_status_requests) / sizeof(*s_played_status_requests)
-                || s_played_status_requests[i] != NULL) {
+    while (i >= JF_FLAG_CHANGE_REQUESTS_LEN) {
         // the buffer is full
-        for (i = 0; i < sizeof(s_played_status_requests) / sizeof(*s_played_status_requests); i++) {
+        for (i = 0; i < JF_FLAG_CHANGE_REQUESTS_LEN; i++) {
             if (! JF_REPLY_PTR_IS_PENDING(s_played_status_requests[i])) {
                 jf_menu_set_flag_request_resolve(s_played_status_requests[i]);
                 s_played_status_requests[i] = NULL;
                 break;
             }
         }
-        // FIXME: put sleep under if (s_played_status_requests[i] != NULL)
-        // take a nap and try again
+
+        if (i < JF_FLAG_CHANGE_REQUESTS_LEN && s_played_status_requests[i] == NULL) {
+            break;
+        }
+
+        // we couldn't free up a spot, so let's take a nap and try again
         // a precise notification mechanism would be hugely overkill
         // this subsystem is overengineered enough
         nanosleep(&s_25msec, NULL);
@@ -995,7 +998,7 @@ void jf_menu_item_set_flag_await_all(void)
 {
     size_t i;
 
-    for (i = 0; i < sizeof(s_played_status_requests) / sizeof (*s_played_status_requests); i++) {
+    for (i = 0; i < JF_FLAG_CHANGE_REQUESTS_LEN; i++) {
         if (s_played_status_requests[i] == NULL) continue;
         jf_menu_set_flag_request_resolve(s_played_status_requests[i]);
         s_played_status_requests[i] = NULL;
