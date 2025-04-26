@@ -76,16 +76,18 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
     int64_t playback_ticks;
     mpv_node *node;
 
-    JF_DEBUG_PRINTF("event: %s\n", mpv_event_name(event->event_id));
+    JF_DEBUG_PRINTF("state: %d, event: %s\n", g_state.state, mpv_event_name(event->event_id));
     switch (event->event_id) {
         case MPV_EVENT_CLIENT_MESSAGE:
             // playlist controls
             if (((mpv_event_client_message *)event->data)->num_args > 0) {
                 if (strcmp(((mpv_event_client_message *)event->data)->args[0],
-                            "jftui-playlist-next") == 0) {
+                            "jftui-playlist-next") == 0) {   
+                    jf_playback_update_stopped(g_state.now_playing->playback_ticks);
                     jf_playback_next();
                 } else if (strcmp(((mpv_event_client_message *)event->data)->args[0],
                             "jftui-playlist-prev") == 0) {
+                    jf_playback_update_stopped(g_state.now_playing->playback_ticks);
                     jf_playback_previous();
                 } else if (strcmp(((mpv_event_client_message *)event->data)->args[0],
                             "jftui-playlist-print") == 0) {
@@ -101,23 +103,34 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
             // if we're issuing playlist_next/prev very quickly, mpv will not
             // go into idle mode at all
             // in those cases, we digest the INIT state here
-            if (g_state.state == JF_STATE_PLAYBACK_INIT) {
-                // also open the playback session
-                jf_playback_update_playing(g_state.now_playing->playback_ticks);
+            if (g_state.state == JF_STATE_PLAYBACK_INIT || g_state.state == JF_STATE_PLAYLIST_SEEKING) {
                 g_state.state = JF_STATE_PLAYBACK;
             }
+            // open the playback session
+            jf_playback_update_playing(g_state.now_playing->playback_ticks);
             break;
         case MPV_EVENT_END_FILE:
             // tell server file playback stopped so it won't keep accruing progress
-            playback_ticks =
+            // EXCEPT in a playlist skip, which has already handled it
+            // because by now g_state.now_playing is already the new item
+            // (when the user triggers a playlist skip, we get the END_FILE after
+            // the input was processed and the loadfile command was issued)
+            if (g_state.state != JF_STATE_PLAYBACK_START_MARK && g_state.state != JF_STATE_PLAYLIST_SEEKING) {
+                playback_ticks =
                 mpv_get_property(g_mpv_ctx, "time-pos", MPV_FORMAT_INT64, &playback_ticks) == 0 ?
-                JF_SECS_TO_TICKS(playback_ticks) : g_state.now_playing->playback_ticks;
-            jf_playback_update_stopped(playback_ticks);
-            // move to next item in playlist, if any
-            if (((mpv_event_end_file *)event->data)->reason == MPV_END_FILE_REASON_EOF
-                    && jf_playback_next()) {
-                g_state.state = JF_STATE_PLAYBACK_INIT;
+                        JF_SECS_TO_TICKS(playback_ticks) : g_state.now_playing->playback_ticks;
+                jf_playback_update_stopped(playback_ticks);
             }
+            
+            // why did we get an END_FILE?
+            if (((mpv_event_end_file *)event->data)->reason != MPV_END_FILE_REASON_EOF
+                    || jf_playback_next() == false) {
+                // if not EOF, it was an abnormal stop and the engine will abort
+                // if EOF, let's try moving ahead in the playlist: oh, we found nothing more
+                // so the engine will also abort
+                g_state.state = JF_STATE_PLAYBACK_STOPPING;
+            }
+            // otherwise we're skipping ahead in the playlist
             break;
         case MPV_EVENT_SEEK:
             // syncing to user progress marker
@@ -137,6 +150,7 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
             // immediately after
             break;
         case MPV_EVENT_PROPERTY_CHANGE:
+            JF_DEBUG_PRINTF("\tproperty: %s\n", ((mpv_event_property *)event->data)->name);
             if (((mpv_event_property *)event->data)->format == MPV_FORMAT_NONE) break;
             if (strcmp("time-pos", ((mpv_event_property *)event->data)->name) == 0) {
                 // event valid, check if need to update the server
@@ -191,7 +205,7 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
                     break;
                 case JF_STATE_PLAYBACK_INIT:
                     // normal: open playback session and digest state transition
-                    jf_playback_update_playing(g_state.now_playing->playback_ticks);
+                    // jf_playback_update_playing(g_state.now_playing->playback_ticks);
                     g_state.state = JF_STATE_PLAYBACK;
                     break;
                 case JF_STATE_PLAYBACK:
@@ -205,9 +219,10 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
             }
             break;
         case MPV_EVENT_SHUTDOWN:
-            // tell jellyfin playback stopped
-            // NB we can't call mpv_get_property because mpv core has aborted!
-            if (g_state.now_playing != NULL) {
+            // in case we're aborting abnormally, we likely skipped the MPV_EVENT_END_FILE
+            // so we must tell from here to Jellyfin that playback stopped
+            if (g_state.state != JF_STATE_PLAYBACK_STOPPING && g_state.now_playing != NULL) {
+                // NB we can't call mpv_get_property because mpv core has aborted
                 jf_playback_update_stopped(g_state.now_playing->playback_ticks);
             }
             jf_playback_end();
@@ -454,6 +469,8 @@ int main(int argc, char *argv[])
             case JF_STATE_PLAYBACK:
             case JF_STATE_PLAYBACK_INIT:
             case JF_STATE_PLAYBACK_START_MARK:
+            case JF_STATE_PLAYLIST_SEEKING:
+            case JF_STATE_PLAYBACK_STOPPING:
                 jf_mpv_event_dispatch(mpv_wait_event(g_mpv_ctx, -1));
                 break;
             case JF_STATE_USER_QUIT:

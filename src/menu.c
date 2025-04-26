@@ -646,7 +646,7 @@ static bool jf_menu_ask_resume_yn(const jf_menu_item *item, const long long tick
     // and we obviously can't let the user resume playback or whatever
     // when we're in the middle of asking them a question
     // thus, with all the grace of an oil tanker, we kill and restart the whole mpv engine
-    if (g_state.state == JF_STATE_PLAYBACK) {
+    if (g_state.state == JF_STATE_PLAYBACK || g_state.state == JF_STATE_PLAYLIST_SEEKING) {
         mpv_terminate_destroy(g_mpv_ctx);
         g_mpv_ctx = NULL;
     }
@@ -661,7 +661,7 @@ static bool jf_menu_ask_resume_yn(const jf_menu_item *item, const long long tick
 
     answer = jf_menu_user_ask_ync(question);
 
-    if (g_state.state == JF_STATE_PLAYBACK) {
+    if (g_state.state == JF_STATE_PLAYBACK || g_state.state == JF_STATE_PLAYLIST_SEEKING) {
         g_mpv_ctx = jf_mpv_create();
         jf_mpv_terminal(g_mpv_ctx, true);
     }
@@ -725,7 +725,7 @@ bool jf_menu_ask_resume(jf_menu_item *item)
     j = 2;
     
     // see comment in jf_menu_ask_resume_yn
-    if (g_state.state == JF_STATE_PLAYBACK) {
+    if (g_state.state == JF_STATE_PLAYBACK || g_state.state == JF_STATE_PLAYLIST_SEEKING) {
         mpv_terminate_destroy(g_mpv_ctx);
         g_mpv_ctx = NULL;
     }
@@ -748,7 +748,7 @@ bool jf_menu_ask_resume(jf_menu_item *item)
     printf("%zu: Cancel\n", markers_count + 2);
     j = jf_menu_user_ask_selection(1, markers_count + 2);
 
-    if (g_state.state == JF_STATE_PLAYBACK) {
+    if (g_state.state == JF_STATE_PLAYBACK || g_state.state == JF_STATE_PLAYLIST_SEEKING) {
         g_mpv_ctx = jf_mpv_create();
         jf_mpv_terminal(g_mpv_ctx, true);
     }
@@ -962,6 +962,7 @@ void jf_menu_child_set_flag(const size_t n, const jf_flag_type flag_type, const 
                 break;
             }
         }
+        // FIXME: put sleep under if (s_played_status_requests[i] != NULL)
         // take a nap and try again
         // a precise notification mechanism would be hugely overkill
         // this subsystem is overengineered enough

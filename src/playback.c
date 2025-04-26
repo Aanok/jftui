@@ -359,7 +359,7 @@ bool jf_playback_play_item(jf_menu_item *item)
                 return false;
             }
             JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "title", item->name));
-            const char *loadfile[] = { "loadfile", request_url, NULL };
+            const char *loadfile[] = { "loadfile", request_url, NULL }; // TODO debug print
             mpv_command(g_mpv_ctx, loadfile); 
             jf_menu_item_free(g_state.now_playing);
             g_state.now_playing = item;
@@ -414,6 +414,7 @@ bool jf_playback_play_item(jf_menu_item *item)
                     return false;
                 }
                 jf_playback_play_video(item);
+                // FIXME: move outside of else block
                 jf_disk_playlist_replace_item(g_state.playlist_position, item);
                 jf_menu_item_free(g_state.now_playing);
                 g_state.now_playing = item;
@@ -509,9 +510,16 @@ bool jf_playback_next(void)
         g_state.playlist_position++;
     }
 
+    g_state.state = JF_STATE_PLAYLIST_SEEKING;
+
     item = jf_disk_playlist_get_item(g_state.playlist_position);
+    JF_DEBUG_PRINTF("Skipping to item PRE-evasion:\n");
+#ifdef JF_DEBUG
+    jf_menu_item_print(item);
+#endif
     more_playback = jf_playback_play_item(item);
 
+    JF_DEBUG_PRINTF("Skipping to item POST-evasion:\n");
 #ifdef JF_DEBUG
     jf_menu_item_print(item);
 #endif
@@ -535,12 +543,16 @@ bool jf_playback_previous(void)
         g_state.playlist_position--;
     }
 
+    g_state.state = JF_STATE_PLAYLIST_SEEKING;
+
     item = jf_disk_playlist_get_item(g_state.playlist_position);
+    JF_DEBUG_PRINTF("Skipping to item PRE-evasion:\n");
 #ifdef JF_DEBUG
     jf_menu_item_print(item);
 #endif
     more_playback = jf_playback_play_item(item);
 
+    JF_DEBUG_PRINTF("Skipping to item POST-evasion:\n");
 #ifdef JF_DEBUG
     jf_menu_item_print(item);
 #endif
