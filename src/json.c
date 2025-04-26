@@ -837,6 +837,15 @@ char *jf_json_generate_progress_post(const char *id, const long long ticks)
                 (const unsigned char *)"PositionTicks",
                 JF_STATIC_STRLEN("PositionTicks")) == yajl_gen_status_ok);
     assert(yajl_gen_integer(gen, ticks) == yajl_gen_status_ok);
+    // by default IsPaused is false and the server accrues playback progress
+    // even if we don't send any update
+    // that's very stupid because the progress marker can run away if you've
+    // lost contact with the server
+    // we do it plex-style and maintain full control
+    assert(yajl_gen_string(gen,
+                (const unsigned char *)"IsPaused",
+                JF_STATIC_STRLEN("IsPaused")) == yajl_gen_status_ok);
+    assert(yajl_gen_bool(gen, 1) == yajl_gen_status_ok);
     assert(yajl_gen_map_close(gen) == yajl_gen_status_ok);
     assert(yajl_gen_get_buf(gen,
                 (const unsigned char **)&json,
