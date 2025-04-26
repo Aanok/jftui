@@ -414,11 +414,10 @@ bool jf_playback_play_item(jf_menu_item *item)
                     return false;
                 }
                 jf_playback_play_video(item);
-                // FIXME: move outside of else block
-                jf_disk_playlist_replace_item(g_state.playlist_position, item);
-                jf_menu_item_free(g_state.now_playing);
-                g_state.now_playing = item;
             }
+            jf_disk_playlist_replace_item(g_state.playlist_position, item);
+            jf_menu_item_free(g_state.now_playing);
+            g_state.now_playing = item;
             break;
         default:
             fprintf(stderr,
