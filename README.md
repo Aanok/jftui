@@ -4,12 +4,10 @@ jftui is a minimalistic, lightweight C99 command line client for the open source
 The program must be built from source.
 
 For Arch Linux users, there is an AUR [package](https://aur.archlinux.org/packages/jftui/).
-For (Open)BSD-folk, you need to use `gmake` (GNU Make) instead of `make`.
 
 ## Dependencies
 - [libcurl](https://curl.haxx.se/libcurl/) (runtime)
 - [libmpv](https://mpv.io) >= 1.24 (runtime)
-- [libbsd](https://libbsd.freedesktop.org/wiki/) (linux only)
 - [YAJL](https://lloyd.github.io/yajl/) >= 2.0 (runtime)
 - [PEG](http://piumarta.com/software/peg/) (development only)
 

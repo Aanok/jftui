@@ -2,12 +2,6 @@ OFLAGS=-O2 -march=native
 WFLAGS=-Wall -Wpedantic -Wextra -Wconversion -Wstrict-prototypes -Werror=implicit-function-declaration -Werror=implicit-int -Werror=incompatible-pointer-types -Werror=int-conversion
 CFLAGS=`pkg-config --cflags libcurl yajl mpv`
 LFLAGS=`pkg-config --libs libcurl yajl mpv` -pthread
-
-ifeq ($(shell uname -s),Linux)
-	CFLAGS += `pkg-config --cflags libbsd-overlay`
-	LFLAGS += `pkg-config --libs libbsd-overlay`
-endif
-
 DFLAGS=-g -O1 -fno-omit-frame-pointer -fno-optimize-sibling-calls -fsanitize=address -fsanitize=undefined -DJF_DEBUG
 
 SOURCES=src/linenoise.c src/shared.c src/config.c src/disk.c src/json.c src/menu.c src/playback.c src/net.c src/mpv.c src/main.c
