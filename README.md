@@ -1,7 +1,5 @@
 jftui is a minimalistic, lightweight C99 command line client for the open source [Jellyfin](http://jellyfin.org/) media server.
 
-It is developed for the GNU/Linux OS only, although it may be possible to make it run on BSD's.
-
 # Installation
 The program must be built from source.
 
