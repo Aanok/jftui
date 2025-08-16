@@ -209,6 +209,7 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
                     g_state.state = JF_STATE_PLAYBACK;
                     break;
                 case JF_STATE_PLAYBACK:
+                case JF_STATE_PLAYBACK_STOPPING:
                     // nothing left to play: leave
                     jf_playback_end();
                     break;
