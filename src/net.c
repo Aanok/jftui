@@ -276,7 +276,7 @@ static void jf_net_init(void)
     assert(curl_global_init(CURL_GLOBAL_ALL | CURL_GLOBAL_SSL) == 0);
     // security bypass
     if (! g_options.ssl_verifyhost) {
-        curl_easy_setopt(s_handle, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_easy_setopt(s_handle, CURLOPT_SSL_VERIFYHOST, 0L);
     }
     // headers
     assert((s_headers = curl_slist_append(s_headers,
@@ -391,7 +391,7 @@ static CURL *jf_net_handle_init(void)
     JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_ACCEPT_ENCODING, ""));
 
     // follow redirects and keep POST method if using it
-    JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1));
+    JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1L));
     JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_POSTREDIR, CURL_REDIR_POST_ALL));
 
     return handle;
@@ -427,7 +427,7 @@ static void jf_net_handle_before_perform(CURL *handle,
     // HTTP method and headers
     switch (method) {
         case JF_HTTP_GET:
-            JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HTTPGET, 1));
+            JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HTTPGET, 1L));
             JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HTTPHEADER, s_headers));
             break;
         case JF_HTTP_POST:
@@ -460,7 +460,7 @@ static void jf_net_handle_before_perform(CURL *handle,
             break;
         case JF_REQUEST_CHECK_UPDATE:
             // we don't care for the redirect
-            JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 0));
+            JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 0L));
             JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HEADERFUNCTION, jf_check_update_header_callback));
             JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HEADERDATA, (void *)reply));
             // no break
@@ -490,7 +490,7 @@ static void jf_net_handle_after_perform(CURL *handle,
 
     if (request_type == JF_REQUEST_CHECK_UPDATE) {
         // reset handle to sane defaults
-        JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1));
+        JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1L));
         JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HEADERFUNCTION, NULL));
         JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HEADERDATA, NULL));
     }
