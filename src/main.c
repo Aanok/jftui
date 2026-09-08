@@ -82,7 +82,7 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
             // playlist controls
             if (((mpv_event_client_message *)event->data)->num_args > 0) {
                 if (strcmp(((mpv_event_client_message *)event->data)->args[0],
-                            "jftui-playlist-next") == 0) {   
+                            "jftui-playlist-next") == 0) {
                     jf_playback_update_stopped(g_state.now_playing->playback_ticks);
                     jf_playback_next();
                 } else if (strcmp(((mpv_event_client_message *)event->data)->args[0],
@@ -121,7 +121,7 @@ static inline void jf_mpv_event_dispatch(const mpv_event *event)
                         JF_SECS_TO_TICKS(playback_ticks) : g_state.now_playing->playback_ticks;
                 jf_playback_update_stopped(playback_ticks);
             }
-            
+
             // why did we get an END_FILE?
             if (((mpv_event_end_file *)event->data)->reason != MPV_END_FILE_REASON_EOF
                     || jf_playback_next() == false) {
@@ -332,7 +332,7 @@ int main(int argc, char *argv[])
         }
     }
     /////////////////////////
-    
+
 
     // SETUP DISK
     jf_disk_init();
@@ -382,7 +382,7 @@ int main(int argc, char *argv[])
         jf_exit(JF_EXIT_FAILURE);
     }
     ////////////////////////////////////
-    
+
 
     // UPDATE CHECK
     // it runs asynchronously while we do other stuff
@@ -415,7 +415,7 @@ int main(int argc, char *argv[])
         free(config_path);
     }
     /////////////////////
-    
+
 
     // SERVER NAME AND VERSION
     // this doubles up as a check for connectivity and correct login parameters
@@ -427,7 +427,7 @@ int main(int argc, char *argv[])
     jf_json_parse_system_info_response(reply->payload);
     jf_reply_free(reply);
     //////////////
-    
+
 
     // SETUP MENU
     jf_menu_init();

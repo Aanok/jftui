@@ -90,7 +90,7 @@ static void jf_mpv_init_cache_dirs(mpv_handle *mpv_ctx)
 mpv_handle *jf_mpv_create(void)
 {
     mpv_handle *mpv_ctx;
-    char *x_emby_token;
+    char *authorization_token;
 
     // init mpv core
     assert((mpv_ctx = mpv_create()) != NULL);
@@ -100,12 +100,19 @@ mpv_handle *jf_mpv_create(void)
     JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(mpv_ctx, "input-default-bindings", MPV_FORMAT_FLAG, &mpv_flag_yes));
     JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(mpv_ctx, "input-vo-keyboard", MPV_FORMAT_FLAG, &mpv_flag_yes));
     JF_MPV_ASSERT(JF_MPV_SET_OPTPROP(mpv_ctx, "input-terminal", MPV_FORMAT_FLAG, &mpv_flag_yes));
-    assert((x_emby_token = jf_concat(2, "x-emby-token: ", g_options.token)) != NULL);
-    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP_STRING(mpv_ctx, "http-header-fields", x_emby_token));
-    free(x_emby_token);
+    // NB since http-header-fields is a comma-separated list of strings,
+    // we have to rebuild the authorization token escaping the commas :)))))))))
+    authorization_token = jf_concat(15,
+        "Authorization: MediaBrowser Client=\"", g_options.client, "\"\\, ",
+        "Device=\"", g_options.device, "\"\\, ",
+        "DeviceId=\"", g_options.deviceid, "\"\\, ",
+        "Version=\"", g_options.version, "\"\\, ",
+        "Token=\"", g_options.token, "\""
+    );
+    JF_MPV_ASSERT(JF_MPV_SET_OPTPROP_STRING(mpv_ctx, "http-header-fields", authorization_token));
     JF_MPV_ASSERT(mpv_observe_property(mpv_ctx, 0, "time-pos", MPV_FORMAT_INT64));
     JF_MPV_ASSERT(mpv_observe_property(mpv_ctx, 0, "sid", MPV_FORMAT_INT64));
-    JF_MPV_ASSERT(mpv_observe_property(mpv_ctx, 0, "options/loop-playlist", MPV_FORMAT_NODE));  
+    JF_MPV_ASSERT(mpv_observe_property(mpv_ctx, 0, "options/loop-playlist", MPV_FORMAT_NODE));
 
     JF_MPV_ASSERT(mpv_initialize(mpv_ctx));
 
@@ -123,7 +130,7 @@ mpv_handle *jf_mpv_create(void)
 // cache dirs may be set by user in profile
 #if MPV_CLIENT_API_VERSION >= MPV_MAKE_VERSION(2,1)
     jf_mpv_init_cache_dirs(mpv_ctx);
-#endif  
+#endif
 
     return mpv_ctx;
 }

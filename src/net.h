@@ -47,7 +47,7 @@ typedef enum __attribute__((__packed__)) jf_reply_state {
     JF_REPLY_ERROR_HTTP_401 = -2,
     JF_REPLY_ERROR_MALLOC = -3,
     JF_REPLY_ERROR_CONCAT = -4,
-    JF_REPLY_ERROR_X_EMBY_AUTH = -5,
+    JF_REPLY_ERROR_AUTH = -5,
     JF_REPLY_ERROR_BAD_LOCATION = -7,
     JF_REPLY_ERROR_EXIT_REQUEST = -8,
     JF_REPLY_ERROR_NETWORK = -9,

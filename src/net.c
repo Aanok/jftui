@@ -147,8 +147,8 @@ char *jf_reply_error_string(const jf_reply *r)
             return "memory allocation failed";
         case JF_REPLY_ERROR_CONCAT:
             return "string concatenation failed";
-        case JF_REPLY_ERROR_X_EMBY_AUTH:
-            return "appending x-emby-authorization failed";
+        case JF_REPLY_ERROR_AUTH:
+            return "appending authorization token failed";
         case JF_REPLY_ERROR_BAD_LOCATION:
             return "\"location\" header from redirect was missing or not formatted as expected";
         case JF_REPLY_ERROR_EXIT_REQUEST:
@@ -220,11 +220,11 @@ size_t jf_thread_buffer_callback(char *payload, size_t size, size_t nmemb, void 
         if (s_tb.state == JF_THREAD_BUFFER_STATE_PARSER_ERROR) {
             r->payload = strndup(s_tb.data, s_tb.used);
             r->state = JF_REPLY_ERROR_PARSER;
-            return 0;   
+            return 0;
         }
         // send data
-        chunk_size = real_size - written_data < JF_THREAD_BUFFER_DATA_SIZE - 1 
-            ? real_size - written_data 
+        chunk_size = real_size - written_data < JF_THREAD_BUFFER_DATA_SIZE - 1
+            ? real_size - written_data
             : JF_THREAD_BUFFER_DATA_SIZE - 2;
         memcpy(s_tb.data, payload + written_data, chunk_size);
         written_data += chunk_size;
@@ -260,6 +260,7 @@ void jf_thread_buffer_clear_error(void)
 static void jf_net_init(void)
 {
     char *tmp;
+    char *authorization_token;
     pthread_t sax_parser_thread;
     int i;
 
@@ -270,7 +271,7 @@ static void jf_net_init(void)
     }
 
     // TODO check libcurl version
-    
+
     // global config stuff
     assert(curl_global_init(CURL_GLOBAL_ALL | CURL_GLOBAL_SSL) == 0);
     // security bypass
@@ -280,22 +281,26 @@ static void jf_net_init(void)
     // headers
     assert((s_headers = curl_slist_append(s_headers,
                     "accept: application/json; charset=utf-8")) != NULL);
-    if (g_state.state == JF_STATE_STARTING_LOGIN
-            || g_state.state == JF_STATE_STARTING_FULL_CONFIG) {
-        // the only thing we will do is a POST for login
-        tmp = jf_concat(9,
-                "x-emby-authorization: Mediabrowser Client=\"", g_options.client,
-                "\", Device=\"", g_options.device, 
-                "\", DeviceId=\"", g_options.deviceid,
-                "\", Version=\"", g_options.version,
-                "\"");
-        assert((s_headers_POST = curl_slist_append(s_headers, tmp)) != NULL);
+    tmp = jf_concat(12,
+        "Authorization: MediaBrowser Client=\"", g_options.client, "\", ",
+        "Device=\"", g_options.device, "\", ",
+        "DeviceId=\"", g_options.deviceid, "\", ",
+        "Version=\"", g_options.version, "\""
+    );
+    // if we're logging in we obviously won't add the token to the header
+    if (g_state.state != JF_STATE_STARTING_LOGIN
+            && g_state.state != JF_STATE_STARTING_FULL_CONFIG) {
+        // but on normal operation, we do need to add the token to the header
+        authorization_token = jf_concat(4,
+            tmp,
+            ", Token=\"", g_options.token, "\""
+        );
+        free(tmp);
     } else {
-        // main behaviour
-        tmp = jf_concat(2, "x-mediabrowser-token: ", g_options.token);
-        assert((s_headers = curl_slist_append(s_headers, tmp)) != NULL);
+        authorization_token = tmp;
     }
-    free(tmp);
+    assert((s_headers = curl_slist_append(s_headers, authorization_token)) != NULL);
+    free(authorization_token);
     assert((s_headers_POST = curl_slist_append(s_headers_POST == NULL ?
                     s_headers : s_headers_POST,
                     "content-type: application/json; charset=utf-8")) != NULL);
@@ -316,7 +321,7 @@ static void jf_net_init(void)
         JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_PSL));
     }
 #endif
-    JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_LOCKFUNC, jf_net_share_lock)); 
+    JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_LOCKFUNC, jf_net_share_lock));
     JF_CURL_SHARE_ASSERT(curl_share_setopt(s_curl_sh, CURLSHOPT_UNLOCKFUNC, jf_net_share_unlock));
 
     s_handle = jf_net_handle_init();
@@ -438,7 +443,7 @@ static void jf_net_handle_before_perform(CURL *handle,
             JF_CURL_ASSERT(curl_easy_setopt(handle, CURLOPT_HTTPHEADER, s_headers));
             break;
     }
-    
+
     // request
     switch (request_type) {
         case JF_REQUEST_IN_MEMORY:
@@ -507,7 +512,7 @@ static void jf_net_handle_after_perform(CURL *handle,
 
     // check for http error
     JF_CURL_ASSERT(curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, &status_code));
-    switch (status_code) { 
+    switch (status_code) {
         case 200:
         case 204:
             reply->state = JF_REPLY_SUCCESS;
@@ -543,7 +548,7 @@ jf_reply *jf_net_request(const char *resource,
 {
     jf_reply *reply;
     jf_async_request *a_r;
-    
+
     if (request_type == JF_REQUEST_EXIT) {
         reply = jf_reply_new();
         reply->state = JF_REPLY_ERROR_EXIT_REQUEST;
@@ -801,7 +806,7 @@ char *jf_net_urlencode(const char *url)
     return retval;
 }
 
-    
+
 bool jf_net_url_is_valid(const char *url)
 {
 #if JF_CURL_VERSION_GE(7,62)
@@ -812,7 +817,7 @@ bool jf_net_url_is_valid(const char *url)
         curl_url_cleanup(curlu);
         return false;
     }
-    
+
     if (curl_url_set(curlu, CURLUPART_URL, url, 0) == CURLUE_OK) {
         curl_url_cleanup(curlu);
         return true;
