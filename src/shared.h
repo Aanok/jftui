@@ -63,7 +63,7 @@ do {                                \
 
 
 ////////// CONSTANTS //////////
-#define JF_VERSION "0.7.5"
+#define JF_VERSION "0.7.6"
 #define JF_THREAD_BUFFER_DATA_SIZE (CURL_MAX_WRITE_SIZE +1)
 #define JF_ID_LENGTH 32
 ///////////////////////////////
@@ -316,7 +316,7 @@ jf_synced_queue *jf_synced_queue_new(const size_t slot_count);
 // Parameters:
 //  - q: pointer to the jf_synced_queue to deallocate (if NULL, no-op).
 // CAN'T FAIL.
-void jf_synced_queue_free(jf_synced_queue *q); 
+void jf_synced_queue_free(jf_synced_queue *q);
 
 void jf_synced_queue_enqueue(jf_synced_queue *q, const void *payload);
 
