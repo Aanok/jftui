@@ -584,7 +584,7 @@ void jf_playback_shuffle_playlist(void)
 
     for (i = 0; i < item_count_no_curr - 1; i++) {
         if (i == pos) continue;
-        if ((j = (size_t)random() % (item_count_no_curr - i - 1) + i + 1) >= pos) {
+        if ((j = (size_t)arc4random() % (item_count_no_curr - i - 1) + i + 1) >= pos) {
             j++;
         }
         jf_disk_playlist_swap_items(i + 1, j + 1);
