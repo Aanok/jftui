@@ -288,6 +288,8 @@ static int jf_sax_items_string(void *ctx, const unsigned char *string, size_t st
                 context->current_item_type = JF_ITEM_TYPE_MUSIC_VIDEO;
             } else if (JF_SAX_STRING_IS("AudioBook")) {
                 context->current_item_type = JF_ITEM_TYPE_AUDIOBOOK;
+            } else if (JF_SAX_STRING_IS("Book")) {
+                context->current_item_type = JF_ITEM_TYPE_BOOK;
             }
             context->parser_state = JF_SAX_IN_ITEM_MAP;
             break;
@@ -449,12 +451,20 @@ static inline void jf_sax_current_item_make_and_print_name(jf_sax_context *conte
                     context->parsed_content->buf + context->name_start,
                     context->name_len);
             break;
+        case JF_ITEM_TYPE_BOOK:
+            JF_SAX_PRINT_LEADER("B");
+            jf_growing_buffer_append(context->current_item_display_name,
+                    context->parsed_content->buf + context->name_start,
+                    context->name_len);
+            break;
         default:
             fprintf(stderr, "Warning: jf_sax_items_end_map: unexpected jf_item_type. This is a bug.\n");
     }
 
     jf_growing_buffer_append(context->current_item_display_name, "", 1);
-    printf("%s\n", context->current_item_display_name->buf);
+    printf("%s%s\n",
+        context->current_item_display_name->buf,
+        JF_ITEM_TYPE_IS_SUPPORTED(context->current_item_type) ? "" : " (not supported)");
 }
 
 
@@ -547,7 +557,7 @@ void *jf_json_sax_thread(void *arg)
             // we've still more to go
             context.tb->state = JF_THREAD_BUFFER_STATE_AWAITING_DATA;
         }
-        
+
         context.tb->used = 0;
         pthread_cond_signal(&context.tb->cv_has_data);
     }
@@ -559,7 +569,7 @@ void *jf_json_sax_thread(void *arg)
 static char *jf_json_get_stream_identifier(yajl_val stream)
 {
     yajl_val v;
-    
+
     // best case
     v = yajl_tree_get(stream, ((const char *[]){ "DisplayTitle", NULL }), yajl_t_string);
     if (v && v->type == yajl_t_string) return v->u.string;
@@ -586,7 +596,7 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
 
     if (YAJL_GET_ARRAY(media_sources)->len > 1) {
         buf = jf_growing_buffer_new(512);
-        
+
         jf_growing_buffer_sprintf(buf, 0, "\nThere are multiple versions available of %s.\n", item->name);
         jf_growing_buffer_sprintf(buf, 0, "Please choose one:\n");
         for (i = 0; i < YAJL_GET_ARRAY(media_sources)->len; i++) {
@@ -803,7 +813,7 @@ void jf_json_parse_system_info_response(const char *payload)
                     ((const char *[]){ "ServerName", NULL }),
                     yajl_t_string))) != NULL);
     g_state.server_name = strdup(tmp);
-    
+
     assert((tmp = YAJL_GET_STRING(jf_yajl_tree_get_assert(parsed,
                     ((const char *[]){ "Version", NULL }),
                     yajl_t_string))) != NULL);
@@ -816,7 +826,7 @@ void jf_json_parse_system_info_response(const char *payload)
     patch = strtoul(tmp, &endptr, 10);
     assert(endptr != NULL && *endptr == '\0');
     g_state.server_version = JF_SERVER_VERSION_MAKE(major, minor, patch);
-    
+
     yajl_tree_free(parsed);
 }
 

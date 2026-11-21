@@ -112,6 +112,7 @@ typedef enum __attribute__((__packed__)) jf_item_type {
     //      available) while the remaining 29 characters contain as much of
     //      the JF DisplayTitle as possible.
     JF_ITEM_TYPE_VIDEO_SUB = 7,
+    JF_ITEM_TYPE_BOOK = 8,
 
     // Folders
     JF_ITEM_TYPE_COLLECTION = 20,
@@ -144,6 +145,7 @@ typedef enum __attribute__((__packed__)) jf_item_type {
 #define JF_ITEM_TYPE_IS_PERSISTENT(t)           ((t) < 0)
 #define JF_ITEM_TYPE_IS_FOLDER(t)               ((t) < 0 || (t) >= 20)
 #define JF_ITEM_TYPE_HAS_DYNAMIC_CHILDREN(t)    ((t) < -1 || (t) >= 20)
+#define JF_ITEM_TYPE_IS_SUPPORTED(t)            ((t) != JF_ITEM_TYPE_BOOK)
 
 
 const char *jf_item_type_get_name(const jf_item_type type);

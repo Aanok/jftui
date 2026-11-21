@@ -457,7 +457,7 @@ static char *jf_menu_item_get_remote_url(const jf_menu_item *item)
                 g_options.userid);
             break;
         case JF_ITEM_TYPE_MENU_NEXT_UP:
-            jf_growing_buffer_sprintf(url_buffer, 0, 
+            jf_growing_buffer_sprintf(url_buffer, 0,
                 "/shows/nextup?userid=%s&nextupdatecutoff=%s",
                 g_options.userid,
                 jf_make_date_one_year_ago());
@@ -503,7 +503,7 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
         case JF_ITEM_TYPE_AUDIOBOOK:
         case JF_ITEM_TYPE_VIDEO_SOURCE:
         case JF_ITEM_TYPE_VIDEO_SUB:
-            if (g_options.try_local_files 
+            if (g_options.try_local_files
                     && item->path
                     && jf_disk_is_file_accessible(item->path)) {
                 char *url = strdup(item->path);
@@ -665,7 +665,7 @@ static bool jf_menu_ask_resume_yn(const jf_menu_item *item, const long long tick
         g_mpv_ctx = jf_mpv_create();
         jf_mpv_terminal(g_mpv_ctx, true);
     }
-    
+
     switch (answer) {
         case JF_YNC_YES:
             JF_MPV_ASSERT(mpv_set_property_string(g_mpv_ctx, "start", timestamp));
@@ -693,7 +693,7 @@ bool jf_menu_ask_resume(jf_menu_item *item)
     jf_growing_buffer buf;
 
     assert(item != NULL);
-    
+
     JF_DEBUG_PRINTF("jf_menu_ask_resume: state=%d\n", g_state.state);
 
     if (item->children_count == 0) {
@@ -718,7 +718,7 @@ bool jf_menu_ask_resume(jf_menu_item *item)
             i++;
         }
         ticks += item->children[i]->playback_ticks;
-        
+
         return jf_menu_ask_resume_yn(item, ticks);
     }
     assert((timestamps = malloc(markers_count * sizeof(char *))) != NULL);
@@ -840,9 +840,16 @@ bool jf_menu_child_dispatch(size_t n)
         case JF_ITEM_TYPE_SERIES:
             jf_menu_stack_push(child);
             break;
+        case JF_ITEM_TYPE_BOOK:
+            fprintf(stderr,
+                "Error: cannot open %s: %s items not supported by jftui\n",
+                child->name,
+                jf_item_type_get_name(child->type));
+            jf_menu_item_free(child);
+            break;
         default:
             fprintf(stderr,
-                    "Error: jf_menu_child_dispatch unsupported menu item type (%d) for item %zu. This is a bug.\n",
+                    "Error: jf_menu_child_dispatch unexpected menu item type (%d) for item %zu. This is a bug.\n",
                     child->type,
                     n);
             jf_menu_item_free(child);
@@ -969,7 +976,7 @@ void jf_menu_child_set_flag(const size_t n, const jf_flag_type flag_type, const 
         nanosleep(&s_25msec, NULL);
         // don't bother dealing with early wakeup
     }
-            
+
     s_played_status_requests[i] = jf_net_request(url,
             JF_REQUEST_ASYNC_IN_MEMORY,
             flag_status == true ? JF_HTTP_POST : JF_HTTP_DELETE,
@@ -983,7 +990,7 @@ void jf_menu_child_set_flag(const size_t n, const jf_flag_type flag_type, const 
 void jf_menu_item_set_flag_detach(const jf_menu_item *item, const jf_flag_type flag_type, const bool flag_status)
 {
     char *url = jf_menu_set_flag_request_get_url(item, flag_type);
-    
+
     jf_net_request(url,
             JF_REQUEST_ASYNC_DETACH,
             flag_status == true ? JF_HTTP_POST : JF_HTTP_DELETE,
@@ -1199,7 +1206,7 @@ void jf_menu_init(void)
 
     // all linenoise setup
     linenoiseHistorySetMaxLen(16);
-    
+
     // update server name
     s_root_menu->name = g_state.server_name;
 

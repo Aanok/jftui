@@ -43,6 +43,8 @@ const char *jf_item_type_get_name(const jf_item_type type)
             return "Video_Source";
         case JF_ITEM_TYPE_VIDEO_SUB:
             return "Video_Sub";
+        case JF_ITEM_TYPE_BOOK:
+            return "eBook";
         case JF_ITEM_TYPE_COLLECTION:
             return "Collection_Generic";
         case JF_ITEM_TYPE_COLLECTION_MUSIC:
