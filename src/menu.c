@@ -379,10 +379,29 @@ static char *jf_menu_item_get_remote_url(const jf_menu_item *item)
                 g_options.userid,
                 s_filters_query);
             break;
+        case JF_ITEM_TYPE_SEASON:
+            if ((parent = jf_menu_stack_peek(0)) != NULL && parent->type != JF_ITEM_TYPE_SEARCH_RESULT) {
+                // normal navigation
+                jf_growing_buffer_sprintf(url_buffer, 0,
+                    "/shows/%s/episodes?seasonid=%s&userid=%s",
+                    parent->id,
+                    item->id,
+                    g_options.userid,
+                    s_filters_query,
+                    g_options.try_local_files ? "&fields=path" : "");
+            } else {
+                // fallback when the parent is invalid or useless
+                jf_growing_buffer_sprintf(url_buffer, 0,
+                    "/users/%s/items?sortby=sortname&parentid=%s%s%s",
+                    g_options.userid,
+                    item->id,
+                    s_filters_query,
+                    g_options.try_local_files ? "&fields=path" : "");
+            }
+            break;
         case JF_ITEM_TYPE_COLLECTION:
         case JF_ITEM_TYPE_FOLDER:
         case JF_ITEM_TYPE_ALBUM:
-        case JF_ITEM_TYPE_SEASON:
         case JF_ITEM_TYPE_COLLECTION_MUSIC_VIDEOS:
             jf_growing_buffer_sprintf(url_buffer, 0,
                 "/users/%s/items?sortby=isfolder,parentindexnumber,indexnumber,productionyear,sortname&parentid=%s%s%s",

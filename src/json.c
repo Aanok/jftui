@@ -413,6 +413,12 @@ static inline void jf_sax_current_item_make_and_print_name(jf_sax_context *conte
             if (context->tb->promiscuous_context) {
                 JF_SAX_TRY_APPEND_NAME("", series, " - ");
                 JF_SAX_TRY_APPEND_NAME("S", parent_index, "");
+            } else if (!strncmp("0",
+                context->parsed_content->buf + context->parent_index_start,
+                context->parent_index_len)) {
+                // for specials, we want to print "S0" even when not promiscuous
+                // i.e. when in a proper season in which the special is included
+                JF_SAX_TRY_APPEND_NAME("S", parent_index, "");
             }
             JF_SAX_TRY_APPEND_NAME("E", index, " ");
             jf_growing_buffer_append(context->current_item_display_name,
