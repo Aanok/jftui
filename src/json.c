@@ -600,7 +600,8 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
                     yajl_t_array);
             for (j = 0; j < YAJL_GET_ARRAY(media_streams)->len; j++) {
                 assert((stream = YAJL_GET_ARRAY(media_streams)->values[j]) != NULL);
-                jf_growing_buffer_sprintf(buf, 0, " %s",
+                jf_growing_buffer_sprintf(buf, 0,
+                    j == 0 ? "%s" : " %s",
                     jf_json_get_stream_identifier(stream));
             }
             jf_growing_buffer_sprintf(buf, 0, ")\n");
