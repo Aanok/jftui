@@ -555,6 +555,25 @@ void *jf_json_sax_thread(void *arg)
 
 
 ////////// VIDEO PARSING //////////
+static char *jf_json_get_stream_identifier(yajl_val stream)
+{
+    yajl_val v;
+    
+    // best case
+    v = yajl_tree_get(stream, ((const char *[]){ "DisplayTitle", NULL }), yajl_t_string);
+    if (v && v->type == yajl_t_string) return v->u.string;
+
+    // fallback
+    v = yajl_tree_get(stream, ((const char *[]){ "Title", NULL }), yajl_t_string);
+    if (v && v->type == yajl_t_string) return v->u.string;
+
+    // at this point we could consider building a string ourselves
+    // but chances are there is no metadata available to do it meaningfully
+    // or the server would have done it in the previous two fields already
+    return "missing stream metadata";
+}
+
+
 static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl_val media_sources)
 {
     jf_menu_item **subs = NULL;
@@ -582,9 +601,7 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
             for (j = 0; j < YAJL_GET_ARRAY(media_streams)->len; j++) {
                 assert((stream = YAJL_GET_ARRAY(media_streams)->values[j]) != NULL);
                 jf_growing_buffer_sprintf(buf, 0, " %s",
-                        YAJL_GET_STRING(jf_yajl_tree_get_assert(stream,
-                                ((const char *[]){ "DisplayTitle", NULL }),
-                                yajl_t_string)));
+                    jf_json_get_stream_identifier(stream));
             }
             jf_growing_buffer_sprintf(buf, 0, ")\n");
         }
@@ -640,7 +657,7 @@ static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl
                 strncpy(subs[subs_count - 1]->id, tmp, 3);
             }
             strncpy(subs[subs_count - 1]->id + 3,
-                    YAJL_GET_STRING(jf_yajl_tree_get_assert(stream, ((const char *[]){ "DisplayTitle", NULL }), yajl_t_string)),
+                    jf_json_get_stream_identifier(stream),
                     JF_ID_LENGTH - 3);
             subs[subs_count - 1]->id[JF_ID_LENGTH] = '\0';
         }
