@@ -58,6 +58,7 @@ static inline yajl_val __jf_yajl_tree_get_assert(const int lineno,
         const char **path,
         yajl_type type);
 
+static char *jf_json_get_stream_identifier(yajl_val stream);
 static jf_menu_item *jf_json_parse_versions(const jf_menu_item *item, const yajl_val media_sources);
 //////////////////////////////////////
 
