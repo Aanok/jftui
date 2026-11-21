@@ -220,6 +220,7 @@ static bool jf_menu_item_type_allows_filter(const jf_item_type type,
         case JF_ITEM_TYPE_MUSIC_VIDEO:
         case JF_ITEM_TYPE_VIDEO_SOURCE:
         case JF_ITEM_TYPE_VIDEO_SUB:
+        case JF_ITEM_TYPE_BOOK:
         case JF_ITEM_TYPE_MENU_ROOT:
         case JF_ITEM_TYPE_MENU_CONTINUE:
         case JF_ITEM_TYPE_MENU_NEXT_UP:
@@ -500,6 +501,7 @@ static char *jf_menu_item_get_remote_url(const jf_menu_item *item)
             jf_growing_buffer_sprintf(url_buffer, 0, "/users/%s/views", g_options.userid);
             break;
         case JF_ITEM_TYPE_NONE:
+        case JF_ITEM_TYPE_BOOK:
         case JF_ITEM_TYPE_USER_VIEW:
         case JF_ITEM_TYPE_MENU_ROOT:
             fprintf(stderr,
@@ -534,6 +536,7 @@ char *jf_menu_item_get_request_url(const jf_menu_item *item)
         case JF_ITEM_TYPE_EPISODE:
         case JF_ITEM_TYPE_MOVIE:
         case JF_ITEM_TYPE_MUSIC_VIDEO:
+        case JF_ITEM_TYPE_BOOK:
         case JF_ITEM_TYPE_COLLECTION:
         case JF_ITEM_TYPE_COLLECTION_MUSIC:
         case JF_ITEM_TYPE_COLLECTION_SERIES:
